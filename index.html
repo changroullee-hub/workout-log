@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#101216" />
+<title>운동 일지</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#101216; --bg2:#171a20; --card:#1c2027; --card2:#22272f; --line:#2a2f38;
+    --ink:#eef1f5; --ink-soft:#9aa3b0; --ink-faint:#646c78;
+    --accent:#ff7a18; --accent-soft:#ffb068; --accent-dim:#3a2a1a;
+    --green:#37d399; --red:#ff5a5f; --blue:#5aa9ff; --purple:#b48bff; --yellow:#ffd166;
+    --r:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",Roboto,"Noto Sans KR",sans-serif;
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{max-width:560px;margin:0 auto;padding:0 0 92px;min-height:100vh}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink)}
+  ::placeholder{color:var(--ink-faint)}
+
+  header{position:sticky;top:0;z-index:30;background:rgba(16,18,22,.86);
+    backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+    padding:13px 16px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:17px}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .who{font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:8px}
+  .who button{color:var(--ink-soft);font-size:12px;border:1px solid var(--line);padding:5px 10px;border-radius:8px}
+
+  /* auth */
+  .auth-wrap{padding:64px 22px;display:flex;flex-direction:column;gap:18px;max-width:380px;margin:0 auto}
+  .auth-wrap h1{font-size:26px;margin:0 0 4px;letter-spacing:-.03em}
+  .auth-wrap p{margin:0;color:var(--ink-soft);font-size:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12px;color:var(--ink-soft);font-weight:600}
+  .field input{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 14px;outline:none}
+  .field input:focus{border-color:var(--accent)}
+  .btn-primary{background:var(--accent);color:#1a1206;font-weight:800;border-radius:11px;padding:14px;font-size:15px;letter-spacing:-.01em}
+  .btn-primary:active{transform:translateY(1px)}
+  .btn-ghost{color:var(--ink-soft);font-size:13px;text-align:center;padding:6px}
+  .auth-msg{font-size:13px;text-align:center;min-height:18px}
+
+  .pad{padding:16px}
+  .tab{display:none}
+  .tab.active{display:block;animation:fade .22s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px}
+  .card + .card{margin-top:12px}
+  .row{display:flex;gap:9px;align-items:center}
+  .grow{flex:1}
+  .sect-h{display:flex;align-items:center;justify-content:space-between;margin:2px 0 11px}
+  .sect-h h2{font-size:14px;margin:0;letter-spacing:-.01em;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+
+  .head-input{display:flex;gap:9px;margin-bottom:12px}
+  .head-input input{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none}
+  .head-input input:focus{border-color:var(--accent)}
+  #wTitle{flex:1}
+  #wDate{width:148px}
+
+  .exercise{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px;margin-bottom:11px}
+  .ex-top{display:flex;gap:8px;margin-bottom:10px}
+  .ex-name{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;font-weight:700}
+  .ex-name:focus{border-color:var(--accent)}
+  .ex-part{width:104px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 6px;outline:none;font-size:14px;text-align:center}
+  .ex-part:focus{border-color:var(--accent)}
+  .ex-del{width:36px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:20px;border-radius:10px}
+  .ex-del:active{background:var(--card2)}
+
+  .set-head{display:grid;grid-template-columns:28px 1fr 1fr 34px;gap:8px;font-size:11px;color:var(--ink-faint);padding:0 2px 4px;font-weight:700}
+  .set{display:grid;grid-template-columns:28px 1fr 1fr 34px;gap:8px;align-items:center;margin-bottom:7px}
+  .set-no{font-size:13px;color:var(--ink-faint);text-align:center;font-weight:700}
+  .set input{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 8px;outline:none;text-align:center;width:100%}
+  .set input:focus{border-color:var(--accent)}
+  .set-del{color:var(--ink-faint);font-size:17px;text-align:center}
+  .add-set{width:100%;border:1px dashed var(--line);border-radius:10px;padding:9px;color:var(--accent-soft);font-weight:700;font-size:13px;margin-top:3px}
+  .add-set:active{background:var(--accent-dim)}
+  .add-ex{width:100%;border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:13px;color:var(--ink);font-weight:700;margin-bottom:12px}
+  .add-ex:active{background:var(--card2)}
+
+  textarea#wMemo{width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;outline:none;resize:vertical;min-height:60px;margin-bottom:12px}
+  textarea#wMemo:focus{border-color:var(--accent)}
+
+  .live-bar{display:flex;gap:8px;margin-bottom:12px}
+  .live{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center}
+  .live b{display:block;font-size:19px;letter-spacing:-.02em;color:var(--accent-soft)}
+  .live span{font-size:11px;color:var(--ink-faint)}
+
+  .save-btn{width:100%;background:var(--accent);color:#1a1206;font-weight:800;border-radius:var(--r);padding:15px;font-size:16px;letter-spacing:-.01em}
+  .save-btn:active{transform:translateY(1px)}
+  .save-btn:disabled{opacity:.6}
+
+  /* list */
+  .log{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:11px;cursor:pointer;transition:border-color .15s}
+  .log:active{border-color:var(--accent)}
+  .log-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  .log-date{font-size:11px;color:var(--ink-faint);font-weight:700;letter-spacing:.03em}
+  .log-title{font-size:16px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+  .log-meta{display:flex;gap:14px;font-size:12px;color:var(--ink-soft);padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:8px}
+  .log-meta b{color:var(--ink);font-size:14px}
+  .log-ex{font-size:13px;color:var(--ink-soft);line-height:1.7}
+  .log-actions{display:flex;gap:8px;margin-top:10px}
+  .log-actions button{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px;font-size:13px;font-weight:700;color:var(--ink-soft)}
+  .log-actions .ed:active{background:var(--accent-dim);color:var(--accent-soft);border-color:var(--accent)}
+  .log-actions .dl:active{background:#3a1a1c;color:var(--red);border-color:var(--red)}
+  .empty{text-align:center;color:var(--ink-faint);padding:60px 20px;font-size:14px}
+  .empty .big{font-size:42px;margin-bottom:10px}
+
+  /* timer */
+  .tdisplay{font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-.02em;text-align:center;font-size:60px;padding:14px 0 6px;color:var(--ink)}
+  .tdisplay small{font-size:26px;color:var(--ink-faint)}
+  .tbtns{display:flex;gap:9px;margin-bottom:8px}
+  .tbtns button{flex:1;border-radius:12px;padding:14px;font-weight:800;font-size:15px;border:1px solid var(--line)}
+  .tb-go{background:var(--green);color:#062017}
+  .tb-stop{background:var(--accent);color:#1a1206}
+  .tb-reset{background:var(--card);color:var(--ink-soft)}
+  .tb-lap{background:var(--card);color:var(--blue);border-color:var(--blue)}
+  .laps{margin-top:10px;max-height:200px;overflow:auto}
+  .lap{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+  .lap span:first-child{color:var(--ink-faint)}
+  .preset-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .preset{flex:1;min-width:60px;border:1px solid var(--line);background:var(--card);border-radius:11px;padding:12px 4px;font-weight:800;font-size:15px}
+  .preset:active,.preset.on{background:var(--accent-dim);color:var(--accent-soft);border-color:var(--accent)}
+  .rest-display{text-align:center;font-size:54px;font-weight:800;font-variant-numeric:tabular-nums;padding:6px 0 10px}
+  .rest-display.go{color:var(--accent)}
+
+  /* analysis */
+  .seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px;overflow:auto}
+  .seg button{flex:1;white-space:nowrap;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-soft)}
+  .seg button.on{background:var(--accent);color:#1a1206}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .stat b{display:block;font-size:22px;letter-spacing:-.02em;color:var(--accent-soft)}
+  .stat span{font-size:12px;color:var(--ink-faint)}
+  .chart-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;margin-bottom:12px}
+  .chart-card h3{font-size:14px;margin:0 0 3px;letter-spacing:-.01em}
+  .chart-card .sub{font-size:12px;color:var(--ink-faint);margin:0 0 12px}
+  .chart-card svg{width:100%;display:block;overflow:visible}
+  .pick{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;margin-bottom:12px;font-weight:700}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--ink-soft);margin-top:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .pr-row{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .pr-row:last-child{border-bottom:none}
+  .pr-name{font-weight:700}
+  .pr-name span{display:block;font-size:11px;color:var(--ink-faint);font-weight:400;margin-top:1px}
+  .pr-val{text-align:right;font-variant-numeric:tabular-nums}
+  .pr-val b{font-size:17px;color:var(--accent-soft)}
+  .pr-val span{display:block;font-size:11px;color:var(--ink-faint)}
+
+  /* bodypart bars */
+  .bpwk{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .bpwk select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;outline:none;font-weight:700}
+  .bp-row{margin-bottom:13px}
+  .bp-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:13px}
+  .bp-top b{font-weight:800}
+  .bp-top .v{color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .bp-top .v b{color:var(--accent-soft);font-size:15px}
+  .bp-track{position:relative;height:12px;background:var(--bg2);border-radius:7px;overflow:hidden}
+  .bp-band{position:absolute;top:0;bottom:0;background:rgba(55,211,153,.14);border-left:1px solid rgba(55,211,153,.4);border-right:1px solid rgba(55,211,153,.4)}
+  .bp-fill{position:absolute;top:0;bottom:0;left:0;border-radius:7px;background:linear-gradient(90deg,var(--accent),var(--accent-soft))}
+  .bp-note{font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6}
+
+  /* toast / modal */
+  .toast{position:fixed;bottom:104px;left:50%;transform:translateX(-50%);background:#000;border:1px solid var(--line);
+    color:var(--ink);padding:11px 18px;border-radius:11px;font-size:13px;z-index:80;opacity:0;transition:opacity .25s;pointer-events:none;max-width:88%;text-align:center}
+  .toast.show{opacity:1}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;margin:30px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* bottom nav */
+  nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:40;
+    background:rgba(16,18,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+    display:grid;grid-template-columns:repeat(4,1fr);padding:7px 6px calc(7px + env(safe-area-inset-bottom))}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink-faint);font-size:10.5px;font-weight:700}
+  nav button.on{color:var(--accent)}
+  nav button svg{width:23px;height:23px}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="authScreen">
+  <div class="auth-wrap">
+    <div>
+      <div class="brand" style="font-size:22px;margin-bottom:14px"><span class="dot"></span> 운동 일지</div>
+      <h1>기록하고, 분석하고.</h1>
+      <p>모든 세트가 서버에 저장돼 폰·컴퓨터 어디서든 이어집니다.</p>
+    </div>
+    <div class="field"><label>이메일</label><input id="email" type="email" autocomplete="username" placeholder="you@email.com" /></div>
+    <div class="field"><label>비밀번호</label><input id="pw" type="password" autocomplete="current-password" placeholder="6자 이상" /></div>
+    <button class="btn-primary" id="loginBtn" onclick="signIn()">로그인</button>
+    <button class="btn-ghost" id="signupBtn" onclick="signUp()">처음이세요? 회원가입</button>
+    <div class="auth-msg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" style="display:none">
+  <header>
+    <div class="brand"><span class="dot"></span> 운동 일지</div>
+    <div class="who"><span id="userEmail"></span><button onclick="signOut()">로그아웃</button></div>
+  </header>
+
+  <!-- ---- TAB: 기록하기 ---- -->
+  <section class="tab pad" id="tab-log">
+    <div class="head-input">
+      <input id="wTitle" placeholder="오늘 운동 (예: 가슴/삼두)" />
+      <input id="wDate" type="date" />
+    </div>
+    <div class="live-bar">
+      <div class="live"><b id="lvVol">0</b><span>볼륨 (kg)</span></div>
+      <div class="live"><b id="lvSet">0</b><span>세트</span></div>
+      <div class="live"><b id="lvEx">0</b><span>종목</span></div>
+    </div>
+    <div id="exList"></div>
+    <button class="add-ex" onclick="addExercise()">＋ 운동 추가</button>
+    <textarea id="wMemo" placeholder="메모 (컨디션, 통증, 특이사항…)"></textarea>
+    <button class="save-btn" id="saveBtn" onclick="saveWorkout()">기록 저장</button>
+  </section>
+
+  <!-- ---- TAB: 기록 ---- -->
+  <section class="tab pad" id="tab-list">
+    <div class="sect-h"><h2>기록</h2></div>
+    <div class="spin" id="listSpin" style="display:none"></div>
+    <div id="listBody"></div>
+  </section>
+
+  <!-- ---- TAB: 타이머 ---- -->
+  <section class="tab pad" id="tab-timer">
+    <div class="card">
+      <div class="sect-h"><h2>스톱워치</h2></div>
+      <div class="tdisplay" id="swDisplay">00:00<small>.00</small></div>
+      <div class="tbtns">
+        <button class="tb-go" id="swToggle" onclick="swToggle()">시작</button>
+        <button class="tb-lap" onclick="swLap()">랩</button>
+        <button class="tb-reset" onclick="swReset()">리셋</button>
+      </div>
+      <div class="laps" id="swLaps"></div>
+    </div>
+
+    <div class="card">
+      <div class="sect-h"><h2>휴식 타이머</h2></div>
+      <div class="preset-row">
+        <button class="preset" onclick="restSet(60,this)">60</button>
+        <button class="preset" onclick="restSet(90,this)">90</button>
+        <button class="preset" onclick="restSet(120,this)">120</button>
+        <button class="preset" onclick="restSet(180,this)">180</button>
+      </div>
+      <div class="rest-display" id="restDisplay">0:00</div>
+      <div class="tbtns">
+        <button class="tb-go" id="restToggle" onclick="restToggle()">시작</button>
+        <button class="tb-reset" onclick="restReset()">리셋</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- TAB: 분석 ---- -->
+  <section class="tab pad" id="tab-stat">
+    <div class="seg" id="statSeg">
+      <button class="on" onclick="statView('overview',this)">파동</button>
+      <button onclick="statView('exercise',this)">종목별</button>
+      <button onclick="statView('bodypart',this)">부위별</button>
+      <button onclick="statView('pr',this)">PR</button>
+    </div>
+    <div class="spin" id="statSpin" style="display:none"></div>
+    <div id="statBody"></div>
+  </section>
+
+  <!-- ---- BOTTOM NAV ---- -->
+  <nav>
+    <button class="on" id="nav-log" onclick="switchTab('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>기록하기</button>
+    <button id="nav-list" onclick="switchTab('list')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>기록</button>
+    <button id="nav-timer" onclick="switchTab('timer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
+    <button id="nav-stat" onclick="switchTab('stat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 15l5-5 4 4 7-8" stroke-linecap="round" stroke-linejoin="round"/></svg>분석</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG — 본인 Supabase 값 (감정평가 도구와 같은 프로젝트)
+   URL은 채워뒀고, anon key만 붙여넣으면 됩니다.
+   Supabase 대시보드 > Project Settings > API > Project URL / anon public
+============================================================ */
+const SUPABASE_URL = "https://ohlssimixnkmfuuecxfr.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9obHNzaW1peG5rbWZ1dWVjeGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDE4MTcsImV4cCI6MjA5ODM3NzgxN30.32NgV61IGMArOPKEra05bTXAOaADVh9GC64q8hyFXJ0";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+const PARTS = ["가슴","등","어깨","하체","이두","삼두","복근/코어","전완","기타"];
+const PART_COLOR = {"가슴":"#ff7a18","등":"#5aa9ff","어깨":"#ffd166","하체":"#37d399","이두":"#b48bff","삼두":"#ff5a5f","복근/코어":"#4dd6c7","전완":"#c98a5a","기타":"#7a828e"};
+
+let editingId = null;
+
+/* ---------- helpers ---------- */
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtNum(n){return Math.round(n).toLocaleString('ko-KR');}
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* 종목명 → 부위 자동 감지 */
+function detectPart(name){
+  const n=(name||"").toLowerCase().replace(/\s/g,"");
+  const has=(...ks)=>ks.some(k=>n.includes(k));
+  if(has("벤치","체스트","플라이","펙덱","푸시업","푸쉬업","pushup","인클라인","디클라인","chest","딥스가슴")) return "가슴";
+  if(has("데드","풀업","턱걸이","랫풀","풀다운","로우","row","친업","풀오버","티바","lat")) return "등";
+  if(has("하체","스쿼트","스콰트","런지","레그","카프","힙쓰러","힙스러","힙쓰","rdl","루마니안","핵","lunge","squat","leg")) return "하체";
+  if(has("숄더","오버헤드","ohp","밀리터리","레터럴","사레레","측면레이즈","프론트레이즈","리어","후면","페이스풀","슈러그","어깨","shoulder","아놀드")) return "어깨";
+  if(has("이두","바이셉","컬","해머","프리처","curl","바이","스컬")) return n.includes("스컬")?"삼두":"이두";
+  if(has("삼두","트라이","푸시다운","푸쉬다운","킥백","익스텐션","딥스","tricep","pushdown","스컬크러셔")) return "삼두";
+  if(has("복근","크런치","플랭크","레그레이즈","행잉","코어","plank","crunch","ab","싯업","윗몸")) return "복근/코어";
+  if(has("전완","리스트","wrist","forearm","악력")) return "전완";
+  return "기타";
+}
+
+/* Epley 추정 1RM */
+function e1rm(kg,reps){return reps>0?Math.round(kg*(1+reps/30)):0;}
+
+/* ISO 주차 키 */
+function weekKey(dateStr){
+  const d=new Date(dateStr+"T00:00:00");
+  const t=new Date(d); t.setHours(0,0,0,0);
+  t.setDate(t.getDate()+3-((t.getDay()+6)%7));
+  const week1=new Date(t.getFullYear(),0,4);
+  const wn=1+Math.round(((t-week1)/86400000-3+((week1.getDay()+6)%7))/7);
+  return `${t.getFullYear()}-W${String(wn).padStart(2,'0')}`;
+}
+function weekLabel(key){
+  const [y,w]=key.split("-W");
+  const simple=new Date(+y,0,1+(+w-1)*7);
+  const dow=simple.getDay();
+  const mon=new Date(simple); mon.setDate(simple.getDate()-((dow+6)%7));
+  return `${mon.getMonth()+1}/${mon.getDate()} 주`;
+}
+
+/* ============================================================
+   AUTH
+============================================================ */
+async function signUp(){
+  const email=$("#email").value.trim(), pw=$("#pw").value;
+  if(!email||pw.length<6){authMsg("이메일과 6자 이상 비밀번호를 입력하세요",true);return;}
+  setAuthBusy(true);
+  const {error}=await sb.auth.signUp({email,password:pw});
+  setAuthBusy(false);
+  if(error){authMsg(error.message,true);return;}
+  authMsg("가입 완료. 그대로 로그인하세요.",false);
+}
+async function signIn(){
+  const email=$("#email").value.trim(), pw=$("#pw").value;
+  if(!email||!pw){authMsg("이메일과 비밀번호를 입력하세요",true);return;}
+  setAuthBusy(true);
+  const {error}=await sb.auth.signInWithPassword({email,password:pw});
+  setAuthBusy(false);
+  if(error){authMsg("로그인 실패: "+error.message,true);return;}
+}
+async function signOut(){await sb.auth.signOut();location.reload();}
+function authMsg(m,err){const e=$("#authMsg");e.textContent=m;e.style.color=err?"var(--red)":"var(--green)";}
+function setAuthBusy(b){$("#loginBtn").disabled=b;$("#signupBtn").disabled=b;$("#loginBtn").textContent=b?"…":"로그인";}
+
+sb.auth.onAuthStateChange((_e,session)=>{
+  if(session){
+    $("#authScreen").style.display="none";
+    $("#app").style.display="block";
+    $("#userEmail").textContent=session.user.email;
+    if($("#exList").children.length===0){$("#wDate").value=todayStr();addExercise();}
+  }else{
+    $("#authScreen").style.display="block";
+    $("#app").style.display="none";
+  }
+});
+
+/* ============================================================
+   기록하기 — 입력
+============================================================ */
+function addExercise(name="",part="",sets=null){
+  const el=document.createElement("div");
+  el.className="exercise";
+  const opts=PARTS.map(p=>`<option value="${p}"${p===part?" selected":""}>${p}</option>`).join("");
+  el.innerHTML=`
+    <div class="ex-top">
+      <input class="ex-name" placeholder="종목명 (예: 벤치프레스)" value="${escapeHtml(name)}" oninput="onNameInput(this)" />
+      <select class="ex-part">${opts}</select>
+      <button class="ex-del" onclick="this.closest('.exercise').remove();recalc()">×</button>
+    </div>
+    <div class="set-head"><div></div><div>무게 kg</div><div>횟수</div><div></div></div>
+    <div class="sets"></div>
+    <button class="add-set" onclick="addSet(this.closest('.exercise'))">＋ 세트</button>`;
+  $("#exList").appendChild(el);
+  const setsBox=el.querySelector(".sets");
+  if(sets&&sets.length){sets.forEach(s=>addSet(el,s.kg,s.reps));}
+  else{addSet(el);}
+  if(!part&&name){el.querySelector(".ex-part").value=detectPart(name);}
+}
+function onNameInput(input){
+  const ex=input.closest(".exercise");
+  const sel=ex.querySelector(".ex-part");
+  if(!sel.dataset.touched){sel.value=detectPart(input.value);}
+  recalc();
+}
+function addSet(ex,kg="",reps=""){
+  const box=ex.querySelector(".sets");
+  const n=box.children.length+1;
+  const last=box.lastElementChild;
+  if(kg===""&&last){kg=last.querySelector(".kg").value;}
+  const row=document.createElement("div");
+  row.className="set";
+  row.innerHTML=`
+    <div class="set-no">${n}</div>
+    <input class="kg" type="number" inputmode="decimal" placeholder="0" value="${kg}" oninput="recalc()" />
+    <input class="reps" type="number" inputmode="numeric" placeholder="0" value="${reps}" oninput="recalc()" />
+    <button class="set-del" onclick="delSet(this)">×</button>`;
+  box.appendChild(row);
+  recalc();
+}
+function delSet(btn){
+  const box=btn.closest(".sets");
+  btn.closest(".set").remove();
+  [...box.children].forEach((r,i)=>r.querySelector(".set-no").textContent=i+1);
+  recalc();
+}
+$$(".ex-part");
+document.addEventListener("change",e=>{if(e.target.classList.contains("ex-part"))e.target.dataset.touched="1";});
+
+function collectData(){
+  const exercises=[];
+  $$("#exList .exercise").forEach(ex=>{
+    const name=ex.querySelector(".ex-name").value.trim();
+    const part=ex.querySelector(".ex-part").value;
+    const sets=[];
+    ex.querySelectorAll(".set").forEach(s=>{
+      const kg=parseFloat(s.querySelector(".kg").value)||0;
+      const reps=parseInt(s.querySelector(".reps").value)||0;
+      if(kg>0||reps>0)sets.push({kg,reps});
+    });
+    if(name||sets.length)exercises.push({name,part,sets});
+  });
+  return exercises;
+}
+function summarize(exs){
+  let vol=0,sets=0;
+  exs.forEach(e=>e.sets.forEach(s=>{vol+=(s.kg||0)*(s.reps||0);sets++;}));
+  return {vol,sets,ex:exs.length};
+}
+function recalc(){
+  const sm=summarize(collectData());
+  $("#lvVol").textContent=fmtNum(sm.vol);
+  $("#lvSet").textContent=sm.sets;
+  $("#lvEx").textContent=sm.ex;
+}
+
+async function saveWorkout(){
+  const exercises=collectData();
+  if(exercises.length===0){toast("운동을 하나 이상 입력하세요");return;}
+  const sm=summarize(exercises);
+  const payload={
+    workout_date:$("#wDate").value||todayStr(),
+    title:$("#wTitle").value.trim()||"운동",
+    total_volume:sm.vol, total_sets:sm.sets,
+    data:{exercises, memo:$("#wMemo").value.trim()}
+  };
+  const btn=$("#saveBtn"); btn.textContent="저장 중…"; btn.disabled=true;
+  let res;
+  if(editingId){res=await sb.from("workouts").update(payload).eq("id",editingId);}
+  else{res=await sb.from("workouts").insert(payload);}
+  btn.disabled=false; btn.textContent="기록 저장";
+  if(res.error){toast("저장 실패: "+res.error.message);return;}
+  toast(editingId?"수정 완료 ✓":"저장 완료 ✓");
+  resetForm(); loadList(); switchTab("list");
+}
+function resetForm(){
+  editingId=null;
+  $("#wTitle").value=""; $("#wMemo").value=""; $("#wDate").value=todayStr();
+  $("#exList").innerHTML=""; addExercise();
+  $("#saveBtn").textContent="기록 저장";
+}
+
+/* ============================================================
+   기록 목록
+============================================================ */
+let CACHE=[];
+async function loadList(){
+  $("#listSpin").style.display="block"; $("#listBody").innerHTML="";
+  const {data,error}=await sb.from("workouts").select("*").order("workout_date",{ascending:false}).order("created_at",{ascending:false});
+  $("#listSpin").style.display="none";
+  if(error){$("#listBody").innerHTML=`<div class="empty">불러오기 실패<br><small>${error.message}</small></div>`;return;}
+  CACHE=data||[];
+  if(CACHE.length===0){$("#listBody").innerHTML=`<div class="empty"><div class="big">🏋️</div>아직 기록이 없습니다.<br>첫 운동을 기록해보세요.</div>`;return;}
+  $("#listBody").innerHTML=CACHE.map(renderLog).join("");
+}
+function renderLog(r){
+  const exs=(r.data&&r.data.exercises)||[];
+  const exLine=exs.map(e=>{
+    const best=e.sets&&e.sets.length?` <span style="color:var(--ink-faint)">${Math.max(...e.sets.map(s=>s.kg||0))}kg×${e.sets.length}set</span>`:"";
+    const tag=e.part?`<span style="color:${PART_COLOR[e.part]||'#7a828e'}">●</span> `:"";
+    return `${tag}${escapeHtml(e.name||"운동")}${best}`;
+  }).join("<br>");
+  const memo=r.data&&r.data.memo?`<div class="log-ex" style="color:var(--ink-faint);font-style:italic;margin-top:6px">📝 ${escapeHtml(r.data.memo)}</div>`:"";
+  return `<div class="log">
+    <div class="log-h" onclick="toggleLog(${r.id})">
+      <div><div class="log-date">${r.workout_date||""}</div><div class="log-title">${escapeHtml(r.title||"운동")}</div></div>
+    </div>
+    <div class="log-meta">
+      <span><b>${fmtNum(r.total_volume||0)}</b> kg</span>
+      <span><b>${r.total_sets||0}</b> 세트</span>
+      <span><b>${exs.length}</b> 종목</span>
+    </div>
+    <div class="log-ex">${exLine}</div>${memo}
+    <div class="log-actions">
+      <button class="ed" onclick="editLog(${r.id})">수정</button>
+      <button class="dl" onclick="deleteLog(${r.id})">삭제</button>
+    </div>
+  </div>`;
+}
+function toggleLog(){/* 카드 전체 펼침은 항상 보이게 두었으므로 no-op */}
+function editLog(id){
+  const r=CACHE.find(x=>x.id===id); if(!r)return;
+  editingId=id;
+  $("#wTitle").value=r.title||""; $("#wDate").value=r.workout_date||todayStr();
+  $("#wMemo").value=(r.data&&r.data.memo)||"";
+  $("#exList").innerHTML="";
+  const exs=(r.data&&r.data.exercises)||[];
+  if(exs.length){exs.forEach(e=>addExercise(e.name,e.part||detectPart(e.name),e.sets));}else{addExercise();}
+  $("#saveBtn").textContent="수정 저장";
+  switchTab("log"); recalc();
+  window.scrollTo(0,0);
+}
+async function deleteLog(id){
+  if(!confirm("이 기록을 삭제할까요?"))return;
+  const {error}=await sb.from("workouts").delete().eq("id",id);
+  if(error){toast("삭제 실패: "+error.message);return;}
+  toast("삭제 완료"); loadList();
+}
+
+/* ============================================================
+   분석 — 파동분석 + 부위별 볼륨
+============================================================ */
+let STAT_DATA=[];
+async function loadStat(){
+  $("#statSpin").style.display="block"; $("#statBody").innerHTML="";
+  const {data,error}=await sb.from("workouts").select("*").order("workout_date",{ascending:true});
+  $("#statSpin").style.display="none";
+  if(error){$("#statBody").innerHTML=`<div class="empty">불러오기 실패</div>`;return;}
+  STAT_DATA=(data||[]).map(r=>({
+    date:r.workout_date, vol:r.total_volume||0, sets:r.total_sets||0,
+    exercises:(r.data&&r.data.exercises)||[]
+  }));
+  statRender();
+}
+let CUR_VIEW="overview";
+function statView(v,btn){CUR_VIEW=v;$$("#statSeg button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");statRender();}
+function statRender(){
+  if(STAT_DATA.length===0){$("#statBody").innerHTML=`<div class="empty"><div class="big">📈</div>분석할 기록이 아직 없어요.<br>운동을 기록하면 여기에 파동이 그려집니다.</div>`;return;}
+  if(CUR_VIEW==="overview")renderOverview();
+  else if(CUR_VIEW==="exercise")renderExercise();
+  else if(CUR_VIEW==="bodypart")renderBodypart();
+  else if(CUR_VIEW==="pr")renderPR();
+}
+
+/* ---- SVG 라인 차트 ---- */
+function lineChart(points,{w=500,h=170,color="var(--accent)",fill=true,labels=null,unit=""}={}){
+  if(points.length===0)return"";
+  const pl=34,pr=10,pt=12,pb=22;
+  const xs=points.map((_,i)=>points.length>1?pl+(w-pl-pr)*i/(points.length-1):pl+(w-pl-pr)/2);
+  const vmax=Math.max(...points.map(p=>p.v)),vmin=Math.min(...points.map(p=>p.v),0);
+  const span=(vmax-vmin)||1;
+  const yOf=v=>pt+(h-pt-pb)*(1-(v-vmin)/span);
+  const ys=points.map(p=>yOf(p.v));
+  const path=xs.map((x,i)=>`${i?'L':'M'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
+  const area=`M${xs[0].toFixed(1)} ${(h-pb).toFixed(1)} `+xs.map((x,i)=>`L${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ")+` L${xs[xs.length-1].toFixed(1)} ${(h-pb).toFixed(1)} Z`;
+  const grid=[0,.5,1].map(f=>{const y=pt+(h-pt-pb)*f;const v=vmax-(vmax-vmin)*f;return `<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${pl-5}" y="${y+3}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${fmtNum(v)}</text>`;}).join("");
+  const dots=xs.map((x,i)=>`<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>`).join("");
+  const last=points[points.length-1];
+  const lbl=`<text x="${xs[xs.length-1]}" y="${ys[ys.length-1]-9}" text-anchor="end" font-size="11" font-weight="800" fill="${color}">${fmtNum(last.v)}${unit}</text>`;
+  let xlabels="";
+  if(labels){const step=Math.ceil(points.length/5);xlabels=points.map((p,i)=>(i%step===0||i===points.length-1)?`<text x="${xs[i]}" y="${h-6}" text-anchor="middle" font-size="9" fill="var(--ink-faint)">${labels[i]}</text>`:"").join("");}
+  return `<svg viewBox="0 0 ${w} ${h}">
+    ${grid}
+    ${fill?`<path d="${area}" fill="${color}" opacity="0.10"/>`:""}
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${lbl}${xlabels}</svg>`;
+}
+
+/* ---- 파동(개요) ---- */
+function renderOverview(){
+  const sessions=STAT_DATA.length;
+  const totalVol=STAT_DATA.reduce((a,r)=>a+r.vol,0);
+  const totalSets=STAT_DATA.reduce((a,r)=>a+r.sets,0);
+  const last30=STAT_DATA.filter(r=>{const d=new Date(r.date);return (Date.now()-d)/864e5<=30;});
+
+  // 세션별 볼륨 추이 (최근 14)
+  const recent=STAT_DATA.slice(-14);
+  const volPts=recent.map(r=>({v:r.vol}));
+  const volLabels=recent.map(r=>{const d=new Date(r.date+"T00:00:00");return `${d.getMonth()+1}/${d.getDate()}`;});
+
+  // 주간 볼륨 사이클 (파동)
+  const wkMap={};
+  STAT_DATA.forEach(r=>{const k=weekKey(r.date);wkMap[k]=(wkMap[k]||0)+r.vol;});
+  const wkKeys=Object.keys(wkMap).sort().slice(-10);
+  const wkPts=wkKeys.map(k=>({v:wkMap[k]}));
+  const wkLabels=wkKeys.map(weekLabel);
+
+  $("#statBody").innerHTML=`
+    <div class="stat-grid">
+      <div class="stat"><b>${sessions}</b><span>총 운동 일수</span></div>
+      <div class="stat"><b>${last30.length}</b><span>최근 30일 세션</span></div>
+      <div class="stat"><b>${fmtNum(totalVol)}</b><span>누적 볼륨 (kg)</span></div>
+      <div class="stat"><b>${fmtNum(totalSets)}</b><span>누적 세트</span></div>
+    </div>
+    <div class="chart-card">
+      <h3>세션별 볼륨 추이</h3><p class="sub">최근 ${recent.length}회 · 한 칸 = 운동 1회</p>
+      ${lineChart(volPts,{color:"var(--accent)",labels:volLabels,unit:""})}
+    </div>
+    <div class="chart-card">
+      <h3>주간 볼륨 사이클</h3><p class="sub">강도의 오르내림 = 파동. 쌓기·디로드 흐름 확인</p>
+      ${lineChart(wkPts,{color:"var(--blue)",labels:wkLabels})}
+    </div>`;
+}
+
+/* ---- 종목별 ---- */
+function renderExercise(){
+  const names=[...new Set(STAT_DATA.flatMap(r=>r.exercises.map(e=>e.name).filter(Boolean)))];
+  if(names.length===0){$("#statBody").innerHTML=`<div class="empty">종목 데이터가 없어요.</div>`;return;}
+  const sel=window._exSel&&names.includes(window._exSel)?window._exSel:names[0];
+  const opts=names.map(n=>`<option value="${escapeHtml(n)}"${n===sel?" selected":""}>${escapeHtml(n)}</option>`).join("");
+
+  // 선택 종목의 세션별 최고중량 / 추정1RM
+  const series=[];
+  STAT_DATA.forEach(r=>{
+    const ex=r.exercises.find(e=>e.name===sel);
+    if(ex&&ex.sets&&ex.sets.length){
+      const maxKg=Math.max(...ex.sets.map(s=>s.kg||0));
+      const best1rm=Math.max(...ex.sets.map(s=>e1rm(s.kg||0,s.reps||0)));
+      const vol=ex.sets.reduce((a,s)=>a+(s.kg||0)*(s.reps||0),0);
+      series.push({date:r.date,maxKg,best1rm,vol});
+    }
+  });
+  const labels=series.map(s=>{const d=new Date(s.date+"T00:00:00");return `${d.getMonth()+1}/${d.getDate()}`;});
+  const kgPts=series.map(s=>({v:s.maxKg}));
+  const rmPts=series.map(s=>({v:s.best1rm}));
+
+  const prKg=series.length?Math.max(...series.map(s=>s.maxKg)):0;
+  const prRm=series.length?Math.max(...series.map(s=>s.best1rm)):0;
+  const first=series[0],last=series[series.length-1];
+  const delta=first&&last?last.maxKg-first.maxKg:0;
+
+  $("#statBody").innerHTML=`
+    <select class="pick" onchange="window._exSel=this.value;renderExercise()">${opts}</select>
+    <div class="stat-grid">
+      <div class="stat"><b>${prKg}kg</b><span>최고 중량 (PR)</span></div>
+      <div class="stat"><b>${prRm}kg</b><span>추정 1RM 최고</span></div>
+      <div class="stat"><b>${series.length}</b><span>수행 횟수</span></div>
+      <div class="stat"><b>${delta>=0?'+':''}${delta}kg</b><span>첫 기록 대비</span></div>
+    </div>
+    <div class="chart-card">
+      <h3>최고 중량 파동</h3><p class="sub">점진적 과부하 — 우상향이면 성장 중</p>
+      ${series.length?lineChart(kgPts,{color:"var(--accent)",labels,unit:"kg"}):'<div class="empty">기록 없음</div>'}
+    </div>
+    <div class="chart-card">
+      <h3>추정 1RM (Epley)</h3><p class="sub">무게×횟수 보정 — 실제 근력 추세</p>
+      ${series.length?lineChart(rmPts,{color:"var(--purple)",labels,unit:"kg"}):'<div class="empty">기록 없음</div>'}
+    </div>`;
+}
+
+/* ---- 부위별: 주당 부위별 볼륨/세트 ---- */
+function renderBodypart(){
+  // 주차별 → 부위별 {sets, vol}
+  const wk={};
+  STAT_DATA.forEach(r=>{
+    const k=weekKey(r.date);
+    wk[k]=wk[k]||{};
+    r.exercises.forEach(e=>{
+      const part=e.part||detectPart(e.name);
+      const sets=(e.sets||[]).filter(s=>(s.kg||0)>0||(s.reps||0)>0).length;
+      const vol=(e.sets||[]).reduce((a,s)=>a+(s.kg||0)*(s.reps||0),0);
+      wk[k][part]=wk[k][part]||{sets:0,vol:0};
+      wk[k][part].sets+=sets; wk[k][part].vol+=vol;
+    });
+  });
+  const keys=Object.keys(wk).sort();
+  if(keys.length===0){$("#statBody").innerHTML=`<div class="empty">부위 데이터가 없어요.</div>`;return;}
+  const selKey=window._wkSel&&wk[window._wkSel]?window._wkSel:keys[keys.length-1];
+  const wkOpts=keys.slice().reverse().map(k=>`<option value="${k}"${k===selKey?" selected":""}>${weekLabel(k)} (${k.split("-W")[1]}주차)</option>`).join("");
+
+  const cur=wk[selKey];
+  const ordered=PARTS.filter(p=>cur[p]).concat(Object.keys(cur).filter(p=>!PARTS.includes(p)));
+  const maxSets=Math.max(10,...ordered.map(p=>cur[p].sets));
+
+  // 참고 밴드: 주당 10~20세트 (자극 일반 범위)
+  const bandL=10/maxSets*100, bandR=Math.min(20,maxSets)/maxSets*100;
+
+  const totSets=ordered.reduce((a,p)=>a+cur[p].sets,0);
+  const totVol=ordered.reduce((a,p)=>a+cur[p].vol,0);
+
+  const bars=ordered.map(p=>{
+    const d=cur[p]; const pct=Math.min(100,d.sets/maxSets*100);
+    const col=PART_COLOR[p]||"#7a828e";
+    return `<div class="bp-row">
+      <div class="bp-top">
+        <b style="color:${col}">${p}</b>
+        <span class="v"><b>${d.sets}</b> 세트 · ${fmtNum(d.vol)} kg</span>
+      </div>
+      <div class="bp-track">
+        <div class="bp-band" style="left:${bandL}%;right:${100-bandR}%"></div>
+        <div class="bp-fill" style="width:${pct}%;background:linear-gradient(90deg,${col}99,${col})"></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  $("#statBody").innerHTML=`
+    <div class="bpwk">
+      <div style="font-size:13px;color:var(--ink-soft);font-weight:700">주차 선택</div>
+      <select onchange="window._wkSel=this.value;renderBodypart()">${wkOpts}</select>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><b>${totSets}</b><span>이번 주 총 세트</span></div>
+      <div class="stat"><b>${fmtNum(totVol)}</b><span>이번 주 총 볼륨(kg)</span></div>
+    </div>
+    <div class="chart-card">
+      <h3>주당 부위별 볼륨</h3>
+      <p class="sub">막대 = 주당 세트 수 · 초록 띠 = 10~20세트 참고 구간</p>
+      ${bars}
+      <div class="bp-note">※ 주당 10~20세트는 일반적으로 인용되는 자극 범위(참고용)일 뿐, 정답은 본인의 회복·반응에 따라 달라집니다. 부위 자동 분류가 틀렸으면 기록하기에서 부위를 직접 바꿔주세요.</div>
+    </div>`;
+}
+
+/* ---- PR ---- */
+function renderPR(){
+  const map={};
+  STAT_DATA.forEach(r=>{
+    r.exercises.forEach(e=>{
+      if(!e.name)return;
+      (e.sets||[]).forEach(s=>{
+        const kg=s.kg||0,reps=s.reps||0;if(kg<=0)return;
+        const rm=e1rm(kg,reps);
+        if(!map[e.name]||kg>map[e.name].kg){map[e.name]={kg,reps,rm,date:r.date,part:e.part||detectPart(e.name)};}
+      });
+    });
+  });
+  const names=Object.keys(map).sort((a,b)=>map[b].rm-map[a].rm);
+  if(names.length===0){$("#statBody").innerHTML=`<div class="empty">PR 데이터가 없어요.</div>`;return;}
+  const rows=names.map(n=>{
+    const m=map[n];const col=PART_COLOR[m.part]||"#7a828e";
+    return `<div class="pr-row">
+      <div class="pr-name"><span style="color:${col}">● ${m.part}</span>${escapeHtml(n)}<span>${m.date}</span></div>
+      <div class="pr-val"><b>${m.kg}kg × ${m.reps}</b><span>추정 1RM ${m.rm}kg</span></div>
+    </div>`;
+  }).join("");
+  $("#statBody").innerHTML=`<div class="chart-card"><h3>종목별 최고 기록</h3><p class="sub">자동 추적 · 추정 1RM 순</p>${rows}</div>`;
+}
+
+/* ============================================================
+   타이머 — 스톱워치
+============================================================ */
+let swT=0,swRun=false,swRaf=null,swLapsArr=[],swLast=0;
+function swTick(){
+  const now=performance.now();
+  swT+=now-swLast; swLast=now;
+  renderSw(); swRaf=requestAnimationFrame(swTick);
+}
+function renderSw(){
+  const ms=swT,total=Math.floor(ms/10);
+  const cs=total%100,s=Math.floor(total/100)%60,m=Math.floor(total/6000);
+  $("#swDisplay").innerHTML=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}<small>.${String(cs).padStart(2,'0')}</small>`;
+}
+function swToggle(){
+  const b=$("#swToggle");
+  if(swRun){cancelAnimationFrame(swRaf);swRun=false;b.textContent="계속";b.className="tb-go";}
+  else{swLast=performance.now();swRaf=requestAnimationFrame(swTick);swRun=true;b.textContent="정지";b.className="tb-stop";}
+}
+function swLap(){
+  if(swT===0)return;
+  const prev=swLapsArr.length?swLapsArr[swLapsArr.length-1].total:0;
+  swLapsArr.push({total:swT,split:swT-prev});
+  renderLaps();
+}
+function renderLaps(){
+  $("#swLaps").innerHTML=swLapsArr.map((l,i)=>{
+    const f=ms=>{const t=Math.floor(ms/10);return `${String(Math.floor(t/6000)).padStart(2,'0')}:${String(Math.floor(t/100)%60).padStart(2,'0')}.${String(t%100).padStart(2,'0')}`;};
+    return `<div class="lap"><span>랩 ${i+1} · +${f(l.split)}</span><span>${f(l.total)}</span></div>`;
+  }).reverse().join("");
+}
+function swReset(){cancelAnimationFrame(swRaf);swRun=false;swT=0;swLapsArr=[];renderSw();renderLaps();const b=$("#swToggle");b.textContent="시작";b.className="tb-go";}
+
+/* ---- 휴식 타이머 ---- */
+let restTotal=90,restLeft=90,restRun=false,restInt=null;
+function restSet(sec,btn){restTotal=sec;restLeft=sec;restRun=false;clearInterval(restInt);$$(".preset").forEach(p=>p.classList.remove("on"));btn.classList.add("on");renderRest();$("#restToggle").textContent="시작";$("#restToggle").className="tb-go";$("#restDisplay").classList.remove("go");}
+function renderRest(){const m=Math.floor(restLeft/60),s=restLeft%60;$("#restDisplay").textContent=`${m}:${String(s).padStart(2,'0')}`;}
+function restToggle(){
+  const b=$("#restToggle");
+  if(restRun){clearInterval(restInt);restRun=false;b.textContent="계속";b.className="tb-go";$("#restDisplay").classList.remove("go");}
+  else{
+    if(restLeft<=0)restLeft=restTotal;
+    restRun=true;b.textContent="정지";b.className="tb-stop";$("#restDisplay").classList.add("go");
+    restInt=setInterval(()=>{
+      restLeft--;renderRest();
+      if(restLeft<=0){clearInterval(restInt);restRun=false;restDone();b.textContent="시작";b.className="tb-go";$("#restDisplay").classList.remove("go");}
+    },1000);
+  }
+}
+function restReset(){clearInterval(restInt);restRun=false;restLeft=restTotal;renderRest();$("#restToggle").textContent="시작";$("#restToggle").className="tb-go";$("#restDisplay").classList.remove("go");}
+function restDone(){
+  toast("휴식 끝! 다음 세트 🔥");
+  try{const ac=new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.frequency.value=880;g.gain.setValueAtTime(.001,ac.currentTime);g.gain.exponentialRampToValueAtTime(.3,ac.currentTime+.02);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.5);o.start();o.stop(ac.currentTime+.5);}catch(e){}
+  if(navigator.vibrate)navigator.vibrate([200,100,200]);
+}
+
+/* ============================================================
+   탭 전환
+============================================================ */
+function switchTab(name){
+  $$(".tab").forEach(t=>t.classList.remove("active"));
+  $(`#tab-${name}`).classList.add("active");
+  $$("nav button").forEach(b=>b.classList.remove("on"));
+  $(`#nav-${name}`).classList.add("on");
+  window.scrollTo(0,0);
+  if(name==="list")loadList();
+  if(name==="stat")loadStat();
+}
+
+/* 초기 진입: 기록하기 탭 */
+$("#tab-log").classList.add("active");
+</script>
+</body>
+</html>
