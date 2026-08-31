@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (운동 일지)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01b  ·  feat: 일정 하루/주간/달력 모드 + 시간편집 + 알림
+     build: 2026-09-01c  ·  feat: 가계부(직접입력+카드알림 AI OCR) + 일정 3모드 + 알림
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -244,10 +244,48 @@
 
   nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:40;
     background:rgba(16,18,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    display:grid;grid-template-columns:repeat(6,1fr);padding:7px 2px calc(7px + env(safe-area-inset-bottom))}
-  nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink-faint);font-size:9.5px;font-weight:700}
+    display:grid;grid-template-columns:repeat(7,1fr);padding:7px 1px calc(7px + env(safe-area-inset-bottom))}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--ink-faint);font-size:9px;font-weight:700}
   nav button.on{color:var(--accent)}
-  nav button svg{width:21px;height:21px}
+  nav button svg{width:19px;height:19px}
+  .exp-add{display:flex;gap:8px;margin-bottom:8px}
+  .exp-amt{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none;font-weight:700;font-size:17px}
+  .exp-amt:focus{border-color:var(--accent)}
+  .exp-date{width:140px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 8px;outline:none}
+  .exp-cat{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none;margin-bottom:8px;font-weight:700}
+  .exp-cat:focus{border-color:var(--accent)}
+  .exp-photo{display:block;text-align:center;border:1px dashed var(--line);border-radius:10px;padding:12px;color:var(--accent-soft);font-weight:700;font-size:13px;margin-top:10px;cursor:pointer}
+  .exp-photo:active{background:var(--accent-dim)}
+  .exp-hint{font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  .exp-total{background:linear-gradient(135deg,#1e1207,#1c2027);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .exp-total .lab{font-size:12px;color:var(--ink-faint);font-weight:700}
+  .exp-total .amt{font-size:34px;font-weight:800;letter-spacing:-.03em;margin:3px 0;font-variant-numeric:tabular-nums}
+  .catbar{margin-bottom:11px}
+  .catbar-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .catbar-top b{font-weight:700}
+  .catbar-top .v{color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .catbar-track{height:11px;border-radius:6px;background:var(--bg2);overflow:hidden}
+  .catbar-fill{height:100%;border-radius:6px}
+  .exprow{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:8px}
+  .exprow .ex-cat-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .exprow .ex-mid{flex:1;min-width:0}
+  .exprow .ex-m{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .exprow .ex-sub{font-size:11px;color:var(--ink-faint);margin-top:2px}
+  .exprow .ex-amt{font-weight:800;font-variant-numeric:tabular-nums;font-size:15px;flex-shrink:0}
+  .exprow .ex-del{color:var(--ink-faint);font-size:16px;flex-shrink:0;padding:0 2px}
+  .draft{background:var(--card2);border:1px solid var(--accent);border-radius:12px;padding:13px;margin-bottom:9px}
+  .draft-h{font-size:11px;color:var(--accent-soft);font-weight:800;margin-bottom:9px;letter-spacing:.03em}
+  .draft-row{display:flex;gap:8px;margin-bottom:8px}
+  .draft-row input,.draft-row select{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 10px;outline:none;font-size:14px;min-width:0}
+  .draft-row input:focus,.draft-row select:focus{border-color:var(--accent)}
+  .draft-amt{width:120px;font-weight:700}
+  .draft-date{flex:1}
+  .draft-merchant{width:100%}
+  .draft-cat{flex:1}
+  .draft-btns{display:flex;gap:8px}
+  .draft-btns button{flex:1;border-radius:9px;padding:9px;font-weight:700;font-size:13px}
+  .draft-save{background:var(--accent);color:#1a1206}
+  .draft-drop{background:var(--card);border:1px solid var(--line);color:var(--ink-soft)}
   .tadd-row{display:flex;gap:8px;margin-bottom:8px}
   .tadd-title{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
   .tadd-title:focus{border-color:var(--accent)}
@@ -423,6 +461,46 @@
     <button id="notifBtn" class="add-ex" style="margin-top:6px" onclick="enableNotif()">🔔 시간 알림 켜기</button>
   </section>
 
+  <!-- 가계부 -->
+  <section class="tab pad" id="tab-expense">
+    <div class="seg" id="expSeg">
+      <button onclick="expMode('day',this)">일</button>
+      <button onclick="expMode('week',this)">주</button>
+      <button class="on" onclick="expMode('month',this)">월</button>
+    </div>
+    <div class="snav">
+      <button onclick="expStep(-1)">◀</button>
+      <div id="expNavLabel"></div>
+      <button onclick="expStep(1)">▶</button>
+    </div>
+    <div id="expSummary"></div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="sect-h"><h2>지출 추가</h2></div>
+      <div class="exp-add">
+        <input id="expAmount" type="number" inputmode="numeric" placeholder="금액 (원)" class="exp-amt" />
+        <input id="expDate" type="date" class="exp-date" />
+      </div>
+      <select id="expCat" class="exp-cat" onchange="onExpCatChange()">
+        <option>데이트비</option>
+        <option>중개소 운영비</option>
+        <option>감정 영업비</option>
+        <option>생활비</option>
+        <option>기타</option>
+        <option value="__custom__">직접입력…</option>
+      </select>
+      <input id="expCatCustom" placeholder="카테고리 직접입력" style="display:none;width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;margin-bottom:8px" />
+      <input id="expMerchant" placeholder="가맹점/메모 (선택)" style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;margin-bottom:10px" />
+      <button class="food-add-btn" onclick="addExpense()">＋ 지출 저장</button>
+      <label class="exp-photo" for="expImg">📷 카드알림 이미지로 자동입력 (여러 장 가능)</label>
+      <input id="expImg" type="file" accept="image/*" multiple style="display:none" onchange="onExpImages(this)" />
+      <div class="exp-hint">카드 결제 알림 캡처를 올리면 AI가 날짜·금액·가맹점을 읽어서 채워줘요. 카테고리만 확인하고 저장하면 됩니다.</div>
+    </div>
+
+    <div id="expDrafts"></div>
+    <div id="expList"></div>
+  </section>
+
   <!-- 타이머 -->
   <section class="tab pad" id="tab-timer">
     <div class="card">
@@ -472,6 +550,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v15H4zM4 9h16M8 3v4M16 3v4" stroke-linecap="round" stroke-linejoin="round"/></svg>칼로리</button>
     <button id="nav-sched" onclick="switchTab('sched')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
+    <button id="nav-expense" onclick="switchTab('expense')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v12H3zM3 10h18M7 15h4" stroke-linecap="round" stroke-linejoin="round"/></svg>가계부</button>
     <button id="nav-timer" onclick="switchTab('timer')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
     <button id="nav-stat" onclick="switchTab('stat')">
@@ -515,7 +595,8 @@ const PART_COLOR = {"가슴":"#ff7a18","등":"#5aa9ff","어깨":"#ffd166","하�
 const FOOD_PRESETS = [["공깃밥",300,68,5,1],["라면",500,79,10,16],["닭가슴살",110,0,23,2],["계란",80,1,6,6],["바나나",100,27,1,0],["아메리카노",10,2,0,0],["삼겹살 100g",330,0,17,28],["고구마",130,30,2,0],["우유",130,10,6,7],["프로틴쉐이크",150,5,25,2],["김밥",480,78,12,12],["샐러드",120,10,3,7]];
 
 let USER=null, MKEY=null, editingId=null;
-let WORKOUTS=[], FOODS=[], TASKS=[], TASKDONE=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
+let WORKOUTS=[], FOODS=[], TASKS=[], TASKDONE=[], EXPENSES=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
+let EXP_DRAFTS=[];
 
 /* ===== utils ===== */
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -589,7 +670,7 @@ async function signOut(){try{if(USER)localStorage.removeItem('wlog_mk_'+USER.id)
 async function showApp(){
   $("#authScreen").style.display="none";$("#app").style.display="block";
   $("#userEmail").textContent=USER.email;
-  if($("#exList").children.length===0){$("#wDate").value=todayStr();$("#calDate").value=todayStr();$("#schedDate").value=todayStr();addExercise();}
+  if($("#exList").children.length===0){$("#wDate").value=todayStr();$("#calDate").value=todayStr();$("#schedDate").value=todayStr();$("#expDate").value=todayStr();addExercise();}
   if(!MKEY) await tryRestoreKey();               // 자동로그인: 저장된 키 복원 → 칼로리 탭 비번 재입력 생략
   await refreshData();
   if(notifOn())startNotifWatch();
@@ -609,13 +690,14 @@ sb.auth.onAuthStateChange((event,session)=>{
 async function refreshData(){
   const {data,error}=await sb.from("workouts").select("*").order("workout_date",{ascending:false}).order("created_at",{ascending:false});
   if(error){toast("불러오기 실패: "+error.message);return;}
-  WORKOUTS=[];FOODS=[];TASKS=[];TASKDONE=[];METRICS_ID=null;METRICS_BLOB=null;
+  WORKOUTS=[];FOODS=[];TASKS=[];TASKDONE=[];EXPENSES=[];METRICS_ID=null;METRICS_BLOB=null;
   for(const r of data||[]){
     const d=r.data||{};
     if(d.enc&&d.iv){ if(!METRICS_ID){METRICS_ID=r.id;METRICS_BLOB=d;} continue; }
     if(d.kind==='food'){ FOODS.push({id:r.id,date:r.workout_date,name:d.name||r.title||"음식",kcal:d.kcal||r.total_volume||0,c:d.c||0,p:d.p||0,f:d.f||0}); continue; }
     if(d.kind==='task'){ TASKS.push({id:r.id,date:r.workout_date,title:d.title||r.title||"할 일",time:d.time||"",repeat:d.repeat||"none",dows:d.dows||[],done:!!d.done}); continue; }
     if(d.kind==='taskdone'){ TASKDONE.push({id:r.id,date:r.workout_date,ref:d.ref}); continue; }
+    if(d.kind==='expense'){ EXPENSES.push({id:r.id,date:r.workout_date,amount:d.amount||r.total_volume||0,category:d.category||"기타",merchant:d.merchant||"",memo:d.memo||""}); continue; }
     WORKOUTS.push({id:r.id,date:r.workout_date,title:r.title||"운동",exercises:d.exercises||[],memo:d.memo||"",durMin:d.durMin||0,vol:(d.vol??r.total_volume)||0,sets:(d.sets??r.total_sets)||0,kcal:d.kcal||0});
   }
   // 신체정보 복호화 (키 있으면)
@@ -1095,6 +1177,134 @@ function checkNotif(){
   });
 }
 
+/* ===== 가계부 ===== */
+const CAT_COLORS={"데이트비":"#ff7a18","중개소 운영비":"#5aa9ff","감정 영업비":"#37d399","생활비":"#ffd166","기타":"#b48bff"};
+function catColor(c){return CAT_COLORS[c]||"#8a92a0";}
+let EXP_MODE='month';
+try{const em=localStorage.getItem('wlog_expmode');if(em)EXP_MODE=em;}catch(e){}
+function won(n){return Math.round(n).toLocaleString('ko-KR')+"원";}
+function onExpCatChange(){const v=$("#expCat").value;$("#expCatCustom").style.display=(v==='__custom__')?'block':'none';}
+function expMode(m,btn){EXP_MODE=m;try{localStorage.setItem('wlog_expmode',m);}catch(e){}$$("#expSeg button").forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');renderExpense();}
+function expStep(dir){
+  const base=$("#expDate").value||todayStr();const d=new Date(base+"T00:00:00");
+  if(EXP_MODE==='day')d.setDate(d.getDate()+dir);
+  else if(EXP_MODE==='week')d.setDate(d.getDate()+dir*7);
+  else d.setMonth(d.getMonth()+dir);
+  $("#expDate").value=ymd(d);renderExpense();
+}
+function expPeriod(){
+  const base=$("#expDate").value||todayStr();const d=new Date(base+"T00:00:00");
+  if(EXP_MODE==='day'){return {from:ymd(d),to:ymd(d),label:`${d.getMonth()+1}/${d.getDate()} (${DOWK[d.getDay()]})`};}
+  if(EXP_MODE==='week'){const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));const sun=new Date(mon);sun.setDate(mon.getDate()+6);return {from:ymd(mon),to:ymd(sun),label:`${mon.getMonth()+1}/${mon.getDate()} ~ ${sun.getMonth()+1}/${sun.getDate()}`};}
+  const f=new Date(d.getFullYear(),d.getMonth(),1),t=new Date(d.getFullYear(),d.getMonth()+1,0);
+  return {from:ymd(f),to:ymd(t),label:`${d.getFullYear()}년 ${d.getMonth()+1}월`};
+}
+function renderExpense(){
+  $$("#expSeg button").forEach((b,i)=>b.classList.toggle('on',i===({day:0,week:1,month:2}[EXP_MODE])));
+  const p=expPeriod();$("#expNavLabel").textContent=p.label;
+  const rows=EXPENSES.filter(e=>e.date>=p.from&&e.date<=p.to).sort((a,b)=>a.date<b.date?1:-1);
+  const total=rows.reduce((a,e)=>a+(e.amount||0),0);
+  // 카테고리 합계
+  const byCat={};rows.forEach(e=>{byCat[e.category]=(byCat[e.category]||0)+(e.amount||0);});
+  const cats=Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  const maxc=Math.max(1,...cats.map(c=>byCat[c]));
+  const bars=cats.map(c=>`<div class="catbar"><div class="catbar-top"><b style="color:${catColor(c)}">${escapeHtml(c)}</b><span class="v">${won(byCat[c])} · ${Math.round(byCat[c]/total*100)}%</span></div><div class="catbar-track"><div class="catbar-fill" style="width:${byCat[c]/maxc*100}%;background:${catColor(c)}"></div></div></div>`).join("");
+  const daysCnt=EXP_MODE==='day'?1:(new Set(rows.map(r=>r.date)).size||1);
+  $("#expSummary").innerHTML=`
+    <div class="exp-total"><div class="lab">${p.label} 지출</div><div class="amt">${won(total)}</div>
+      <div style="font-size:12px;color:var(--ink-soft)">${rows.length}건${EXP_MODE!=='day'?` · 지출일 ${daysCnt}일 · 하루 평균 ${won(total/daysCnt)}`:''}</div></div>
+    ${bars?`<div class="card" style="margin-bottom:12px"><div class="sect-h"><h2>카테고리별</h2></div>${bars}</div>`:''}`;
+  // 목록
+  $("#expList").innerHTML=rows.length?rows.map(e=>`<div class="exprow">
+    <div class="ex-cat-dot" style="background:${catColor(e.category)}"></div>
+    <div class="ex-mid"><div class="ex-m">${escapeHtml(e.merchant||e.category)}</div><div class="ex-sub">${e.date} · ${escapeHtml(e.category)}${e.merchant&&e.memo?' · '+escapeHtml(e.memo):''}</div></div>
+    <div class="ex-amt">${won(e.amount)}</div>
+    <div class="ex-del" onclick="delExpense(${e.id})">🗑</div>
+  </div>`).join(""):`<div class="empty"><div class="big">🧾</div>이 기간 지출이 없어요.</div>`;
+  renderDrafts();
+}
+async function addExpense(){
+  const amount=parseInt($("#expAmount").value)||0;
+  if(amount<=0){toast("금액을 입력하세요");return;}
+  let category=$("#expCat").value;
+  if(category==='__custom__')category=$("#expCatCustom").value.trim()||"기타";
+  const merchant=$("#expMerchant").value.trim();
+  const date=$("#expDate").value||todayStr();
+  const {error}=await sb.from("workouts").insert({title:merchant||category,workout_date:date,total_volume:amount,total_sets:0,data:{kind:"expense",amount,category,merchant,memo:""}});
+  if(error){toast("저장 실패: "+error.message);return;}
+  $("#expAmount").value="";$("#expMerchant").value="";$("#expCatCustom").value="";
+  await refreshData();renderExpense();toast("지출 저장 ✓");
+}
+async function delExpense(id){
+  if(!confirm("이 지출을 삭제할까요?"))return;
+  const {error}=await sb.from("workouts").delete().eq("id",id);
+  if(error){toast("삭제 실패");return;}
+  await refreshData();renderExpense();
+}
+
+/* --- 카드알림 이미지 → AI 판독 --- */
+function imgToBase64(file){return new Promise((resolve,reject)=>{
+  const img=new Image();const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    const max=1100;let w=img.width,h=img.height;
+    if(w>max||h>max){const s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    const durl=c.toDataURL('image/jpeg',0.85);URL.revokeObjectURL(url);
+    resolve(durl.split(',')[1]);
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('이미지 로드 실패'));};
+  img.src=url;
+});}
+async function onExpImages(input){
+  const files=[...input.files];input.value="";
+  if(!files.length)return;
+  toast(`이미지 ${files.length}장 인식 중…`);
+  for(const file of files){
+    let did={pending:true,fname:file.name};EXP_DRAFTS.push(did);renderDrafts();
+    try{
+      const b64=await imgToBase64(file);
+      const r=await fetch('/api/ocr',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg'})});
+      const d=await r.json();
+      const idx=EXP_DRAFTS.indexOf(did);
+      if(!r.ok){EXP_DRAFTS.splice(idx,1);toast('인식 실패: '+(d.error||''));renderDrafts();continue;}
+      EXP_DRAFTS[idx]={date:d.date||todayStr(),amount:d.amount||0,merchant:d.merchant||"",category:d.category||"기타",memo:d.memo||""};
+    }catch(e){const idx=EXP_DRAFTS.indexOf(did);if(idx>=0)EXP_DRAFTS.splice(idx,1);toast('오류: '+e.message);}
+    renderDrafts();
+  }
+  toast("인식 완료 — 카테고리 확인 후 저장하세요");
+}
+function catOptions(sel){
+  const cats=["데이트비","중개소 운영비","감정 영업비","생활비","기타"];
+  if(sel&&!cats.includes(sel))cats.push(sel);
+  return cats.map(c=>`<option${c===sel?' selected':''}>${escapeHtml(c)}</option>`).join("");
+}
+function renderDrafts(){
+  const box=$("#expDrafts");
+  if(!EXP_DRAFTS.length){box.innerHTML="";return;}
+  box.innerHTML=EXP_DRAFTS.map((d,i)=>{
+    if(d.pending)return `<div class="draft"><div class="draft-h">🔍 AI 인식 중… (${escapeHtml(d.fname||'이미지')})</div><div class="spin" style="margin:8px auto"></div></div>`;
+    return `<div class="draft">
+      <div class="draft-h">🧾 인식 결과 확인 후 저장</div>
+      <div class="draft-row">
+        <input class="draft-amt" type="number" value="${d.amount}" onchange="EXP_DRAFTS[${i}].amount=parseInt(this.value)||0" />
+        <input class="draft-date" type="date" value="${d.date}" onchange="EXP_DRAFTS[${i}].date=this.value" />
+      </div>
+      <div class="draft-row"><input class="draft-merchant" value="${escapeHtml(d.merchant)}" placeholder="가맹점" onchange="EXP_DRAFTS[${i}].merchant=this.value" /></div>
+      <div class="draft-row"><select class="draft-cat" onchange="EXP_DRAFTS[${i}].category=this.value">${catOptions(d.category)}</select></div>
+      <div class="draft-btns"><button class="draft-save" onclick="saveDraft(${i})">저장</button><button class="draft-drop" onclick="EXP_DRAFTS.splice(${i},1);renderDrafts()">버림</button></div>
+    </div>`;
+  }).join("");
+}
+async function saveDraft(i){
+  const d=EXP_DRAFTS[i];if(!d||d.pending)return;
+  if(!d.amount||d.amount<=0){toast("금액을 확인하세요");return;}
+  const {error}=await sb.from("workouts").insert({title:d.merchant||d.category,workout_date:d.date||todayStr(),total_volume:d.amount,total_sets:0,data:{kind:"expense",amount:d.amount,category:d.category,merchant:d.merchant,memo:d.memo||""}});
+  if(error){toast("저장 실패: "+error.message);return;}
+  EXP_DRAFTS.splice(i,1);
+  await refreshData();renderExpense();toast("저장 ✓");
+}
+
 /* ===== 분석 ===== */
 let STAT_DATA=[], CUR_VIEW="overview";
 async function loadStat(){
@@ -1197,7 +1407,7 @@ function switchTab(name){
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
   $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${name}`).classList.add("on");
   window.scrollTo(0,0);
-  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderSchedule();if(name==="stat")loadStat();
+  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="stat")loadStat();
 }
 $("#tab-log").classList.add("active");
 // 자동로그인: 저장된 이메일·설정 프리필
