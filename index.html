@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     WORKOUT-ENGINE  (운동 일지)
+     project: workout-log  ·  repo: changroullee-hub/workout-log
+     supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
+     build: 2026-09-01  ·  feat: 일정관리 + 시간알림
+     ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
+============================================================ -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
@@ -151,7 +158,8 @@
   .food-search input:focus{border-color:var(--accent)}
   .food-search button{background:var(--card2);border:1px solid var(--line);color:var(--ink);font-weight:700;border-radius:10px;padding:0 16px;white-space:nowrap}
   .food-search button:active{background:var(--accent-dim);color:var(--accent-soft)}
-  #foodResults{margin-bottom:10px}
+  #foodResults{margin-bottom:10px;max-height:340px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #foodResults:not(:empty){border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg)}
   .fr-item{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:7px}
   .fr-item:active{border-color:var(--accent)}
   .fr-name{font-weight:700;font-size:14px}
@@ -236,10 +244,33 @@
 
   nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:40;
     background:rgba(16,18,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    display:grid;grid-template-columns:repeat(5,1fr);padding:7px 4px calc(7px + env(safe-area-inset-bottom))}
-  nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink-faint);font-size:10px;font-weight:700}
+    display:grid;grid-template-columns:repeat(6,1fr);padding:7px 2px calc(7px + env(safe-area-inset-bottom))}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink-faint);font-size:9.5px;font-weight:700}
   nav button.on{color:var(--accent)}
-  nav button svg{width:22px;height:22px}
+  nav button svg{width:21px;height:21px}
+  .tadd-row{display:flex;gap:8px;margin-bottom:8px}
+  .tadd-title{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+  .tadd-title:focus{border-color:var(--accent)}
+  .tadd-time{width:110px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 8px;outline:none}
+  .tadd-time:focus{border-color:var(--accent)}
+  .tadd-row2{display:flex;gap:8px}
+  .tadd-row2 select{width:120px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 8px;outline:none;font-weight:700}
+  .dow-row{display:flex;gap:6px;margin-top:8px}
+  .dow{flex:1;border:1px solid var(--line);background:var(--bg2);border-radius:9px;padding:9px 0;font-size:13px;font-weight:700;color:var(--ink-soft)}
+  .dow.on{background:var(--accent-dim);color:var(--accent-soft);border-color:var(--accent)}
+  .task{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:8px}
+  .task.done{opacity:.55}
+  .task-check{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent}
+  .task.done .task-check{background:var(--accent);border-color:var(--accent);color:#1a1206}
+  .task-body{flex:1;min-width:0}
+  .task-title{font-weight:700;font-size:15px}
+  .task.done .task-title{text-decoration:line-through}
+  .task-sub{font-size:11px;color:var(--ink-faint);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap}
+  .task-time{color:var(--accent-soft);font-weight:800;font-variant-numeric:tabular-nums}
+  .task-rep{color:var(--blue)}
+  .task-del{color:var(--ink-faint);font-size:18px;padding:0 4px;flex-shrink:0}
+  .sched-h{font-size:12px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 2px 9px}
+  .sched-h:first-child{margin-top:2px}
 </style>
 </head>
 <body>
@@ -254,6 +285,7 @@
     </div>
     <div class="field"><label>이메일</label><input id="email" type="email" autocomplete="username" placeholder="you@email.com" /></div>
     <div class="field"><label>비밀번호</label><input id="pw" type="password" autocomplete="current-password" placeholder="6자 이상" onkeydown="if(event.key==='Enter')signIn()" /></div>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-soft);cursor:pointer;user-select:none"><input id="rememberMe" type="checkbox" checked style="width:17px;height:17px;accent-color:var(--accent)" /> 로그인 유지 (이 기기에서 신체정보 자동 잠금해제)</label>
     <button class="btn-primary" id="loginBtn" onclick="signIn()">로그인</button>
     <button class="btn-ghost" id="signupBtn" onclick="signUp()">처음이세요? 회원가입</button>
     <div class="auth-msg" id="authMsg"></div>
@@ -306,6 +338,40 @@
     <div id="calBody"></div>
   </section>
 
+  <!-- 일정 -->
+  <section class="tab pad" id="tab-sched">
+    <div class="kdate">
+      <span style="font-size:12px;color:var(--ink-soft);font-weight:700">날짜</span>
+      <input id="schedDate" type="date" onchange="renderSchedule()" />
+      <span id="schedProg" style="margin-left:auto;font-size:12px;color:var(--ink-soft);font-weight:700"></span>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="tadd-row">
+        <input id="taskTitle" class="tadd-title" placeholder="할 일 (예: 스터디, 미팅, 유산소)" onkeydown="if(event.key==='Enter')addTask()" />
+        <input id="taskTime" class="tadd-time" type="time" />
+      </div>
+      <div class="tadd-row2">
+        <select id="taskRepeat" onchange="onRepeatChange()">
+          <option value="none">반복 안 함</option>
+          <option value="daily">매일</option>
+          <option value="weekly">매주</option>
+        </select>
+        <button class="food-add-btn" style="flex:1" onclick="addTask()">＋ 추가</button>
+      </div>
+      <div id="dowRow" class="dow-row" style="display:none">
+        <button class="dow" data-d="0" onclick="toggleDow(this)">일</button>
+        <button class="dow" data-d="1" onclick="toggleDow(this)">월</button>
+        <button class="dow" data-d="2" onclick="toggleDow(this)">화</button>
+        <button class="dow" data-d="3" onclick="toggleDow(this)">수</button>
+        <button class="dow" data-d="4" onclick="toggleDow(this)">목</button>
+        <button class="dow" data-d="5" onclick="toggleDow(this)">금</button>
+        <button class="dow" data-d="6" onclick="toggleDow(this)">토</button>
+      </div>
+    </div>
+    <div id="schedBody"></div>
+    <button id="notifBtn" class="add-ex" style="margin-top:6px" onclick="enableNotif()">🔔 시간 알림 켜기</button>
+  </section>
+
   <!-- 타이머 -->
   <section class="tab pad" id="tab-timer">
     <div class="card">
@@ -353,6 +419,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>기록</button>
     <button id="nav-cal" onclick="switchTab('cal')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v15H4zM4 9h16M8 3v4M16 3v4" stroke-linecap="round" stroke-linejoin="round"/></svg>칼로리</button>
+    <button id="nav-sched" onclick="switchTab('sched')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
     <button id="nav-timer" onclick="switchTab('timer')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
     <button id="nav-stat" onclick="switchTab('stat')">
@@ -396,7 +464,7 @@ const PART_COLOR = {"가슴":"#ff7a18","등":"#5aa9ff","어깨":"#ffd166","하�
 const FOOD_PRESETS = [["공깃밥",300,68,5,1],["라면",500,79,10,16],["닭가슴살",110,0,23,2],["계란",80,1,6,6],["바나나",100,27,1,0],["아메리카노",10,2,0,0],["삼겹살 100g",330,0,17,28],["고구마",130,30,2,0],["우유",130,10,6,7],["프로틴쉐이크",150,5,25,2],["김밥",480,78,12,12],["샐러드",120,10,3,7]];
 
 let USER=null, MKEY=null, editingId=null;
-let WORKOUTS=[], FOODS=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
+let WORKOUTS=[], FOODS=[], TASKS=[], TASKDONE=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
 
 /* ===== utils ===== */
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -426,7 +494,7 @@ function a2b(b64){const bin=atob(b64);const a=new Uint8Array(bin.length);for(let
 async function deriveKey(pw){
   const enc=new TextEncoder();
   const base=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']);
-  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('wlog-metrics::'+USER.id),iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('wlog-metrics::'+USER.id),iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
 }
 async function encJSON(obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},MKEY,new TextEncoder().encode(JSON.stringify(obj)));return {enc:b2a(new Uint8Array(ct)),iv:b2a(iv)};}
 async function decJSON(blob){const iv=a2b(blob.iv),ct=a2b(blob.enc);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},MKEY,ct);return JSON.parse(new TextDecoder().decode(pt));}
@@ -435,6 +503,17 @@ async function decJSON(blob){const iv=a2b(blob.iv),ct=a2b(blob.enc);const pt=awa
 function authMsg(m,err){const e=$("#authMsg");e.innerHTML=m;e.style.color=err?"var(--red)":"var(--green)";}
 function busy(id,b,t){const el=$(id);el.disabled=b;if(t)el.textContent=b?"…":t;}
 
+/* 자동로그인: 신체정보 키를 이 기기에 저장/복원 (선택) */
+function rememberOn(){try{return localStorage.getItem('wlog_remember')==='1';}catch(e){return false;}}
+async function storeKey(){
+  try{ if(!MKEY||!rememberOn())return; const raw=await crypto.subtle.exportKey('raw',MKEY); localStorage.setItem('wlog_mk_'+USER.id,b2a(new Uint8Array(raw))); }catch(e){}
+}
+async function tryRestoreKey(){
+  try{ const raw=localStorage.getItem('wlog_mk_'+USER.id); if(!raw)return; MKEY=await crypto.subtle.importKey('raw',a2b(raw),{name:'AES-GCM'},true,['encrypt','decrypt']); }catch(e){MKEY=null;}
+}
+function rememberEmail(email){try{localStorage.setItem('wlog_email',email);}catch(e){}}
+function setRemember(v){try{localStorage.setItem('wlog_remember',v?'1':'0'); if(!v){localStorage.removeItem('wlog_mk_'+(USER?USER.id:''));}}catch(e){}}
+
 async function signUp(){
   const email=$("#email").value.trim(), pw=$("#pw").value;
   if(!email||pw.length<6){authMsg("이메일과 6자 이상 비밀번호를 입력하세요",true);return;}
@@ -442,7 +521,7 @@ async function signUp(){
   const {data,error}=await sb.auth.signUp({email,password:pw});
   busy("#loginBtn",false,"로그인");busy("#signupBtn",false);
   if(error){authMsg(error.message,true);return;}
-  if(data.session){USER=data.user;MKEY=await deriveKey(pw);showApp();return;}
+  if(data.session){USER=data.user;setRemember($("#rememberMe").checked);rememberEmail(email);MKEY=await deriveKey(pw);await storeKey();showApp();return;}
   authMsg("가입 완료! <b>메일함의 인증 링크</b>를 누른 뒤 로그인하세요.",false);
 }
 async function signIn(){
@@ -452,15 +531,19 @@ async function signIn(){
   const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
   busy("#loginBtn",false,"로그인");
   if(error){authMsg(/confirm/i.test(error.message)?"이메일 인증이 아직 안 됐어요. 메일함의 링크를 눌러주세요.":"로그인 실패: "+error.message,true);return;}
-  USER=data.user; MKEY=await deriveKey(pw); showApp();
+  USER=data.user; setRemember($("#rememberMe").checked); rememberEmail(email); MKEY=await deriveKey(pw); await storeKey(); showApp();
 }
-async function signOut(){USER=null;MKEY=null;await sb.auth.signOut();location.reload();}
+async function signOut(){try{if(USER)localStorage.removeItem('wlog_mk_'+USER.id);}catch(e){} USER=null;MKEY=null;await sb.auth.signOut();location.reload();}
 
-function showApp(){
+async function showApp(){
   $("#authScreen").style.display="none";$("#app").style.display="block";
   $("#userEmail").textContent=USER.email;
-  if($("#exList").children.length===0){$("#wDate").value=todayStr();$("#calDate").value=todayStr();addExercise();}
-  refreshData().then(()=>{if($("#tab-list").classList.contains("active"))loadList();});
+  if($("#exList").children.length===0){$("#wDate").value=todayStr();$("#calDate").value=todayStr();$("#schedDate").value=todayStr();addExercise();}
+  if(!MKEY) await tryRestoreKey();               // 자동로그인: 저장된 키 복원 → 칼로리 탭 비번 재입력 생략
+  await refreshData();
+  if(notifOn())startNotifWatch();
+  if($("#tab-list").classList.contains("active"))loadList();
+  if($("#tab-cal").classList.contains("active"))renderCal();
 }
 
 sb.auth.onAuthStateChange((event,session)=>{
@@ -475,11 +558,13 @@ sb.auth.onAuthStateChange((event,session)=>{
 async function refreshData(){
   const {data,error}=await sb.from("workouts").select("*").order("workout_date",{ascending:false}).order("created_at",{ascending:false});
   if(error){toast("불러오기 실패: "+error.message);return;}
-  WORKOUTS=[];FOODS=[];METRICS_ID=null;METRICS_BLOB=null;
+  WORKOUTS=[];FOODS=[];TASKS=[];TASKDONE=[];METRICS_ID=null;METRICS_BLOB=null;
   for(const r of data||[]){
     const d=r.data||{};
     if(d.enc&&d.iv){ if(!METRICS_ID){METRICS_ID=r.id;METRICS_BLOB=d;} continue; }
     if(d.kind==='food'){ FOODS.push({id:r.id,date:r.workout_date,name:d.name||r.title||"음식",kcal:d.kcal||r.total_volume||0,c:d.c||0,p:d.p||0,f:d.f||0}); continue; }
+    if(d.kind==='task'){ TASKS.push({id:r.id,date:r.workout_date,title:d.title||r.title||"할 일",time:d.time||"",repeat:d.repeat||"none",dows:d.dows||[],done:!!d.done}); continue; }
+    if(d.kind==='taskdone'){ TASKDONE.push({id:r.id,date:r.workout_date,ref:d.ref}); continue; }
     WORKOUTS.push({id:r.id,date:r.workout_date,title:r.title||"운동",exercises:d.exercises||[],memo:d.memo||"",durMin:d.durMin||0,vol:(d.vol??r.total_volume)||0,sets:(d.sets??r.total_sets)||0,kcal:d.kcal||0});
   }
   // 신체정보 복호화 (키 있으면)
@@ -600,13 +685,28 @@ function macroTargets(totalBurn){
 }
 
 /* ===== 칼로리 탭 ===== */
+function showPwReset(){const b=$("#pwResetBox");b.style.display=b.style.display==="none"?"block":"none";}
+async function resetPasswordAndMetrics(){
+  const np=$("#newPw").value;
+  if(!np||np.length<6){$("#resetMsg").textContent="6자 이상 입력하세요";$("#resetMsg").style.color="var(--red)";return;}
+  if(!confirm("계정 비밀번호를 바꾸고, 예전 신체정보는 삭제합니다.\n운동기록·음식기록은 그대로 유지됩니다.\n계속할까요?"))return;
+  const btn=$("#resetBtn");btn.disabled=true;btn.textContent="처리 중…";
+  const {error}=await sb.auth.updateUser({password:np});
+  if(error){btn.disabled=false;btn.textContent="새 비밀번호로 설정";$("#resetMsg").textContent="실패: "+error.message;$("#resetMsg").style.color="var(--red)";return;}
+  if(METRICS_ID){await sb.from("workouts").delete().eq("id",METRICS_ID);}   // 못 여는 옛 신체정보 폐기
+  METRICS=null;METRICS_ID=null;METRICS_BLOB=null;
+  MKEY=await deriveKey(np);await storeKey();
+  btn.disabled=false;btn.textContent="새 비밀번호로 설정";
+  await refreshData();toast("비밀번호 변경 완료 ✓ 신체정보를 새로 입력하세요");renderCal();
+}
 async function unlockMetrics(){
   const pw=$("#calPw").value;if(!pw){toast("비밀번호를 입력하세요");return;}
   try{
     MKEY=await deriveKey(pw);
-    if(METRICS_BLOB){ // 검증
+    if(METRICS_BLOB){ // 먼저 검증 — 틀린 키를 저장하면 안 됨
       try{METRICS=await decJSON(METRICS_BLOB);}catch(e){MKEY=null;$("#calMsg").textContent="비밀번호가 맞지 않습니다.";return;}
     }
+    await storeKey();   // 검증 통과 후에만 저장
     renderCal();
   }catch(e){$("#calMsg").textContent="오류: "+e.message;}
 }
@@ -616,7 +716,14 @@ function renderCal(){
     body.innerHTML=`<div class="unlock-box"><h3>🔒 신체정보 잠금</h3><p>새로고침 후에는 비밀번호를 한 번 더 입력해야 신체정보·BMR을 볼 수 있어요. (운동기록·분석은 그냥 열립니다.)</p>
       <input id="calPw" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')unlockMetrics()" />
       <button class="btn-primary" onclick="unlockMetrics()">잠금 해제</button>
-      <div class="auth-msg" id="calMsg"></div></div>`;
+      <div class="auth-msg" id="calMsg"></div>
+      <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="showPwReset()">비밀번호를 잊으셨나요?</button>
+      <div id="pwResetBox" style="display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:14px">
+        <p style="font-size:12px;color:var(--ink-faint);margin-bottom:10px">새 비밀번호를 정하면 계정 비밀번호가 바뀝니다.<br><b style="color:var(--accent-soft)">단, 예전에 저장한 신체정보는 열 수 없어 삭제되고 새로 입력해야 해요.</b><br>운동기록·음식기록은 그대로 유지됩니다.</p>
+        <input id="newPw" type="password" placeholder="새 비밀번호 (6자 이상)" />
+        <button class="btn-primary" id="resetBtn" onclick="resetPasswordAndMetrics()">새 비밀번호로 설정</button>
+        <div class="auth-msg" id="resetMsg"></div>
+      </div></div>`;
     return;
   }
   if(!METRICS){
@@ -701,7 +808,8 @@ async function searchFood(){
     if(!r.ok){box.innerHTML=`<div class="fr-msg">${escapeHtml(d.error||'검색 실패')}${d.raw?'<br><small>'+escapeHtml(d.raw)+'</small>':''}</div>`;return;}
     if(!d.items||!d.items.length){box.innerHTML=`<div class="fr-msg">'${escapeHtml(q)}' 검색 결과가 없어요.<br>다른 이름으로 시도해보세요.</div>`;return;}
     window._foodRes=d.items;
-    box.innerHTML=d.items.map((it,i)=>`<div class="fr-item" onclick="pickFood(${i})">
+    const head=`<div style="font-size:11px;color:var(--ink-faint);padding:2px 2px 8px">${d.items.length}개 결과 · 탭하면 입력폼에 채워집니다${d.items.length>=30?' (더 정확히 찾으려면 검색어를 구체적으로)':''}</div>`;
+    box.innerHTML=head+d.items.map((it,i)=>`<div class="fr-item" onclick="pickFood(${i})">
       <div class="fr-name">${escapeHtml(it.name)}${it.basis?` <span>(${escapeHtml(it.basis)} 기준)</span>`:''}</div>
       <div class="fr-macro">🔥 ${fmtNum(it.kcal)}kcal · 탄 ${fmtNum(it.carb)} · 단 ${fmtNum(it.protein)} · 지 ${fmtNum(it.fat)} g</div>
     </div>`).join("");
@@ -727,6 +835,120 @@ async function addFood(){
   await refreshData();renderCal();
 }
 async function delFood(id){const {error}=await sb.from("workouts").delete().eq("id",id);if(error){toast("삭제 실패");return;}await refreshData();renderCal();}
+
+/* ===== 일정 (체크리스트 + 시간 + 반복) ===== */
+let SEL_DOWS=[];
+function onRepeatChange(){const r=$("#taskRepeat").value;$("#dowRow").style.display=(r==='weekly')?'flex':'none';}
+function toggleDow(btn){const d=+btn.dataset.d;if(SEL_DOWS.includes(d)){SEL_DOWS=SEL_DOWS.filter(x=>x!==d);btn.classList.remove('on');}else{SEL_DOWS.push(d);btn.classList.add('on');}}
+function dowOf(dateStr){return new Date(dateStr+"T00:00:00").getDay();}
+
+// 특정 날짜에 보여야 할 일정 목록 (일회성 + 반복 인스턴스)
+function tasksForDay(date){
+  const dow=dowOf(date);
+  const out=[];
+  TASKS.forEach(t=>{
+    if(t.repeat==='none'){ if(t.date===date) out.push({...t, _done:t.done, _kind:'once'}); }
+    else if(t.repeat==='daily'){ if(t.date<=date){ const dm=TASKDONE.find(x=>x.ref===t.id&&x.date===date); out.push({...t,_done:!!dm,_kind:'rep'});} }
+    else if(t.repeat==='weekly'){ const dows=(t.dows&&t.dows.length)?t.dows:[dowOf(t.date)]; if(t.date<=date&&dows.includes(dow)){ const dm=TASKDONE.find(x=>x.ref===t.id&&x.date===date); out.push({...t,_done:!!dm,_kind:'rep'});} }
+  });
+  // 시간 있는 것 먼저(시간순), 없는 것 뒤
+  out.sort((a,b)=>{ if(a.time&&b.time) return a.time<b.time?-1:1; if(a.time) return -1; if(b.time) return 1; return 0; });
+  return out;
+}
+function renderSchedule(){
+  const date=$("#schedDate").value||todayStr();
+  const items=tasksForDay(date);
+  const done=items.filter(i=>i._done).length;
+  $("#schedProg").textContent=items.length?`${done}/${items.length} 완료`:"";
+  const body=$("#schedBody");
+  if(items.length===0){body.innerHTML=`<div class="empty"><div class="big">🗓️</div>이 날의 일정이 없어요.<br>위에서 할 일을 추가해보세요.</div>`;return;}
+  const timed=items.filter(i=>i.time), untimed=items.filter(i=>!i.time);
+  const row=(i)=>{
+    const rep=i.repeat==='daily'?'매일':(i.repeat==='weekly'?'매주':'');
+    const sub=[];if(i.time)sub.push(`<span class="task-time">${i.time}</span>`);if(rep)sub.push(`<span class="task-rep">🔁 ${rep}</span>`);
+    return `<div class="task ${i._done?'done':''}">
+      <div class="task-check" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">✓</div>
+      <div class="task-body" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">
+        <div class="task-title">${escapeHtml(i.title)}</div>
+        ${sub.length?`<div class="task-sub">${sub.join("")}</div>`:""}
+      </div>
+      <div class="task-del" onclick="delTask('${i.id}','${i.repeat}')">🗑</div>
+    </div>`;
+  };
+  let html="";
+  if(timed.length){html+=`<div class="sched-h">시간 일정</div>`+timed.map(row).join("");}
+  if(untimed.length){html+=`<div class="sched-h">체크리스트</div>`+untimed.map(row).join("");}
+  body.innerHTML=html;
+  updateNotifBtn();
+}
+async function addTask(){
+  const title=$("#taskTitle").value.trim();
+  if(!title){toast("할 일을 입력하세요");return;}
+  const time=$("#taskTime").value||"";
+  const repeat=$("#taskRepeat").value;
+  const date=$("#schedDate").value||todayStr();
+  const payload={kind:"task",title,time,repeat,done:false};
+  if(repeat==='weekly')payload.dows=SEL_DOWS.length?SEL_DOWS.slice():[dowOf(date)];
+  const {error}=await sb.from("workouts").insert({title,workout_date:date,data:payload});
+  if(error){toast("저장 실패: "+error.message);return;}
+  $("#taskTitle").value="";$("#taskTime").value="";
+  await refreshData();renderSchedule();
+}
+async function toggleTask(id,kind,isDone,date){
+  id=isNaN(+id)?id:+id;
+  if(kind==='once'){
+    const t=TASKS.find(x=>x.id===id);if(!t)return;
+    const {error}=await sb.from("workouts").update({data:{kind:"task",title:t.title,time:t.time,repeat:t.repeat,done:!t.done,dows:t.dows}}).eq("id",id);
+    if(error){toast("실패: "+error.message);return;}
+  }else{ // 반복: 완료마커 추가/삭제
+    if(isDone){ const dm=TASKDONE.find(x=>x.ref===id&&x.date===date); if(dm)await sb.from("workouts").delete().eq("id",dm.id); }
+    else{ await sb.from("workouts").insert({title:"__taskdone__",workout_date:date,data:{kind:"taskdone",ref:id}}); }
+  }
+  await refreshData();renderSchedule();
+}
+async function delTask(id,repeat){
+  id=isNaN(+id)?id:+id;
+  const msg=repeat==='none'?"이 일정을 삭제할까요?":"반복 일정을 삭제할까요? (지난 완료기록 포함)";
+  if(!confirm(msg))return;
+  await sb.from("workouts").delete().eq("id",id);
+  if(repeat!=='none'){ const marks=TASKDONE.filter(x=>x.ref===id); for(const m of marks)await sb.from("workouts").delete().eq("id",m.id); }
+  await refreshData();renderSchedule();
+}
+
+/* ===== 일정 알림 ===== */
+let NOTIF_TIMER=null, NOTIFIED=new Set();
+async function enableNotif(){
+  if(!("Notification" in window)){toast("이 브라우저는 알림을 지원하지 않아요");return;}
+  let perm=Notification.permission;
+  if(perm==="default")perm=await Notification.requestPermission();
+  if(perm!=="granted"){toast("알림이 차단돼 있어요. 브라우저 설정에서 허용해주세요");updateNotifBtn();return;}
+  try{localStorage.setItem('wlog_notif','1');}catch(e){}
+  startNotifWatch();updateNotifBtn();toast("알림 켜짐 🔔 일정 시간에 알려드려요");
+}
+function notifOn(){try{return localStorage.getItem('wlog_notif')==='1'&&"Notification"in window&&Notification.permission==="granted";}catch(e){return false;}}
+function updateNotifBtn(){const b=$("#notifBtn");if(!b)return;if(notifOn()){b.textContent="🔔 시간 알림 켜짐 (탭하면 끄기)";b.onclick=disableNotif;}else{b.textContent="🔔 시간 알림 켜기";b.onclick=enableNotif;}}
+function disableNotif(){try{localStorage.setItem('wlog_notif','0');}catch(e){}if(NOTIF_TIMER)clearInterval(NOTIF_TIMER);NOTIF_TIMER=null;updateNotifBtn();toast("알림 껐어요");}
+function startNotifWatch(){
+  if(NOTIF_TIMER)clearInterval(NOTIF_TIMER);
+  NOTIF_TIMER=setInterval(checkNotif,30000); // 30초마다 확인
+  checkNotif();
+}
+function checkNotif(){
+  if(!notifOn())return;
+  const now=new Date();
+  const today=todayStr();
+  const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0');
+  const cur=`${hh}:${mm}`;
+  tasksForDay(today).forEach(t=>{
+    if(!t.time||t._done)return;
+    const key=today+"|"+t.id+"|"+t.time;
+    if(t.time===cur && !NOTIFIED.has(key)){
+      NOTIFIED.add(key);
+      try{new Notification("운동 일지 · 일정",{body:`${t.time}  ${t.title}`,tag:key});}catch(e){}
+      toast(`🔔 ${t.time} ${t.title}`);
+    }
+  });
+}
 
 /* ===== 분석 ===== */
 let STAT_DATA=[], CUR_VIEW="overview";
@@ -830,9 +1052,11 @@ function switchTab(name){
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
   $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${name}`).classList.add("on");
   window.scrollTo(0,0);
-  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="stat")loadStat();
+  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderSchedule();if(name==="stat")loadStat();
 }
 $("#tab-log").classList.add("active");
+// 자동로그인: 저장된 이메일·설정 프리필
+try{const em=localStorage.getItem('wlog_email');if(em)$("#email").value=em;const rm=localStorage.getItem('wlog_remember');if(rm!==null)$("#rememberMe").checked=(rm==='1');}catch(e){}
 </script>
 </body>
 </html>
