@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (운동 일지)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01  ·  feat: 일정관리 + 시간알림
+     build: 2026-09-01b  ·  feat: 일정 하루/주간/달력 모드 + 시간편집 + 알림
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -271,6 +271,40 @@
   .task-del{color:var(--ink-faint);font-size:18px;padding:0 4px;flex-shrink:0}
   .sched-h{font-size:12px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 2px 9px}
   .sched-h:first-child{margin-top:2px}
+  .snav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .snav button{width:44px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:16px;color:var(--ink)}
+  .snav button:active{background:var(--card2)}
+  #snavLabel{flex:1;text-align:center;font-weight:800;font-size:15px;letter-spacing:-.01em}
+  .wk-day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .wk-day.today{border-color:var(--accent)}
+  .wk-dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer}
+  .wk-dhead b{font-size:14px}
+  .wk-dhead .cnt{font-size:11px;color:var(--ink-faint);font-weight:700}
+  .wk-dhead .sun{color:var(--red)} .wk-dhead .sat{color:var(--blue)}
+  .wk-empty{font-size:12px;color:var(--ink-faint);padding:3px 2px}
+  .trow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--line)}
+  .trow:first-child{border-top:none}
+  .trow .tk{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent}
+  .trow.done .tk{background:var(--accent);border-color:var(--accent);color:#1a1206}
+  .trow .tt{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow.done .tt{text-decoration:line-through;opacity:.55}
+  .trow input[type=time]{width:104px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 6px;outline:none;font-size:13px;color:var(--ink)}
+  .trow input[type=time]:focus{border-color:var(--accent)}
+  .trow .rp{font-size:10px;color:var(--blue);flex-shrink:0}
+  .trow .td{color:var(--ink-faint);font-size:15px;flex-shrink:0;padding:0 2px}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cal-dow{text-align:center;font-size:11px;color:var(--ink-faint);font-weight:700;padding-bottom:4px}
+  .cal-dow.sun{color:var(--red)} .cal-dow.sat{color:var(--blue)}
+  .cal-cell{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 2px;position:relative;cursor:pointer}
+  .cal-cell.blank{border:none;background:transparent;cursor:default}
+  .cal-cell.today{border-color:var(--accent)}
+  .cal-cell.sel{background:var(--accent-dim);border-color:var(--accent)}
+  .cal-cell .dn{font-size:12px;font-weight:700}
+  .cal-cell .dots{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center}
+  .cal-cell .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .cal-cell .dot.done{background:var(--ink-faint)}
+  .cal-cell .more{font-size:9px;color:var(--ink-faint)}
+  .cal-sel{margin-top:14px}
 </style>
 </head>
 <body>
@@ -340,34 +374,51 @@
 
   <!-- 일정 -->
   <section class="tab pad" id="tab-sched">
-    <div class="kdate">
-      <span style="font-size:12px;color:var(--ink-soft);font-weight:700">날짜</span>
-      <input id="schedDate" type="date" onchange="renderSchedule()" />
-      <span id="schedProg" style="margin-left:auto;font-size:12px;color:var(--ink-soft);font-weight:700"></span>
+    <div class="seg" id="schedSeg">
+      <button class="on" onclick="schedMode('day',this)">하루</button>
+      <button onclick="schedMode('week',this)">주간</button>
+      <button onclick="schedMode('month',this)">달력</button>
     </div>
-    <div class="card" style="margin-bottom:12px">
-      <div class="tadd-row">
-        <input id="taskTitle" class="tadd-title" placeholder="할 일 (예: 스터디, 미팅, 유산소)" onkeydown="if(event.key==='Enter')addTask()" />
-        <input id="taskTime" class="tadd-time" type="time" />
-      </div>
-      <div class="tadd-row2">
-        <select id="taskRepeat" onchange="onRepeatChange()">
-          <option value="none">반복 안 함</option>
-          <option value="daily">매일</option>
-          <option value="weekly">매주</option>
-        </select>
-        <button class="food-add-btn" style="flex:1" onclick="addTask()">＋ 추가</button>
-      </div>
-      <div id="dowRow" class="dow-row" style="display:none">
-        <button class="dow" data-d="0" onclick="toggleDow(this)">일</button>
-        <button class="dow" data-d="1" onclick="toggleDow(this)">월</button>
-        <button class="dow" data-d="2" onclick="toggleDow(this)">화</button>
-        <button class="dow" data-d="3" onclick="toggleDow(this)">수</button>
-        <button class="dow" data-d="4" onclick="toggleDow(this)">목</button>
-        <button class="dow" data-d="5" onclick="toggleDow(this)">금</button>
-        <button class="dow" data-d="6" onclick="toggleDow(this)">토</button>
+
+    <div id="schedNav" style="display:none">
+      <div class="snav">
+        <button onclick="schedStep(-1)">◀</button>
+        <div id="snavLabel"></div>
+        <button onclick="schedStep(1)">▶</button>
       </div>
     </div>
+
+    <div id="schedDayControls">
+      <div class="kdate">
+        <span style="font-size:12px;color:var(--ink-soft);font-weight:700">날짜</span>
+        <input id="schedDate" type="date" onchange="renderScheduleRoot()" />
+        <span id="schedProg" style="margin-left:auto;font-size:12px;color:var(--ink-soft);font-weight:700"></span>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="tadd-row">
+          <input id="taskTitle" class="tadd-title" placeholder="할 일 (예: 스터디, 미팅, 유산소)" onkeydown="if(event.key==='Enter')addTask()" />
+          <input id="taskTime" class="tadd-time" type="time" />
+        </div>
+        <div class="tadd-row2">
+          <select id="taskRepeat" onchange="onRepeatChange()">
+            <option value="none">반복 안 함</option>
+            <option value="daily">매일</option>
+            <option value="weekly">매주</option>
+          </select>
+          <button class="food-add-btn" style="flex:1" onclick="addTask()">＋ 추가</button>
+        </div>
+        <div id="dowRow" class="dow-row" style="display:none">
+          <button class="dow" data-d="0" onclick="toggleDow(this)">일</button>
+          <button class="dow" data-d="1" onclick="toggleDow(this)">월</button>
+          <button class="dow" data-d="2" onclick="toggleDow(this)">화</button>
+          <button class="dow" data-d="3" onclick="toggleDow(this)">수</button>
+          <button class="dow" data-d="4" onclick="toggleDow(this)">목</button>
+          <button class="dow" data-d="5" onclick="toggleDow(this)">금</button>
+          <button class="dow" data-d="6" onclick="toggleDow(this)">토</button>
+        </div>
+      </div>
+    </div>
+
     <div id="schedBody"></div>
     <button id="notifBtn" class="add-ex" style="margin-top:6px" onclick="enableNotif()">🔔 시간 알림 켜기</button>
   </section>
@@ -836,51 +887,145 @@ async function addFood(){
 }
 async function delFood(id){const {error}=await sb.from("workouts").delete().eq("id",id);if(error){toast("삭제 실패");return;}await refreshData();renderCal();}
 
-/* ===== 일정 (체크리스트 + 시간 + 반복) ===== */
+/* ===== 일정 (체크리스트 + 시간 + 반복 + 하루/주간/달력) ===== */
 let SEL_DOWS=[];
+let SCHED_MODE='day';
+try{const sm=localStorage.getItem('wlog_schedmode');if(sm)SCHED_MODE=sm;}catch(e){}
 function onRepeatChange(){const r=$("#taskRepeat").value;$("#dowRow").style.display=(r==='weekly')?'flex':'none';}
 function toggleDow(btn){const d=+btn.dataset.d;if(SEL_DOWS.includes(d)){SEL_DOWS=SEL_DOWS.filter(x=>x!==d);btn.classList.remove('on');}else{SEL_DOWS.push(d);btn.classList.add('on');}}
 function dowOf(dateStr){return new Date(dateStr+"T00:00:00").getDay();}
+function ymd(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+const DOWK=["일","월","화","수","목","금","토"];
 
-// 특정 날짜에 보여야 할 일정 목록 (일회성 + 반복 인스턴스)
+// 특정 날짜에 보여야 할 일정 (일회성 + 반복 인스턴스), 시간순 정렬
 function tasksForDay(date){
-  const dow=dowOf(date);
-  const out=[];
+  const dow=dowOf(date);const out=[];
   TASKS.forEach(t=>{
-    if(t.repeat==='none'){ if(t.date===date) out.push({...t, _done:t.done, _kind:'once'}); }
+    if(t.repeat==='none'){ if(t.date===date) out.push({...t,_done:t.done,_kind:'once'}); }
     else if(t.repeat==='daily'){ if(t.date<=date){ const dm=TASKDONE.find(x=>x.ref===t.id&&x.date===date); out.push({...t,_done:!!dm,_kind:'rep'});} }
     else if(t.repeat==='weekly'){ const dows=(t.dows&&t.dows.length)?t.dows:[dowOf(t.date)]; if(t.date<=date&&dows.includes(dow)){ const dm=TASKDONE.find(x=>x.ref===t.id&&x.date===date); out.push({...t,_done:!!dm,_kind:'rep'});} }
   });
-  // 시간 있는 것 먼저(시간순), 없는 것 뒤
   out.sort((a,b)=>{ if(a.time&&b.time) return a.time<b.time?-1:1; if(a.time) return -1; if(b.time) return 1; return 0; });
   return out;
 }
-function renderSchedule(){
+
+/* --- 모드 전환 --- */
+function schedMode(m,btn){
+  SCHED_MODE=m;try{localStorage.setItem('wlog_schedmode',m);}catch(e){}
+  $$("#schedSeg button").forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
+  renderScheduleRoot();
+}
+function schedStep(dir){
+  const base=$("#schedDate").value||todayStr();
+  const d=new Date(base+"T00:00:00");
+  if(SCHED_MODE==='week')d.setDate(d.getDate()+dir*7);
+  else if(SCHED_MODE==='month')d.setMonth(d.getMonth()+dir);
+  $("#schedDate").value=ymd(d);
+  renderScheduleRoot();
+}
+function renderScheduleRoot(){
+  const dayC=$("#schedDayControls"), nav=$("#schedNav");
+  // 세그먼트 활성표시 동기화
+  const idx={day:0,week:1,month:2}[SCHED_MODE];
+  $$("#schedSeg button").forEach((b,i)=>b.classList.toggle('on',i===idx));
+  if(SCHED_MODE==='day'){ dayC.style.display='block';nav.style.display='none';renderDay(); }
+  else if(SCHED_MODE==='week'){ dayC.style.display='none';nav.style.display='block';renderWeek(); }
+  else { dayC.style.display='none';nav.style.display='block';renderMonth(); }
+}
+// 기존 하루 뷰
+function renderSchedule(){renderScheduleRoot();} // 호환용
+function renderDay(){
   const date=$("#schedDate").value||todayStr();
   const items=tasksForDay(date);
   const done=items.filter(i=>i._done).length;
   $("#schedProg").textContent=items.length?`${done}/${items.length} 완료`:"";
   const body=$("#schedBody");
-  if(items.length===0){body.innerHTML=`<div class="empty"><div class="big">🗓️</div>이 날의 일정이 없어요.<br>위에서 할 일을 추가해보세요.</div>`;return;}
+  if(items.length===0){body.innerHTML=`<div class="empty"><div class="big">🗓️</div>이 날의 일정이 없어요.<br>위에서 할 일을 추가해보세요.</div>`;updateNotifBtn();return;}
   const timed=items.filter(i=>i.time), untimed=items.filter(i=>!i.time);
-  const row=(i)=>{
-    const rep=i.repeat==='daily'?'매일':(i.repeat==='weekly'?'매주':'');
-    const sub=[];if(i.time)sub.push(`<span class="task-time">${i.time}</span>`);if(rep)sub.push(`<span class="task-rep">🔁 ${rep}</span>`);
-    return `<div class="task ${i._done?'done':''}">
-      <div class="task-check" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">✓</div>
-      <div class="task-body" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">
-        <div class="task-title">${escapeHtml(i.title)}</div>
-        ${sub.length?`<div class="task-sub">${sub.join("")}</div>`:""}
-      </div>
-      <div class="task-del" onclick="delTask('${i.id}','${i.repeat}')">🗑</div>
-    </div>`;
-  };
   let html="";
-  if(timed.length){html+=`<div class="sched-h">시간 일정</div>`+timed.map(row).join("");}
-  if(untimed.length){html+=`<div class="sched-h">체크리스트</div>`+untimed.map(row).join("");}
-  body.innerHTML=html;
-  updateNotifBtn();
+  if(timed.length){html+=`<div class="sched-h">시간 일정</div>`+timed.map(i=>taskRowFull(i,date)).join("");}
+  if(untimed.length){html+=`<div class="sched-h">체크리스트</div>`+untimed.map(i=>taskRowFull(i,date)).join("");}
+  body.innerHTML=html;updateNotifBtn();
 }
+// 공통 항목 행 (시간 인라인 편집 포함) — 주간/하루 공용
+function taskRowFull(i,date){
+  const rep=i.repeat==='daily'?'매일':(i.repeat==='weekly'?'매주':'');
+  return `<div class="trow ${i._done?'done':''}">
+    <div class="tk" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">✓</div>
+    <div class="tt" onclick="toggleTask('${i.id}','${i._kind}',${i._done},'${date}')">${escapeHtml(i.title)}</div>
+    ${rep?`<span class="rp">🔁${rep}</span>`:""}
+    <input type="time" value="${i.time||''}" onchange="editTaskTime('${i.id}',this.value)" />
+    <div class="td" onclick="delTask('${i.id}','${i.repeat}')">🗑</div>
+  </div>`;
+}
+/* --- 주간 뷰 --- */
+function renderWeek(){
+  const base=$("#schedDate").value||todayStr();
+  const d=new Date(base+"T00:00:00");
+  const mon=new Date(d); mon.setDate(d.getDate()-((d.getDay()+6)%7)); // 월요일 시작
+  const days=[];for(let k=0;k<7;k++){const x=new Date(mon);x.setDate(mon.getDate()+k);days.push(ymd(x));}
+  $("#snavLabel").textContent=`${mon.getMonth()+1}/${mon.getDate()} ~ ${new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6).getDate()}일 주`;
+  const today=todayStr();
+  $("#schedProg").textContent="";
+  let html="";
+  days.forEach(dt=>{
+    const dd=new Date(dt+"T00:00:00");const dow=dd.getDay();
+    const items=tasksForDay(dt);
+    const dcls=dow===0?'sun':(dow===6?'sat':'');
+    const done=items.filter(i=>i._done).length;
+    html+=`<div class="wk-day ${dt===today?'today':''}">
+      <div class="wk-dhead" onclick="jumpToDay('${dt}')">
+        <b class="${dcls}">${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dow]})</b>
+        <span class="cnt">${items.length?done+'/'+items.length:'—'}</span>
+      </div>
+      ${items.length?items.map(i=>taskRowFull(i,dt)).join(""):`<div class="wk-empty">일정 없음</div>`}
+    </div>`;
+  });
+  $("#schedBody").innerHTML=html;updateNotifBtn();
+}
+/* --- 달력(월) 뷰 --- */
+function renderMonth(){
+  const base=$("#schedDate").value||todayStr();
+  const d=new Date(base+"T00:00:00");
+  const y=d.getFullYear(), m=d.getMonth();
+  $("#snavLabel").textContent=`${y}년 ${m+1}월`;
+  $("#schedProg").textContent="";
+  const first=new Date(y,m,1), lead=(first.getDay()); // 일요일 시작
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const today=todayStr(), sel=base;
+  let cells=`<div class="cal-grid">`;
+  ["일","월","화","수","목","금","토"].forEach((w,i)=>cells+=`<div class="cal-dow ${i===0?'sun':(i===6?'sat':'')}">${w}</div>`);
+  for(let k=0;k<lead;k++)cells+=`<div class="cal-cell blank"></div>`;
+  for(let day=1;day<=daysInMonth;day++){
+    const dt=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const items=tasksForDay(dt);
+    const dots=items.slice(0,4).map(i=>`<span class="dot ${i._done?'done':''}"></span>`).join("");
+    const more=items.length>4?`<span class="more">+${items.length-4}</span>`:"";
+    cells+=`<div class="cal-cell ${dt===today?'today':''} ${dt===sel?'sel':''}" onclick="selMonthDay('${dt}')">
+      <span class="dn">${day}</span><div class="dots">${dots}${more}</div></div>`;
+  }
+  cells+=`</div>`;
+  // 선택한 날 상세(시간 편집 가능)
+  const items=tasksForDay(sel);
+  let detail=`<div class="cal-sel"><div class="sched-h">${new Date(sel+"T00:00:00").getMonth()+1}/${new Date(sel+"T00:00:00").getDate()} (${DOWK[dowOf(sel)]}) 일정</div>`;
+  detail+= items.length?items.map(i=>taskRowFull(i,sel)).join(""):`<div class="wk-empty">이 날 일정이 없어요. '하루' 모드에서 추가할 수 있어요.</div>`;
+  detail+=`</div>`;
+  $("#schedBody").innerHTML=cells+detail;updateNotifBtn();
+}
+function selMonthDay(dt){$("#schedDate").value=dt;renderMonth();}
+function jumpToDay(dt){$("#schedDate").value=dt;schedMode('day');$$("#schedSeg button")[0].classList.add('on');}
+
+/* --- 시간 인라인 편집 --- */
+async function editTaskTime(id,newTime){
+  id=isNaN(+id)?id:+id;
+  const t=TASKS.find(x=>x.id===id);if(!t)return;
+  const {error}=await sb.from("workouts").update({data:{kind:"task",title:t.title,time:newTime||"",repeat:t.repeat,done:t.done,dows:t.dows}}).eq("id",id);
+  if(error){toast("시간 변경 실패: "+error.message);return;}
+  NOTIFIED.clear();
+  await refreshData();renderScheduleRoot();
+  toast(newTime?`시간 ${newTime}로 변경`:"시간 제거됨");
+}
+
 async function addTask(){
   const title=$("#taskTitle").value.trim();
   if(!title){toast("할 일을 입력하세요");return;}
@@ -892,7 +1037,7 @@ async function addTask(){
   const {error}=await sb.from("workouts").insert({title,workout_date:date,data:payload});
   if(error){toast("저장 실패: "+error.message);return;}
   $("#taskTitle").value="";$("#taskTime").value="";
-  await refreshData();renderSchedule();
+  await refreshData();renderScheduleRoot();
 }
 async function toggleTask(id,kind,isDone,date){
   id=isNaN(+id)?id:+id;
@@ -900,11 +1045,11 @@ async function toggleTask(id,kind,isDone,date){
     const t=TASKS.find(x=>x.id===id);if(!t)return;
     const {error}=await sb.from("workouts").update({data:{kind:"task",title:t.title,time:t.time,repeat:t.repeat,done:!t.done,dows:t.dows}}).eq("id",id);
     if(error){toast("실패: "+error.message);return;}
-  }else{ // 반복: 완료마커 추가/삭제
+  }else{
     if(isDone){ const dm=TASKDONE.find(x=>x.ref===id&&x.date===date); if(dm)await sb.from("workouts").delete().eq("id",dm.id); }
     else{ await sb.from("workouts").insert({title:"__taskdone__",workout_date:date,data:{kind:"taskdone",ref:id}}); }
   }
-  await refreshData();renderSchedule();
+  await refreshData();renderScheduleRoot();
 }
 async function delTask(id,repeat){
   id=isNaN(+id)?id:+id;
@@ -912,7 +1057,7 @@ async function delTask(id,repeat){
   if(!confirm(msg))return;
   await sb.from("workouts").delete().eq("id",id);
   if(repeat!=='none'){ const marks=TASKDONE.filter(x=>x.ref===id); for(const m of marks)await sb.from("workouts").delete().eq("id",m.id); }
-  await refreshData();renderSchedule();
+  await refreshData();renderScheduleRoot();
 }
 
 /* ===== 일정 알림 ===== */
