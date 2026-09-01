@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01l  ·  feat: 티켓 업로드시 기존/새 여행 선택 + 호텔도시 날짜헤더 반영
+     build: 2026-09-01m  ·  feat: 티켓 항공/기차 자동판별 + 기존/새 여행 선택 + 호텔도시 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -567,7 +567,7 @@
     <div class="trip-top">
       <select id="tripSel" class="trip-sel" onchange="onTripSel()"></select>
       <button class="trip-new" onclick="newTrip()">＋</button>
-      <button class="trip-new" style="background:var(--blue);color:#03121f" onclick="document.getElementById('tripPlanImg').click()">✈️ 티켓</button>
+      <button class="trip-new" style="background:var(--blue);color:#03121f" onclick="document.getElementById('tripPlanImg').click()">🎫 티켓/이동수단</button>
     </div>
     <input id="tripPlanImg" type="file" accept="image/*" multiple style="display:none" onchange="onTripFromTicket(this)" />
     <div id="tripBody"></div>
@@ -753,7 +753,7 @@
       </div>
       <div class="mfield"><label>목적지 (첫 장소로 추가됨)</label><input id="tpDest" placeholder="예: 오사카" /></div>
     </div>
-    <div class="sched-h" style="margin-top:8px">읽은 항공편</div>
+    <div class="sched-h" style="margin-top:8px">읽은 이동수단</div>
     <div id="tpFlights"></div>
     <button class="btn-primary" id="tpSaveBtn" onclick="createTripFromPlan()">이 내용으로 여행 생성</button>
     <button class="btn-ghost" onclick="closeTripPlan()">취소</button>
@@ -1557,7 +1557,7 @@ function locForDay(items,day){
 function renderTrip(){
   renderTripSel();
   const body=$("#tripBody");
-  if(!CUR_TRIP){body.innerHTML=`<div class="empty"><div class="big">✈️</div>여행이 없어요.<br><b style="color:var(--accent-soft)">"✈️ 티켓"</b>에 항공권 사진을 올리면<br>여행·날짜·목적지가 자동으로 만들어져요.<br><span style="font-size:12px;color:var(--ink-faint)">또는 "＋"로 직접 만들 수 있어요.</span></div>`;return;}
+  if(!CUR_TRIP){body.innerHTML=`<div class="empty"><div class="big">✈️</div>여행이 없어요.<br><b style="color:var(--accent-soft)">"🎫 티켓/이동수단"</b>에 항공권·기차표 사진을 올리면<br>여행·날짜·목적지가 자동으로 만들어져요.<br><span style="font-size:12px;color:var(--ink-faint)">또는 "＋"로 직접 만들 수 있어요.</span></div>`;return;}
   const trip=TRIPS.find(t=>t.id===CUR_TRIP);if(!trip){body.innerHTML="";return;}
   const items=TRIPITEMS.filter(x=>x.tripId===CUR_TRIP).sort((a,b)=>itemDT(a)<itemDT(b)?-1:1);
   let html=`<div class="trip-head"><span class="del" onclick="delTrip(${trip.id})">삭제</span><h3>${escapeHtml(trip.name)}</h3><div class="r">${trip.start}${trip.end&&trip.end!==trip.start?' ~ '+trip.end:''}</div></div>
@@ -1732,20 +1732,22 @@ async function onTripFromTicket(input){
   }catch(e){toast("오류: "+e.message);}
 }
 function openTripPlan(){
-  const fl=TP_PLAN.flights||[];
-  const deps=fl.map(f=>f.depDate).filter(Boolean).sort();
-  const arrs=fl.map(f=>f.arrDate||f.depDate).filter(Boolean).sort();
-  // 대상 선택: 현재 열려있는 여행이 있으면 그걸 기본값(=기존에 추가), 없으면 새 여행
+  const fl=TP_PLAN.flights||[], tr=TP_PLAN.trains||[];
+  const allDeps=fl.map(f=>f.depDate).concat(tr.map(t=>t.depDate)).filter(Boolean).sort();
+  const allArrs=fl.map(f=>f.arrDate||f.depDate).concat(tr.map(t=>t.arrDate||t.depDate)).filter(Boolean).sort();
   const opts=[`<option value="new">＋ 새 여행 만들기</option>`].concat(
     TRIPS.slice().sort((a,b)=>a.start<b.start?1:-1).map(t=>`<option value="${t.id}"${t.id===CUR_TRIP?' selected':''}>${escapeHtml(t.name)} 에 추가</option>`)
   );
   $("#tpTarget").innerHTML=opts.join("");
   if(!CUR_TRIP)$("#tpTarget").value="new";
   $("#tpName").value=TP_PLAN.tripName||((TP_PLAN.destinationCity||'')+" 여행").trim();
-  $("#tpStart").value=deps[0]||todayStr();
-  $("#tpEnd").value=arrs[arrs.length-1]||deps[0]||todayStr();
+  $("#tpStart").value=allDeps[0]||todayStr();
+  $("#tpEnd").value=allArrs[allArrs.length-1]||allDeps[0]||todayStr();
   $("#tpDest").value=TP_PLAN.destinationCity||'';
-  $("#tpFlights").innerHTML=fl.length?fl.map(f=>`<div class="tp-fl">✈️ <b>${escapeHtml(((f.airline||'')+' '+(f.flightNo||'')).trim())}</b><br>${escapeHtml(f.depAp||'')} ${f.depDate||''} ${f.depTime||''} → ${escapeHtml(f.arrAp||'')} ${f.arrDate||''} ${f.arrTime||''}</div>`).join(""):`<div class="wk-empty">항공편을 못 읽었어요. 생성 후 직접 추가할 수 있어요.</div>`;
+  let rows="";
+  fl.forEach(f=>rows+=`<div class="tp-fl">✈️ <b>${escapeHtml(((f.airline||'')+' '+(f.flightNo||'')).trim()||'항공')}</b><br>${escapeHtml(f.depAp||f.depCity||'')} ${f.depDate||''} ${f.depTime||''} → ${escapeHtml(f.arrAp||f.arrCity||'')} ${f.arrDate||''} ${f.arrTime||''}</div>`);
+  tr.forEach(t=>rows+=`<div class="tp-fl">🚆 <b>${escapeHtml(((t.op||'')+' '+(t.trainNo||'')).trim()||'기차')}</b><br>${escapeHtml(t.depSt||t.depCity||'')} ${t.depDate||''} ${t.depTime||''} → ${escapeHtml(t.arrSt||t.arrCity||'')} ${t.arrDate||''} ${t.arrTime||''}</div>`);
+  $("#tpFlights").innerHTML=rows||`<div class="wk-empty">이동수단을 못 읽었어요. 생성 후 직접 추가할 수 있어요.</div>`;
   onTpTarget();
   $("#tripPlanModal").classList.add("show");
 }
@@ -1771,30 +1773,35 @@ async function createTripFromPlan(){
     tripId=trip.id;
     // 새 여행일 때만 목적지를 첫 장소로 추가
     if(dest){
-      const arrDate=(TP_PLAN.flights&&TP_PLAN.flights[0]&&TP_PLAN.flights[0].arrDate)||start;
-      await sb.from("workouts").insert({title:dest,workout_date:arrDate,data:{kind:"tripitem",tripId,type:"place",title:dest,address:TP_PLAN.destAddr||'',date:arrDate,time:'',note:'',lat:TP_PLAN.destLat||'',lng:TP_PLAN.destLng||''}});
+      const firstArr=(TP_PLAN.flights||[]).concat(TP_PLAN.trains||[]).map(x=>x.arrDate||x.depDate).filter(Boolean).sort()[0]||start;
+      await sb.from("workouts").insert({title:dest,workout_date:firstArr,data:{kind:"tripitem",tripId,type:"place",title:dest,address:TP_PLAN.destAddr||'',city:TP_PLAN.destinationCity||'',date:firstArr,time:'',note:'',lat:TP_PLAN.destLat||'',lng:TP_PLAN.destLng||''}});
     }
   }else{
     tripId=+target;
     const trip=TRIPS.find(t=>t.id===tripId);
     start=trip?trip.start:todayStr();
   }
-  // 항공편 추가 (공통)
+  // 항공편 추가
   for(const f of (TP_PLAN.flights||[])){
     const title=((f.airline||'')+' '+(f.flightNo||'')).trim()||'항공';
     await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',depCity:f.depCity||'',arrCity:f.arrCity||'',title}});
   }
+  // 기차 추가
+  for(const t of (TP_PLAN.trains||[])){
+    const title=((t.op||'')+' '+(t.trainNo||'')).trim()||'기차';
+    await sb.from("workouts").insert({title,workout_date:t.depDate||start,data:{kind:"tripitem",tripId,type:"train",op:t.op||'',trainNo:t.trainNo||'',depSt:t.depSt||'',arrSt:t.arrSt||'',depDate:t.depDate||start,depTime:t.depTime||'',arrDate:t.arrDate||t.depDate||start,arrTime:t.arrTime||'',car:t.car||'',depCity:t.depCity||'',arrCity:t.arrCity||'',title}});
+  }
   // 기존 여행이면 종료일 자동 연장
   if(target!=='new'){
     const trip=TRIPS.find(t=>t.id===tripId);
-    const maxArr=(TP_PLAN.flights||[]).map(f=>f.arrDate||f.depDate).filter(Boolean).sort().pop();
+    const maxArr=(TP_PLAN.flights||[]).concat(TP_PLAN.trains||[]).map(x=>x.arrDate||x.depDate).filter(Boolean).sort().pop();
     if(trip&&maxArr&&maxArr>(trip.end||trip.start)){
       await sb.from("workouts").update({data:{kind:"trip",name:trip.name,start:trip.start,end:maxArr}}).eq("id",trip.id);
     }
   }
   CUR_TRIP=tripId;
   await refreshData();closeTripPlan();switchTab('trip');renderTrip();
-  toast(target==='new'?"여행 생성 완료 ✈️":"기존 여행에 추가 완료 ✈️");
+  toast(target==='new'?"여행 생성 완료 🎫":"기존 여행에 추가 완료 🎫");
 }
 
 /* --- 동선 최적화 제안 (같은 날·시간유연 장소 재정렬, 자동차 기준) --- */

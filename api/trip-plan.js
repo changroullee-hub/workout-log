@@ -19,21 +19,23 @@ export default async function handler(req, res) {
     source: { type: "base64", media_type: im.media_type || "image/jpeg", data: im.data },
   }));
   content.push({ type: "text", text:
-`이 이미지들은 항공권(탑승권/E-티켓)입니다. 여러 장이면 모두 종합하세요.
-모든 항공편을 추출하고 여행 정보를 추론해 JSON만 출력하세요. 설명·코드블록 금지.
-중요: 이미지에 실제로 보이는 값만 채우세요. 안 보이면 빈 문자열 "". 좌석·게이트 등은 추측하지 마세요.
+`이 이미지들은 여행 이동수단 티켓(항공권 또는 기차표, 여러 장 가능)입니다. 러시아어·현지어여도 읽으세요.
+각 구간이 '항공'인지 '기차'인지 스스로 판별해서 아래 JSON으로만 출력하세요. 설명·코드블록 금지.
+중요: 실제로 보이는 값만. 안 보이면 빈 문자열 "". 좌석 등은 추측 금지.
 
-- flights: 배열. 각 항공편은 {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
-    · depAp/arrAp = 공항 IATA 3자리 코드 (예: ICN, KIX, NRT)
-    · depCity/arrCity = 도시명(한글, 나라 포함. 예 "서울, 대한민국" / "타슈켄트, 우즈베키스탄")
-    · 날짜 YYYY-MM-DD (연도 없으면 ${year}), 시간 HH:MM (현지시간)
-    · gate = 명확히 보일 때만, 아니면 ""
-    · 왕복이면 가는 편과 오는 편을 모두 포함. 경유편도 각각 포함.
-- destinationCity: 이 여행의 목적지 도시명(한글). 보통 첫 출발편의 도착 도시. (예: 타슈켄트)
-- tripName: 여행 이름 추천 (예: "중앙아시아 여행").
+- flights: 항공편 배열. 각 {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
+    · depAp/arrAp = 공항 IATA 3자리 코드
+- trains: 기차 배열. 각 {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car}
+    · op = 운영사/열차종류(있으면), trainNo = 열차번호(예 711ФА)
+    · depSt/arrSt = 출발역/도착역명(원문 그대로 가능)
+    · car = 호차(칸) — 명확히 보일 때만
+- 공통: depCity/arrCity = 도시명(한글, 나라 포함. 예 "부하라, 우즈베키스탄" / "사마르칸트, 우즈베키스탄")
+    · 날짜 YYYY-MM-DD (연도 없으면 ${year}), 시간 HH:MM (현지)
+- destinationCity: 이 여행의 목적지 도시(한글). 보통 첫 구간의 도착 도시.
+- tripName: 여행 이름 추천.
 
-형식:
-{"tripName":"","destinationCity":"","flights":[{"airline":"","flightNo":"","depAp":"","arrAp":"","depCity":"","arrCity":"","depDate":"","depTime":"","arrDate":"","arrTime":"","gate":""}]}`
+항공권이면 flights에, 기차표면 trains에 넣으세요. 형식:
+{"tripName":"","destinationCity":"","flights":[],"trains":[]}`
   });
 
   try {
@@ -52,6 +54,7 @@ export default async function handler(req, res) {
     try { parsed = JSON.parse(text); }
     catch (err) { res.status(502).json({ error: "AI 응답 해석 실패", raw: text.slice(0, 200) }); return; }
     if (!Array.isArray(parsed.flights)) parsed.flights = [];
+    if (!Array.isArray(parsed.trains)) parsed.trains = [];
     res.status(200).json(parsed);
   } catch (e) {
     res.status(502).json({ error: "AI 호출 실패: " + e.message });
