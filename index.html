@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01n  ·  feat: 티켓 여러장 개별분석·병합 + 환각방지 + 항공/기차 자동판별 반영
+     build: 2026-09-01o  ·  feat: 출발시각 있는 구간만 인식(e티켓/PNR표 필터) + 도시-나라 정확도 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1732,6 +1732,9 @@ async function onTripFromTicket(input){
     }
     // 중복 구간 제거(편명+출발일+출발시각 기준)
     const uniq=(arr,keyf)=>{const seen=new Set();return arr.filter(x=>{const k=keyf(x);if(seen.has(k))return false;seen.add(k);return true;});};
+    // 출발시각 없는 항목 제거(e티켓/PNR 표가 잘못 들어온 것 걸러냄)
+    merged.flights=merged.flights.filter(f=>f.depTime&&/^\d{1,2}:\d{2}/.test(f.depTime));
+    merged.trains=merged.trains.filter(t=>t.depTime&&/^\d{1,2}:\d{2}/.test(t.depTime));
     merged.flights=uniq(merged.flights,f=>`${f.flightNo}|${f.depDate}|${f.depTime}|${f.depAp}`);
     merged.trains=uniq(merged.trains,t=>`${t.trainNo}|${t.depDate}|${t.depTime}|${t.depSt}`);
     // 목적지: 가장 이른 출발편의 도착 도시로 (첫 구간 기준)

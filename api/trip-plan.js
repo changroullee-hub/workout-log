@@ -20,16 +20,20 @@ export default async function handler(req, res) {
   }));
   content.push({ type: "text", text:
 `이 이미지는 여행 이동수단 티켓/예약서(항공권 또는 기차표)입니다. 러시아어·현지어여도 읽으세요.
-이미지에 실제로 적힌 구간만 추출하세요. 절대 없는 도시·구간을 지어내지 마세요(예: 이미지에 없는 "부산" 등 금지).
-각 구간이 '항공'인지 '기차'인지 스스로 판별해 JSON으로만 출력하세요. 설명·코드블록 금지. 안 보이는 값은 "".
+이미지에 실제로 적힌 구간만 추출하고, 없는 도시·구간은 절대 지어내지 마세요.
 
-- flights: 항공편 배열. 각 {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
-    · 한 문서에 여러 구간(예: 서울-타슈켄트, 타슈켄트-알마티, 알마티-서울)이 있으면 전부 포함.
-    · depAp/arrAp = 공항 IATA 코드(모르면 "").
-- trains: 기차 배열. 각 {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car}
-- 공통: depCity/arrCity = 도시명(한글, 나라 포함. 예 "타슈켄트, 우즈베키스탄"). 날짜 YYYY-MM-DD(연도 없으면 ${year}), 시간 HH:MM.
-- destinationCity: 이 티켓 기준 목적지 도시(한글). 첫 출발편의 최종 도착 도시. 모르면 "".
-- tripName: 여행 이름. 목적지 국가/도시 기반으로만(예: "중앙아시아 여행", "우즈베키스탄 여행"). 확실치 않으면 "".
+★ 매우 중요 — 반드시 '출발 시각(HH:MM)이 명확히 적힌 실제 운항/운행 구간'만 넣으세요.
+  - e티켓 번호·PNR/예약번호·좌석배정 표처럼 출발시각이 없는 행은 완전히 무시(버리기).
+    예) "595-4818150337", "A7TAYI", "YE5V2S" 같은 번호만 있는 항목은 절대 flights/trains에 넣지 말 것.
+  - 출발시각(depTime)이 비어 있으면 그 구간은 아예 제외하세요.
+
+- flights: 항공편 배열. {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
+    · '출발 2026-10-03 12:10, 인천공항 → 도착 15:40, 타슈케트공항' 처럼 시각·공항·도시가 함께 있는 구간만.
+- trains: 기차 배열. {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car}
+- 공통: depCity/arrCity = 도시명(한글, 나라 정확히. 예 "부하라, 우즈베키스탄"·"타슈케트, 우즈베키스탄"·"알마티, 카자흐스탄"). 도시-나라를 틀리지 말 것.
+    · 날짜 YYYY-MM-DD(연도 없으면 ${year}), 시간 HH:MM(현지).
+- destinationCity: 첫 출발편의 최종 도착 도시(한글). 모르면 "".
+- tripName: 목적지 기반으로만(확실치 않으면 "").
 
 형식: {"tripName":"","destinationCity":"","flights":[],"trains":[]}`
   });
