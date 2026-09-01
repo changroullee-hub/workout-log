@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (운동 일지)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01c  ·  feat: 가계부(직접입력+카드알림 AI OCR) + 일정 3모드 + 알림
+     build: 2026-09-01d  ·  feat: 여행 타임라인(구글맵+경로시간+티켓OCR) + 가계부 + 일정 + 알림
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -244,10 +244,41 @@
 
   nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:40;
     background:rgba(16,18,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    display:grid;grid-template-columns:repeat(7,1fr);padding:7px 1px calc(7px + env(safe-area-inset-bottom))}
-  nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--ink-faint);font-size:9px;font-weight:700}
+    display:grid;grid-template-columns:repeat(8,1fr);padding:7px 0 calc(7px + env(safe-area-inset-bottom))}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--ink-faint);font-size:8.5px;font-weight:700}
   nav button.on{color:var(--accent)}
-  nav button svg{width:19px;height:19px}
+  nav button svg{width:18px;height:18px}
+  .trip-top{display:flex;gap:8px;margin-bottom:14px}
+  .trip-sel{flex:1;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none;font-weight:700}
+  .trip-new{background:var(--accent);color:#1a1206;font-weight:800;border-radius:11px;padding:0 15px;white-space:nowrap}
+  .tl-day{font-size:12px;color:var(--accent-soft);font-weight:800;letter-spacing:.03em;margin:16px 2px 10px;text-transform:uppercase}
+  .tl-day:first-child{margin-top:2px}
+  .tl-item{position:relative;padding-left:26px;margin-bottom:10px}
+  .tl-item::before{content:"";position:absolute;left:8px;top:6px;bottom:-16px;width:2px;background:var(--line)}
+  .tl-item:last-child::before{display:none}
+  .tl-dot{position:absolute;left:2px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--card);border:2px solid var(--accent);z-index:1;font-size:8px;display:flex;align-items:center;justify-content:center}
+  .tl-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .tl-time{font-size:12px;color:var(--accent-soft);font-weight:800;font-variant-numeric:tabular-nums}
+  .tl-title{font-weight:800;font-size:15px;letter-spacing:-.01em;margin:2px 0}
+  .tl-meta{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-top:4px}
+  .tl-meta b{color:var(--ink)}
+  .tl-links{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .tl-links a{font-size:12px;color:var(--blue);border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none;font-weight:700}
+  .tl-links a:active{background:var(--card2)}
+  .tl-del{position:absolute;right:10px;top:10px;color:var(--ink-faint);font-size:15px}
+  .tl-route{display:flex;align-items:center;gap:7px;color:var(--ink-faint);font-size:12px;padding:2px 0 2px 26px;margin-bottom:10px}
+  .tl-route .car{color:var(--green);font-weight:700}
+  .tripadd{display:flex;gap:8px;margin:6px 0 4px}
+  .tripadd button{flex:1;border:1px solid var(--line);background:var(--card);border-radius:11px;padding:12px 4px;font-weight:700;font-size:13px;color:var(--ink)}
+  .tripadd button:active{background:var(--accent-dim);color:var(--accent-soft);border-color:var(--accent)}
+  .trip-head{background:linear-gradient(135deg,#0f1a22,#1c2027);border:1px solid var(--line);border-radius:var(--r);padding:15px;margin-bottom:14px}
+  .trip-head h3{margin:0;font-size:19px;letter-spacing:-.02em}
+  .trip-head .r{font-size:12px;color:var(--ink-soft);margin-top:3px}
+  .trip-head .del{float:right;font-size:12px;color:var(--ink-faint);border:1px solid var(--line);padding:4px 9px;border-radius:8px}
+  .pl-res{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer}
+  .pl-res:active{border-color:var(--accent)}
+  .pl-res b{font-size:13px;font-weight:700}
+  .pl-res span{display:block;font-size:11px;color:var(--ink-faint);margin-top:1px}
   .exp-add{display:flex;gap:8px;margin-bottom:8px}
   .exp-amt{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none;font-weight:700;font-size:17px}
   .exp-amt:focus{border-color:var(--accent)}
@@ -501,6 +532,15 @@
     <div id="expList"></div>
   </section>
 
+  <!-- 여행 -->
+  <section class="tab pad" id="tab-trip">
+    <div class="trip-top">
+      <select id="tripSel" class="trip-sel" onchange="onTripSel()"></select>
+      <button class="trip-new" onclick="newTrip()">＋ 새 여행</button>
+    </div>
+    <div id="tripBody"></div>
+  </section>
+
   <!-- 타이머 -->
   <section class="tab pad" id="tab-timer">
     <div class="card">
@@ -552,6 +592,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
     <button id="nav-expense" onclick="switchTab('expense')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v12H3zM3 10h18M7 15h4" stroke-linecap="round" stroke-linejoin="round"/></svg>가계부</button>
+    <button id="nav-trip" onclick="switchTab('trip')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5"/></svg>여행</button>
     <button id="nav-timer" onclick="switchTab('timer')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
     <button id="nav-stat" onclick="switchTab('stat')">
@@ -581,6 +623,91 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 여행 항목 MODAL -->
+<div class="modal-bg" id="tripModal">
+  <div class="modal" style="max-height:88vh;overflow-y:auto">
+    <h2 id="tripModalTitle">일정 추가</h2>
+    <div class="seg" id="tripTypeSeg" style="margin-bottom:14px">
+      <button data-t="place" class="on" onclick="tripType('place',this)">📍 장소</button>
+      <button data-t="flight" onclick="tripType('flight',this)">✈️ 항공</button>
+      <button data-t="train" onclick="tripType('train',this)">🚆 기차</button>
+    </div>
+
+    <!-- 장소 -->
+    <div id="tf-place" class="tf-group">
+      <div class="mfield"><label>장소 검색 (구글맵)</label>
+        <div style="display:flex;gap:8px"><input id="plQuery" placeholder="장소·주소 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();placeSearch()}" /><button class="btn-primary" style="padding:0 16px" onclick="placeSearch()">검색</button></div>
+      </div>
+      <div id="plResults"></div>
+      <div class="mfield"><label>장소명</label><input id="plName" placeholder="예: 오사카성" /></div>
+      <div class="mfield"><label>주소</label><input id="plAddr" placeholder="주소 (검색하면 자동)" /></div>
+      <div class="m2">
+        <div class="mfield"><label>날짜</label><input id="plDate" type="date" /></div>
+        <div class="mfield"><label>시간</label><input id="plTime" type="time" /></div>
+      </div>
+      <div class="mfield"><label>메모</label><input id="plNote" placeholder="선택" /></div>
+      <input type="hidden" id="plLat" /><input type="hidden" id="plLng" />
+    </div>
+
+    <!-- 항공 -->
+    <div id="tf-flight" class="tf-group" style="display:none">
+      <label class="exp-photo" for="flImg" style="margin-top:0">✈️ 항공권 사진으로 자동입력</label>
+      <input id="flImg" type="file" accept="image/*" style="display:none" onchange="ticketOCR(this,'flight')" />
+      <div id="flOcr" class="exp-hint"></div>
+      <div class="m2">
+        <div class="mfield"><label>항공사</label><input id="flAirline" placeholder="예: 대한항공" /></div>
+        <div class="mfield"><label>편명</label><input id="flNo" placeholder="예: KE001" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>출발 공항</label><input id="flDepAp" placeholder="ICN" /></div>
+        <div class="mfield"><label>도착 공항</label><input id="flArrAp" placeholder="KIX" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>출발일</label><input id="flDepDate" type="date" /></div>
+        <div class="mfield"><label>출발시간(현지)</label><input id="flDepTime" type="time" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>도착일</label><input id="flArrDate" type="date" /></div>
+        <div class="mfield"><label>도착시간(현지)</label><input id="flArrTime" type="time" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>게이트</label><input id="flGate" placeholder="예: 27" /></div>
+        <div class="mfield"><label>좌석</label><input id="flSeat" placeholder="예: 32A" /></div>
+      </div>
+    </div>
+
+    <!-- 기차 -->
+    <div id="tf-train" class="tf-group" style="display:none">
+      <label class="exp-photo" for="trImg" style="margin-top:0">🚆 기차표 사진으로 자동입력</label>
+      <input id="trImg" type="file" accept="image/*" style="display:none" onchange="ticketOCR(this,'train')" />
+      <div id="trOcr" class="exp-hint"></div>
+      <div class="m2">
+        <div class="mfield"><label>운영사/노선</label><input id="trOp" placeholder="예: KTX / 신칸센" /></div>
+        <div class="mfield"><label>열차번호</label><input id="trNo" placeholder="예: 101" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>출발역</label><input id="trDepSt" placeholder="서울역" /></div>
+        <div class="mfield"><label>도착역</label><input id="trArrSt" placeholder="부산역" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>출발일</label><input id="trDepDate" type="date" /></div>
+        <div class="mfield"><label>출발시간(현지)</label><input id="trDepTime" type="time" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>도착일</label><input id="trArrDate" type="date" /></div>
+        <div class="mfield"><label>도착시간(현지)</label><input id="trArrTime" type="time" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>열차칸</label><input id="trCar" placeholder="예: 3호차" /></div>
+        <div class="mfield"><label>좌석</label><input id="trSeat" placeholder="예: 5A" /></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="saveTripItem()">저장</button>
+    <button class="btn-ghost" onclick="closeTripModal()">닫기</button>
+  </div>
+</div>
+
 <script>
 /* ===== CONFIG (workout 프로젝트) ===== */
 const SUPABASE_URL = "https://ohlssimixnkmfuuecxfr.supabase.co";
@@ -595,7 +722,7 @@ const PART_COLOR = {"가슴":"#ff7a18","등":"#5aa9ff","어깨":"#ffd166","하�
 const FOOD_PRESETS = [["공깃밥",300,68,5,1],["라면",500,79,10,16],["닭가슴살",110,0,23,2],["계란",80,1,6,6],["바나나",100,27,1,0],["아메리카노",10,2,0,0],["삼겹살 100g",330,0,17,28],["고구마",130,30,2,0],["우유",130,10,6,7],["프로틴쉐이크",150,5,25,2],["김밥",480,78,12,12],["샐러드",120,10,3,7]];
 
 let USER=null, MKEY=null, editingId=null;
-let WORKOUTS=[], FOODS=[], TASKS=[], TASKDONE=[], EXPENSES=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
+let WORKOUTS=[], FOODS=[], TASKS=[], TASKDONE=[], EXPENSES=[], TRIPS=[], TRIPITEMS=[], METRICS=null, METRICS_ID=null, METRICS_BLOB=null;
 let EXP_DRAFTS=[];
 
 /* ===== utils ===== */
@@ -690,7 +817,7 @@ sb.auth.onAuthStateChange((event,session)=>{
 async function refreshData(){
   const {data,error}=await sb.from("workouts").select("*").order("workout_date",{ascending:false}).order("created_at",{ascending:false});
   if(error){toast("불러오기 실패: "+error.message);return;}
-  WORKOUTS=[];FOODS=[];TASKS=[];TASKDONE=[];EXPENSES=[];METRICS_ID=null;METRICS_BLOB=null;
+  WORKOUTS=[];FOODS=[];TASKS=[];TASKDONE=[];EXPENSES=[];TRIPS=[];TRIPITEMS=[];METRICS_ID=null;METRICS_BLOB=null;
   for(const r of data||[]){
     const d=r.data||{};
     if(d.enc&&d.iv){ if(!METRICS_ID){METRICS_ID=r.id;METRICS_BLOB=d;} continue; }
@@ -698,6 +825,8 @@ async function refreshData(){
     if(d.kind==='task'){ TASKS.push({id:r.id,date:r.workout_date,title:d.title||r.title||"할 일",time:d.time||"",repeat:d.repeat||"none",dows:d.dows||[],done:!!d.done}); continue; }
     if(d.kind==='taskdone'){ TASKDONE.push({id:r.id,date:r.workout_date,ref:d.ref}); continue; }
     if(d.kind==='expense'){ EXPENSES.push({id:r.id,date:r.workout_date,amount:d.amount||r.total_volume||0,category:d.category||"기타",merchant:d.merchant||"",memo:d.memo||""}); continue; }
+    if(d.kind==='trip'){ TRIPS.push({id:r.id,name:d.name||r.title||"여행",start:d.start||r.workout_date,end:d.end||""}); continue; }
+    if(d.kind==='tripitem'){ TRIPITEMS.push({id:r.id,...d}); continue; }
     WORKOUTS.push({id:r.id,date:r.workout_date,title:r.title||"운동",exercises:d.exercises||[],memo:d.memo||"",durMin:d.durMin||0,vol:(d.vol??r.total_volume)||0,sets:(d.sets??r.total_sets)||0,kcal:d.kcal||0});
   }
   // 신체정보 복호화 (키 있으면)
@@ -1305,6 +1434,188 @@ async function saveDraft(i){
   await refreshData();renderExpense();toast("저장 ✓");
 }
 
+/* ===== 여행 타임라인 ===== */
+let CUR_TRIP=null, TRIP_TYPE='place', EDIT_ITEM=null, ROUTE_CACHE={};
+function onTripSel(){const v=$("#tripSel").value;CUR_TRIP=v?(+v):null;try{localStorage.setItem('wlog_curtrip',v);}catch(e){}renderTrip();}
+async function newTrip(){
+  const name=prompt("여행 이름 (예: 오사카 3박4일)");if(!name)return;
+  const start=prompt("시작일 (YYYY-MM-DD)",todayStr());if(!start)return;
+  const end=prompt("종료일 (YYYY-MM-DD)",start)||start;
+  const {error}=await sb.from("workouts").insert({title:name,workout_date:start,data:{kind:"trip",name,start,end}});
+  if(error){toast("생성 실패: "+error.message);return;}
+  await refreshData();
+  const t=TRIPS.find(x=>x.name===name&&x.start===start);if(t)CUR_TRIP=t.id;
+  renderTripSel();renderTrip();toast("여행 생성 ✓");
+}
+async function delTrip(id){
+  if(!confirm("이 여행과 모든 일정을 삭제할까요?"))return;
+  const items=TRIPITEMS.filter(x=>x.tripId===id);
+  for(const it of items)await sb.from("workouts").delete().eq("id",it.id);
+  await sb.from("workouts").delete().eq("id",id);
+  CUR_TRIP=null;await refreshData();renderTripSel();renderTrip();
+}
+function renderTripSel(){
+  const sel=$("#tripSel");
+  if(TRIPS.length===0){sel.innerHTML=`<option value="">여행 없음</option>`;return;}
+  if(!CUR_TRIP||!TRIPS.find(t=>t.id===CUR_TRIP)){try{const s=localStorage.getItem('wlog_curtrip');if(s&&TRIPS.find(t=>t.id===+s))CUR_TRIP=+s;}catch(e){}if(!CUR_TRIP||!TRIPS.find(t=>t.id===CUR_TRIP))CUR_TRIP=TRIPS[0].id;}
+  sel.innerHTML=TRIPS.slice().sort((a,b)=>a.start<b.start?1:-1).map(t=>`<option value="${t.id}"${t.id===CUR_TRIP?' selected':''}>${escapeHtml(t.name)}</option>`).join("");
+}
+function itemDT(it){ // 정렬용 datetime
+  if(it.type==='place')return (it.date||'')+"T"+(it.time||'00:00');
+  return (it.depDate||it.date||'')+"T"+(it.depTime||'00:00');
+}
+function renderTrip(){
+  renderTripSel();
+  const body=$("#tripBody");
+  if(!CUR_TRIP){body.innerHTML=`<div class="empty"><div class="big">✈️</div>여행이 없어요.<br>"＋ 새 여행"으로 시작하세요.</div>`;return;}
+  const trip=TRIPS.find(t=>t.id===CUR_TRIP);if(!trip){body.innerHTML="";return;}
+  const items=TRIPITEMS.filter(x=>x.tripId===CUR_TRIP).sort((a,b)=>itemDT(a)<itemDT(b)?-1:1);
+  let html=`<div class="trip-head"><span class="del" onclick="delTrip(${trip.id})">삭제</span><h3>${escapeHtml(trip.name)}</h3><div class="r">${trip.start}${trip.end&&trip.end!==trip.start?' ~ '+trip.end:''}</div></div>
+    <div class="tripadd">
+      <button onclick="openTripModal('place')">📍 장소</button>
+      <button onclick="openTripModal('flight')">✈️ 항공</button>
+      <button onclick="openTripModal('train')">🚆 기차</button>
+    </div>`;
+  if(items.length===0){html+=`<div class="empty" style="padding:34px 20px">아직 일정이 없어요.<br>위에서 장소·항공·기차를 추가하세요.</div>`;body.innerHTML=html;return;}
+  let lastDay="";
+  items.forEach((it,idx)=>{
+    const day=(it.type==='place'?it.date:(it.depDate||it.date))||"";
+    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}</div>`;}
+    html+=tlCard(it);
+    // 다음 항목이 장소이고 현재도 장소면 경로시간
+    const nx=items[idx+1];
+    if(nx&&it.type==='place'&&nx.type==='place'&&it.lat&&nx.lat){
+      const rk=`${it.lat},${it.lng}|${nx.lat},${nx.lng}`;
+      const cached=ROUTE_CACHE[rk];
+      html+=`<div class="tl-route" id="route-${idx}">${cached?routeText(cached):'🚗 소요시간 계산 중…'}</div>`;
+    }
+  });
+  body.innerHTML=html;
+  // 경로 비동기 계산
+  items.forEach((it,idx)=>{const nx=items[idx+1];if(nx&&it.type==='place'&&nx.type==='place'&&it.lat&&nx.lat){const rk=`${it.lat},${it.lng}|${nx.lat},${nx.lng}`;if(!ROUTE_CACHE[rk])fetchRoute(it,nx,idx);}});
+}
+function routeText(r){
+  if(r.err)return `🚗 경로 계산 불가`;
+  if(r.min>180)return `🚗 자동차 3시간 초과 (${Math.round(r.min/60*10)/10}h) — 생략`;
+  return `<span class="car">🚗 자동차 약 ${r.min}분</span> · ${r.km}km`;
+}
+async function fetchRoute(a,b,idx){
+  const rk=`${a.lat},${a.lng}|${b.lat},${b.lng}`;
+  try{
+    const r=await fetch(`/api/gmaps?action=route&from=${a.lat},${a.lng}&to=${b.lat},${b.lng}`);
+    const d=await r.json();
+    ROUTE_CACHE[rk]=r.ok?{min:d.durationMin,km:d.distanceKm}:{err:true};
+  }catch(e){ROUTE_CACHE[rk]={err:true};}
+  const el=$(`#route-${idx}`);if(el)el.innerHTML=routeText(ROUTE_CACHE[rk]);
+}
+function tlCard(it){
+  const icon=it.type==='place'?'📍':(it.type==='flight'?'✈️':'🚆');
+  let title="",time="",meta="",links="";
+  if(it.type==='place'){
+    title=it.title||"장소";time=it.time||"";
+    meta=it.address?escapeHtml(it.address):"";if(it.note)meta+=(meta?'<br>':'')+'📝 '+escapeHtml(it.note);
+    const q=it.lat?`${it.lat},${it.lng}`:encodeURIComponent(it.address||it.title||"");
+    links=`<a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank">🗺 지도 열기</a>`;
+    if(it.lat)links+=`<a href="https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}" target="_blank">🧭 길찾기</a>`;
+  }else if(it.type==='flight'){
+    title=`${escapeHtml(it.airline||'항공')} ${escapeHtml(it.flightNo||'')}`;time=it.depTime||"";
+    meta=`<b>${escapeHtml(it.depAp||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrAp||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
+    const ex=[];if(it.gate)ex.push('게이트 '+escapeHtml(it.gate));if(it.seat)ex.push('좌석 '+escapeHtml(it.seat));if(ex.length)meta+='<br>'+ex.join(' · ');
+  }else{
+    title=`${escapeHtml(it.op||'기차')} ${escapeHtml(it.trainNo||'')}`;time=it.depTime||"";
+    meta=`<b>${escapeHtml(it.depSt||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrSt||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
+    const ex=[];if(it.car)ex.push(escapeHtml(it.car));if(it.seat)ex.push('좌석 '+escapeHtml(it.seat));if(ex.length)meta+='<br>'+ex.join(' · ');
+  }
+  return `<div class="tl-item"><div class="tl-dot">${icon}</div><div class="tl-card">
+    <span class="tl-del" onclick="delTripItem(${it.id})">🗑</span>
+    ${time?`<div class="tl-time">${time}</div>`:''}
+    <div class="tl-title">${title}</div>
+    ${meta?`<div class="tl-meta">${meta}</div>`:''}
+    ${links?`<div class="tl-links">${links}</div>`:''}
+  </div></div>`;
+}
+async function delTripItem(id){if(!confirm("이 일정을 삭제할까요?"))return;await sb.from("workouts").delete().eq("id",id);await refreshData();renderTrip();}
+
+/* --- 항목 추가 모달 --- */
+function openTripModal(type){
+  EDIT_ITEM=null;
+  ["plName","plAddr","plNote","plQuery","flAirline","flNo","flDepAp","flArrAp","flGate","flSeat","trOp","trNo","trDepSt","trArrSt","trCar","trSeat"].forEach(id=>{const e=$("#"+id);if(e)e.value="";});
+  ["plDate","plTime","flDepDate","flDepTime","flArrDate","flArrTime","trDepDate","trDepTime","trArrDate","trArrTime"].forEach(id=>{const e=$("#"+id);if(e)e.value="";});
+  $("#plLat").value="";$("#plLng").value="";$("#plResults").innerHTML="";$("#flOcr").textContent="";$("#trOcr").textContent="";
+  const trip=TRIPS.find(t=>t.id===CUR_TRIP);const dft=trip?trip.start:todayStr();
+  $("#plDate").value=dft;$("#flDepDate").value=dft;$("#flArrDate").value=dft;$("#trDepDate").value=dft;$("#trArrDate").value=dft;
+  tripType(type,[...$$("#tripTypeSeg button")].find(b=>b.dataset.t===type));
+  $("#tripModalTitle").textContent="일정 추가";
+  $("#tripModal").classList.add("show");
+}
+function closeTripModal(){$("#tripModal").classList.remove("show");}
+function tripType(t,btn){
+  TRIP_TYPE=t;
+  $$("#tripTypeSeg button").forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
+  $("#tf-place").style.display=t==='place'?'block':'none';
+  $("#tf-flight").style.display=t==='flight'?'block':'none';
+  $("#tf-train").style.display=t==='train'?'block':'none';
+}
+async function placeSearch(){
+  const q=$("#plQuery").value.trim();if(!q){toast("검색어를 입력하세요");return;}
+  const box=$("#plResults");box.innerHTML=`<div class="spin" style="margin:10px auto"></div>`;
+  try{
+    const r=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(q)}`);
+    const d=await r.json();
+    if(!r.ok){box.innerHTML=`<div class="fr-msg">${escapeHtml(d.error||'검색 실패')}</div>`;return;}
+    if(!d.results||!d.results.length){box.innerHTML=`<div class="fr-msg">결과 없음</div>`;return;}
+    window._plRes=d.results;
+    box.innerHTML=d.results.map((p,i)=>`<div class="pl-res" onclick="pickPlace(${i})"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.address)}</span></div>`).join("");
+  }catch(e){box.innerHTML=`<div class="fr-msg">오류: ${escapeHtml(e.message)}</div>`;}
+}
+function pickPlace(i){
+  const p=(window._plRes||[])[i];if(!p)return;
+  $("#plName").value=p.name;$("#plAddr").value=p.address;$("#plLat").value=p.lat;$("#plLng").value=p.lng;
+  $("#plResults").innerHTML="";toast("장소 선택됨");
+}
+async function saveTripItem(){
+  if(!CUR_TRIP){toast("먼저 여행을 선택하세요");return;}
+  let payload;
+  if(TRIP_TYPE==='place'){
+    const name=$("#plName").value.trim();if(!name){toast("장소명을 입력하세요");return;}
+    payload={kind:"tripitem",tripId:CUR_TRIP,type:"place",title:name,address:$("#plAddr").value.trim(),date:$("#plDate").value,time:$("#plTime").value,note:$("#plNote").value.trim(),lat:$("#plLat").value,lng:$("#plLng").value};
+  }else if(TRIP_TYPE==='flight'){
+    payload={kind:"tripitem",tripId:CUR_TRIP,type:"flight",airline:$("#flAirline").value.trim(),flightNo:$("#flNo").value.trim(),depAp:$("#flDepAp").value.trim(),arrAp:$("#flArrAp").value.trim(),depDate:$("#flDepDate").value,depTime:$("#flDepTime").value,arrDate:$("#flArrDate").value,arrTime:$("#flArrTime").value,gate:$("#flGate").value.trim(),seat:$("#flSeat").value.trim(),title:($("#flAirline").value.trim()+" "+$("#flNo").value.trim()).trim()||"항공"};
+  }else{
+    payload={kind:"tripitem",tripId:CUR_TRIP,type:"train",op:$("#trOp").value.trim(),trainNo:$("#trNo").value.trim(),depSt:$("#trDepSt").value.trim(),arrSt:$("#trArrSt").value.trim(),depDate:$("#trDepDate").value,depTime:$("#trDepTime").value,arrDate:$("#trArrDate").value,arrTime:$("#trArrTime").value,car:$("#trCar").value.trim(),seat:$("#trSeat").value.trim(),title:($("#trOp").value.trim()+" "+$("#trNo").value.trim()).trim()||"기차"};
+  }
+  const wdate=payload.date||payload.depDate||todayStr();
+  const {error}=await sb.from("workouts").insert({title:payload.title,workout_date:wdate,data:payload});
+  if(error){toast("저장 실패: "+error.message);return;}
+  closeTripModal();await refreshData();renderTrip();toast("일정 추가 ✓");
+}
+/* --- 항공/기차표 OCR --- */
+async function ticketOCR(input,kind){
+  const file=input.files[0];input.value="";if(!file)return;
+  const box=kind==='flight'?$("#flOcr"):$("#trOcr");
+  box.innerHTML=`<div class="spin" style="margin:8px auto"></div>`;
+  try{
+    const b64=await imgToBase64(file);
+    const r=await fetch(`/api/ticket?type=${kind}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg'})});
+    const d=await r.json();
+    if(!r.ok){box.textContent="인식 실패: "+(d.error||'');return;}
+    if(kind==='flight'){
+      if(d.airline)$("#flAirline").value=d.airline;if(d.flightNo)$("#flNo").value=d.flightNo;
+      if(d.depAp)$("#flDepAp").value=d.depAp;if(d.arrAp)$("#flArrAp").value=d.arrAp;
+      if(d.depDate)$("#flDepDate").value=d.depDate;if(d.depTime)$("#flDepTime").value=d.depTime;
+      if(d.arrDate)$("#flArrDate").value=d.arrDate;if(d.arrTime)$("#flArrTime").value=d.arrTime;
+      if(d.gate)$("#flGate").value=d.gate;if(d.seat)$("#flSeat").value=d.seat;
+    }else{
+      if(d.op)$("#trOp").value=d.op;if(d.trainNo)$("#trNo").value=d.trainNo;
+      if(d.depSt)$("#trDepSt").value=d.depSt;if(d.arrSt)$("#trArrSt").value=d.arrSt;
+      if(d.depDate)$("#trDepDate").value=d.depDate;if(d.depTime)$("#trDepTime").value=d.depTime;
+      if(d.arrDate)$("#trArrDate").value=d.arrDate;if(d.arrTime)$("#trArrTime").value=d.arrTime;
+      if(d.car)$("#trCar").value=d.car;if(d.seat)$("#trSeat").value=d.seat;
+    }
+    box.textContent="✓ 인식 완료 — 확인 후 저장하세요";
+  }catch(e){box.textContent="오류: "+e.message;}
+}
+
 /* ===== 분석 ===== */
 let STAT_DATA=[], CUR_VIEW="overview";
 async function loadStat(){
@@ -1407,7 +1718,7 @@ function switchTab(name){
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
   $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${name}`).classList.add("on");
   window.scrollTo(0,0);
-  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="stat")loadStat();
+  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")renderTrip();if(name==="stat")loadStat();
 }
 $("#tab-log").classList.add("active");
 // 자동로그인: 저장된 이메일·설정 프리필
