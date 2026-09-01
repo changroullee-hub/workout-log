@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01r  ·  feat: 원문표기(키릴 그대로)+이모지/중복 제거+도시 오타보정 반영
+     build: 2026-09-01s  ·  feat: 가계부 한 장에 여러 결제건 모두 인식 + 모두저장 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1448,19 +1448,34 @@ async function onExpImages(input){
   const files=[...input.files];input.value="";
   if(!files.length)return;
   toast(`이미지 ${files.length}장 인식 중…`);
+  let total=0;
   for(const file of files){
     let did={pending:true,fname:file.name};EXP_DRAFTS.push(did);renderDrafts();
     try{
       const b64=await imgToBase64(file);
       const r=await fetch('/api/ocr',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg'})});
       const d=await r.json();
-      const idx=EXP_DRAFTS.indexOf(did);
-      if(!r.ok){EXP_DRAFTS.splice(idx,1);toast('인식 실패: '+(d.error||''));renderDrafts();continue;}
-      EXP_DRAFTS[idx]={date:d.date||todayStr(),amount:d.amount||0,merchant:d.merchant||"",category:d.category||"기타",memo:d.memo||""};
+      const idx=EXP_DRAFTS.indexOf(did);EXP_DRAFTS.splice(idx,1);
+      if(!r.ok){toast('인식 실패: '+(d.error||''));renderDrafts();continue;}
+      const items=Array.isArray(d.items)?d.items:(d.amount!==undefined?[d]:[]);
+      // 금액 0 이하 or 외화(원화 아님)는 참고로 표시하되 기본 제외하지 않고 드래프트로 올림(사용자가 판단)
+      items.forEach(it=>{
+        const cur=(it.currency||'KRW').toUpperCase();
+        const nonKRW=cur!=='KRW';
+        EXP_DRAFTS.push({
+          date:it.date||todayStr(),
+          amount:it.amount||0,
+          merchant:it.merchant||"",
+          category:it.category||"기타",
+          memo:(it.time?it.time+' ':'')+(it.memo||'')+(nonKRW?` [${cur}]`:''),
+          warn:(it.amount||0)<=0?'금액 0 — 확인':''
+        });
+        total++;
+      });
     }catch(e){const idx=EXP_DRAFTS.indexOf(did);if(idx>=0)EXP_DRAFTS.splice(idx,1);toast('오류: '+e.message);}
     renderDrafts();
   }
-  toast("인식 완료 — 카테고리 확인 후 저장하세요");
+  toast(total?`${total}건 인식 — 카테고리 확인 후 저장`:"인식된 결제가 없어요");
 }
 function catOptions(sel){
   const cats=["데이트비","중개소 운영비","감정 영업비","생활비","기타"];
@@ -1470,19 +1485,33 @@ function catOptions(sel){
 function renderDrafts(){
   const box=$("#expDrafts");
   if(!EXP_DRAFTS.length){box.innerHTML="";return;}
-  box.innerHTML=EXP_DRAFTS.map((d,i)=>{
+  const real=EXP_DRAFTS.filter(d=>!d.pending).length;
+  const head=real>1?`<div class="draft" style="border-style:dashed;text-align:center"><button class="draft-save" style="width:100%" onclick="saveAllDrafts()">✓ 인식된 ${real}건 모두 저장</button></div>`:"";
+  box.innerHTML=head+EXP_DRAFTS.map((d,i)=>{
     if(d.pending)return `<div class="draft"><div class="draft-h">🔍 AI 인식 중… (${escapeHtml(d.fname||'이미지')})</div><div class="spin" style="margin:8px auto"></div></div>`;
     return `<div class="draft">
-      <div class="draft-h">🧾 인식 결과 확인 후 저장</div>
+      <div class="draft-h">🧾 인식 결과 확인 후 저장${d.warn?` <span style="color:var(--red)">· ${escapeHtml(d.warn)}</span>`:''}</div>
       <div class="draft-row">
         <input class="draft-amt" type="number" value="${d.amount}" onchange="EXP_DRAFTS[${i}].amount=parseInt(this.value)||0" />
         <input class="draft-date" type="date" value="${d.date}" onchange="EXP_DRAFTS[${i}].date=this.value" />
       </div>
       <div class="draft-row"><input class="draft-merchant" value="${escapeHtml(d.merchant)}" placeholder="가맹점" onchange="EXP_DRAFTS[${i}].merchant=this.value" /></div>
       <div class="draft-row"><select class="draft-cat" onchange="EXP_DRAFTS[${i}].category=this.value">${catOptions(d.category)}</select></div>
+      ${d.memo?`<div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">${escapeHtml(d.memo)}</div>`:''}
       <div class="draft-btns"><button class="draft-save" onclick="saveDraft(${i})">저장</button><button class="draft-drop" onclick="EXP_DRAFTS.splice(${i},1);renderDrafts()">버림</button></div>
     </div>`;
   }).join("");
+}
+async function saveAllDrafts(){
+  const list=EXP_DRAFTS.filter(d=>!d.pending&&d.amount>0);
+  if(!list.length){toast("저장할 항목이 없어요");return;}
+  let n=0;
+  for(const d of list){
+    const {error}=await sb.from("workouts").insert({title:d.merchant||d.category,workout_date:d.date||todayStr(),total_volume:d.amount,total_sets:0,data:{kind:"expense",amount:d.amount,category:d.category,merchant:d.merchant,memo:d.memo||""}});
+    if(!error)n++;
+  }
+  EXP_DRAFTS=EXP_DRAFTS.filter(d=>d.pending||d.amount<=0);
+  await refreshData();renderExpense();toast(`${n}건 저장 ✓`);
 }
 async function saveDraft(i){
   const d=EXP_DRAFTS[i];if(!d||d.pending)return;
