@@ -21,16 +21,19 @@ export default async function handler(req, res) {
   content.push({ type: "text", text:
 `이 이미지들은 항공권(탑승권/E-티켓)입니다. 여러 장이면 모두 종합하세요.
 모든 항공편을 추출하고 여행 정보를 추론해 JSON만 출력하세요. 설명·코드블록 금지.
+중요: 이미지에 실제로 보이는 값만 채우세요. 안 보이면 빈 문자열 "". 좌석·게이트 등은 추측하지 마세요.
 
-- flights: 배열. 각 항공편은 {airline, flightNo, depAp, arrAp, depDate, depTime, arrDate, arrTime, gate, seat}
+- flights: 배열. 각 항공편은 {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
     · depAp/arrAp = 공항 IATA 3자리 코드 (예: ICN, KIX, NRT)
-    · 날짜 YYYY-MM-DD (연도 안 보이면 ${year}), 시간 HH:MM (현지시간)
+    · depCity/arrCity = 도시명(한글, 나라 포함. 예 "서울, 대한민국" / "타슈켄트, 우즈베키스탄")
+    · 날짜 YYYY-MM-DD (연도 없으면 ${year}), 시간 HH:MM (현지시간)
+    · gate = 명확히 보일 때만, 아니면 ""
     · 왕복이면 가는 편과 오는 편을 모두 포함. 경유편도 각각 포함.
-- destinationCity: 이 여행의 목적지 도시명(한글). 보통 첫 출발편의 도착 공항이 있는 도시. (예: 오사카, 도쿄, 방콕)
-- tripName: 여행 이름 추천 (예: "오사카 여행").
+- destinationCity: 이 여행의 목적지 도시명(한글). 보통 첫 출발편의 도착 도시. (예: 타슈켄트)
+- tripName: 여행 이름 추천 (예: "중앙아시아 여행").
 
-모르는 값은 "". 형식:
-{"tripName":"","destinationCity":"","flights":[{"airline":"","flightNo":"","depAp":"","arrAp":"","depDate":"","depTime":"","arrDate":"","arrTime":"","gate":"","seat":""}]}`
+형식:
+{"tripName":"","destinationCity":"","flights":[{"airline":"","flightNo":"","depAp":"","arrAp":"","depCity":"","arrCity":"","depDate":"","depTime":"","arrDate":"","arrTime":"","gate":""}]}`
   });
 
   try {

@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01h  ·  feat: 앱 배경 매직테마 + 링크썸네일(og.png) + 화이트리스트
+     build: 2026-09-01i  ·  feat: 날짜별 도시표시 + 좌석제거 + 예약내역 OCR + 기존여행 티켓추가
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -271,6 +271,7 @@
   .trip-new{background:var(--accent);color:#1a1206;font-weight:800;border-radius:11px;padding:0 15px;white-space:nowrap}
   .tl-day{font-size:12px;color:var(--accent-soft);font-weight:800;letter-spacing:.03em;margin:16px 2px 10px;text-transform:uppercase}
   .tl-day:first-child{margin-top:2px}
+  .tl-loc{margin-left:9px;font-size:11px;color:var(--blue);font-weight:700;letter-spacing:0}
   .tl-item{position:relative;padding-left:26px;margin-bottom:10px}
   .tl-item::before{content:"";position:absolute;left:8px;top:6px;bottom:-16px;width:2px;background:var(--line)}
   .tl-item:last-child::before{display:none}
@@ -711,6 +712,9 @@
 
     <!-- 장소 -->
     <div id="tf-place" class="tf-group">
+      <label class="exp-photo" for="plImg" style="margin-top:0">🏨 예약내역/바우처 사진으로 자동입력</label>
+      <input id="plImg" type="file" accept="image/*" style="display:none" onchange="ticketOCR(this,'place')" />
+      <div id="plOcr" class="exp-hint"></div>
       <div class="mfield"><label>장소 검색 (구글맵)</label>
         <div style="display:flex;gap:8px"><input id="plQuery" placeholder="장소·주소 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();placeSearch()}" /><button class="btn-primary" style="padding:0 16px" onclick="placeSearch()">검색</button></div>
       </div>
@@ -746,10 +750,7 @@
         <div class="mfield"><label>도착일</label><input id="flArrDate" type="date" /></div>
         <div class="mfield"><label>도착시간(현지)</label><input id="flArrTime" type="time" /></div>
       </div>
-      <div class="m2">
-        <div class="mfield"><label>게이트</label><input id="flGate" placeholder="예: 27" /></div>
-        <div class="mfield"><label>좌석</label><input id="flSeat" placeholder="예: 32A" /></div>
-      </div>
+      <div class="mfield"><label>게이트</label><input id="flGate" placeholder="예: 27 (있으면)" /></div>
     </div>
 
     <!-- 기차 -->
@@ -773,10 +774,7 @@
         <div class="mfield"><label>도착일</label><input id="trArrDate" type="date" /></div>
         <div class="mfield"><label>도착시간(현지)</label><input id="trArrTime" type="time" /></div>
       </div>
-      <div class="m2">
-        <div class="mfield"><label>열차칸</label><input id="trCar" placeholder="예: 3호차" /></div>
-        <div class="mfield"><label>좌석</label><input id="trSeat" placeholder="예: 5A" /></div>
-      </div>
+      <div class="mfield"><label>열차칸</label><input id="trCar" placeholder="예: 3호차 (있으면)" /></div>
     </div>
 
     <button class="btn-primary" onclick="saveTripItem()">저장</button>
@@ -1536,7 +1534,7 @@ async function saveDraft(i){
 }
 
 /* ===== 여행 타임라인 ===== */
-let CUR_TRIP=null, TRIP_TYPE='place', EDIT_ITEM=null, ROUTE_CACHE={};
+let CUR_TRIP=null, TRIP_TYPE='place', EDIT_ITEM=null, ROUTE_CACHE={}, LAST_FL_CITY={dep:'',arr:''};
 function onTripSel(){const v=$("#tripSel").value;CUR_TRIP=v?(+v):null;try{localStorage.setItem('wlog_curtrip',v);}catch(e){}renderTrip();}
 async function newTrip(){
   const name=prompt("여행 이름 (예: 오사카 3박4일)");if(!name)return;
@@ -1565,6 +1563,31 @@ function itemDT(it){ // 정렬용 datetime
   if(it.type==='place')return (it.date||'')+"T"+(it.time||'00:00');
   return (it.depDate||it.date||'')+"T"+(it.depTime||'00:00');
 }
+const IATA_CITY={ICN:"서울, 대한민국",GMP:"서울, 대한민국",PUS:"부산, 대한민국",CJU:"제주, 대한민국",
+  NRT:"도쿄, 일본",HND:"도쿄, 일본",KIX:"오사카, 일본",ITM:"오사카, 일본",FUK:"후쿠오카, 일본",CTS:"삿포로, 일본",OKA:"오키나와, 일본",
+  TPE:"타이베이, 대만",HKG:"홍콩",BKK:"방콕, 태국",DMK:"방콕, 태국",HKT:"푸껫, 태국",SIN:"싱가포르",
+  DPS:"발리, 인도네시아",CGK:"자카르타, 인도네시아",MNL:"마닐라, 필리핀",CEB:"세부, 필리핀",HAN:"하노이, 베트남",SGN:"호치민, 베트남",DAD:"다낭, 베트남",
+  KUL:"쿠알라룸푸르, 말레이시아",PEK:"베이징, 중국",PVG:"상하이, 중국",CAN:"광저우, 중국",
+  TAS:"타슈켄트, 우즈베키스탄",SKD:"사마르칸트, 우즈베키스탄",TSE:"아스타나, 카자흐스탄",NQZ:"아스타나, 카자흐스탄",ALA:"알마티, 카자흐스탄",
+  FRU:"비슈케크, 키르기스스탄",GYD:"바쿠, 아제르바이잔",TBS:"트빌리시, 조지아",EVN:"예레반, 아르메니아",
+  DXB:"두바이, UAE",AUH:"아부다비, UAE",IST:"이스탄불, 튀르키예",DOH:"도하, 카타르",
+  CDG:"파리, 프랑스",LHR:"런던, 영국",FCO:"로마, 이탈리아",BCN:"바르셀로나, 스페인",MAD:"마드리드, 스페인",FRA:"프랑크푸르트, 독일",AMS:"암스테르담, 네덜란드",
+  JFK:"뉴욕, 미국",LAX:"로스앤젤레스, 미국",SFO:"샌프란시스코, 미국",HNL:"호놀룰루, 미국",GUM:"괌",SYD:"시드니, 호주"};
+function cityOf(code,fb){return IATA_CITY[(code||'').toUpperCase().trim()]||fb||'';}
+// 특정 날짜에 "어느 도시에 있는지" (항공/기차 도착 기준)
+function locForDay(items,day){
+  const moves=items.filter(x=>x.type==='flight'||x.type==='train').map(x=>({
+    arrDate:x.arrDate||x.depDate||'',
+    arrCity:x.type==='flight'?(x.arrCity||cityOf(x.arrAp)):(x.arrCity||x.arrSt||''),
+    depDate:x.depDate||'',
+    depCity:x.type==='flight'?(x.depCity||cityOf(x.depAp)):(x.depCity||x.depSt||'')
+  })).filter(m=>m.arrDate).sort((a,b)=>a.arrDate<b.arrDate?-1:1);
+  if(!moves.length)return'';
+  let loc='';
+  for(const m of moves){if(m.arrDate<=day)loc=m.arrCity;}
+  if(!loc)loc=moves[0].depCity||'';
+  return loc;
+}
 function renderTrip(){
   renderTripSel();
   const body=$("#tripBody");
@@ -1582,7 +1605,7 @@ function renderTrip(){
   let lastDay="";
   items.forEach((it,idx)=>{
     const day=(it.type==='place'?it.date:(it.depDate||it.date))||"";
-    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}</div>`;}
+    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;const loc=day?locForDay(items,day):'';html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}${loc?`<span class="tl-loc">🌍 ${escapeHtml(loc)}</span>`:''}</div>`;}
     html+=tlCard(it);
     // 다음 항목이 장소이고 현재도 장소면 경로시간
     const nx=items[idx+1];
@@ -1623,11 +1646,11 @@ function tlCard(it){
   }else if(it.type==='flight'){
     title=`${escapeHtml(it.airline||'항공')} ${escapeHtml(it.flightNo||'')}`;time=it.depTime||"";
     meta=`<b>${escapeHtml(it.depAp||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrAp||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
-    const ex=[];if(it.gate)ex.push('게이트 '+escapeHtml(it.gate));if(it.seat)ex.push('좌석 '+escapeHtml(it.seat));if(ex.length)meta+='<br>'+ex.join(' · ');
+    if(it.gate)meta+='<br>게이트 '+escapeHtml(it.gate);
   }else{
     title=`${escapeHtml(it.op||'기차')} ${escapeHtml(it.trainNo||'')}`;time=it.depTime||"";
     meta=`<b>${escapeHtml(it.depSt||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrSt||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
-    const ex=[];if(it.car)ex.push(escapeHtml(it.car));if(it.seat)ex.push('좌석 '+escapeHtml(it.seat));if(ex.length)meta+='<br>'+ex.join(' · ');
+    if(it.car)meta+='<br>'+escapeHtml(it.car);
   }
   return `<div class="tl-item"><div class="tl-dot">${icon}</div><div class="tl-card">
     <span class="tl-del" onclick="delTripItem(${it.id})">🗑</span>
@@ -1641,10 +1664,10 @@ async function delTripItem(id){if(!confirm("이 일정을 삭제할까요?"))ret
 
 /* --- 항목 추가 모달 --- */
 function openTripModal(type){
-  EDIT_ITEM=null;
-  ["plName","plAddr","plNote","plQuery","flAirline","flNo","flDepAp","flArrAp","flGate","flSeat","trOp","trNo","trDepSt","trArrSt","trCar","trSeat"].forEach(id=>{const e=$("#"+id);if(e)e.value="";});
+  EDIT_ITEM=null;LAST_FL_CITY={dep:'',arr:''};
+  ["plName","plAddr","plNote","plQuery","flAirline","flNo","flDepAp","flArrAp","flGate","trOp","trNo","trDepSt","trArrSt","trCar"].forEach(id=>{const e=$("#"+id);if(e)e.value="";});
   ["plDate","plTime","flDepDate","flDepTime","flArrDate","flArrTime","trDepDate","trDepTime","trArrDate","trArrTime"].forEach(id=>{const e=$("#"+id);if(e)e.value="";});
-  $("#plLat").value="";$("#plLng").value="";$("#plResults").innerHTML="";$("#flOcr").textContent="";$("#trOcr").textContent="";
+  $("#plLat").value="";$("#plLng").value="";$("#plResults").innerHTML="";$("#flOcr").textContent="";$("#trOcr").textContent="";$("#plOcr").textContent="";
   const trip=TRIPS.find(t=>t.id===CUR_TRIP);const dft=trip?trip.start:todayStr();
   $("#plDate").value=dft;$("#flDepDate").value=dft;$("#flArrDate").value=dft;$("#trDepDate").value=dft;$("#trArrDate").value=dft;
   tripType(type,[...$$("#tripTypeSeg button")].find(b=>b.dataset.t===type));
@@ -1683,9 +1706,9 @@ async function saveTripItem(){
     const name=$("#plName").value.trim();if(!name){toast("장소명을 입력하세요");return;}
     payload={kind:"tripitem",tripId:CUR_TRIP,type:"place",title:name,address:$("#plAddr").value.trim(),date:$("#plDate").value,time:$("#plTime").value,note:$("#plNote").value.trim(),lat:$("#plLat").value,lng:$("#plLng").value};
   }else if(TRIP_TYPE==='flight'){
-    payload={kind:"tripitem",tripId:CUR_TRIP,type:"flight",airline:$("#flAirline").value.trim(),flightNo:$("#flNo").value.trim(),depAp:$("#flDepAp").value.trim(),arrAp:$("#flArrAp").value.trim(),depDate:$("#flDepDate").value,depTime:$("#flDepTime").value,arrDate:$("#flArrDate").value,arrTime:$("#flArrTime").value,gate:$("#flGate").value.trim(),seat:$("#flSeat").value.trim(),title:($("#flAirline").value.trim()+" "+$("#flNo").value.trim()).trim()||"항공"};
+    payload={kind:"tripitem",tripId:CUR_TRIP,type:"flight",airline:$("#flAirline").value.trim(),flightNo:$("#flNo").value.trim(),depAp:$("#flDepAp").value.trim(),arrAp:$("#flArrAp").value.trim(),depDate:$("#flDepDate").value,depTime:$("#flDepTime").value,arrDate:$("#flArrDate").value,arrTime:$("#flArrTime").value,gate:$("#flGate").value.trim(),depCity:LAST_FL_CITY.dep||"",arrCity:LAST_FL_CITY.arr||"",title:($("#flAirline").value.trim()+" "+$("#flNo").value.trim()).trim()||"항공"};
   }else{
-    payload={kind:"tripitem",tripId:CUR_TRIP,type:"train",op:$("#trOp").value.trim(),trainNo:$("#trNo").value.trim(),depSt:$("#trDepSt").value.trim(),arrSt:$("#trArrSt").value.trim(),depDate:$("#trDepDate").value,depTime:$("#trDepTime").value,arrDate:$("#trArrDate").value,arrTime:$("#trArrTime").value,car:$("#trCar").value.trim(),seat:$("#trSeat").value.trim(),title:($("#trOp").value.trim()+" "+$("#trNo").value.trim()).trim()||"기차"};
+    payload={kind:"tripitem",tripId:CUR_TRIP,type:"train",op:$("#trOp").value.trim(),trainNo:$("#trNo").value.trim(),depSt:$("#trDepSt").value.trim(),arrSt:$("#trArrSt").value.trim(),depDate:$("#trDepDate").value,depTime:$("#trDepTime").value,arrDate:$("#trArrDate").value,arrTime:$("#trArrTime").value,car:$("#trCar").value.trim(),title:($("#trOp").value.trim()+" "+$("#trNo").value.trim()).trim()||"기차"};
   }
   const wdate=payload.date||payload.depDate||todayStr();
   const {error}=await sb.from("workouts").insert({title:payload.title,workout_date:wdate,data:payload});
@@ -1695,7 +1718,7 @@ async function saveTripItem(){
 /* --- 항공/기차표 OCR --- */
 async function ticketOCR(input,kind){
   const file=input.files[0];input.value="";if(!file)return;
-  const box=kind==='flight'?$("#flOcr"):$("#trOcr");
+  const box=kind==='flight'?$("#flOcr"):(kind==='train'?$("#trOcr"):$("#plOcr"));
   box.innerHTML=`<div class="spin" style="margin:8px auto"></div>`;
   try{
     const b64=await imgToBase64(file);
@@ -1707,13 +1730,17 @@ async function ticketOCR(input,kind){
       if(d.depAp)$("#flDepAp").value=d.depAp;if(d.arrAp)$("#flArrAp").value=d.arrAp;
       if(d.depDate)$("#flDepDate").value=d.depDate;if(d.depTime)$("#flDepTime").value=d.depTime;
       if(d.arrDate)$("#flArrDate").value=d.arrDate;if(d.arrTime)$("#flArrTime").value=d.arrTime;
-      if(d.gate)$("#flGate").value=d.gate;if(d.seat)$("#flSeat").value=d.seat;
-    }else{
+      if(d.gate)$("#flGate").value=d.gate;LAST_FL_CITY.dep=d.depCity||"";LAST_FL_CITY.arr=d.arrCity||"";
+    }else if(kind==='train'){
       if(d.op)$("#trOp").value=d.op;if(d.trainNo)$("#trNo").value=d.trainNo;
       if(d.depSt)$("#trDepSt").value=d.depSt;if(d.arrSt)$("#trArrSt").value=d.arrSt;
       if(d.depDate)$("#trDepDate").value=d.depDate;if(d.depTime)$("#trDepTime").value=d.depTime;
       if(d.arrDate)$("#trArrDate").value=d.arrDate;if(d.arrTime)$("#trArrTime").value=d.arrTime;
-      if(d.car)$("#trCar").value=d.car;if(d.seat)$("#trSeat").value=d.seat;
+      if(d.car)$("#trCar").value=d.car;
+    }else{
+      if(d.name)$("#plName").value=d.name;if(d.address)$("#plAddr").value=d.address;
+      if(d.date)$("#plDate").value=d.date;if(d.time)$("#plTime").value=d.time;if(d.note)$("#plNote").value=d.note;
+      if(d.name&&!d.address){$("#plQuery").value=d.name;} // 주소 없으면 검색 추천
     }
     box.textContent="✓ 인식 완료 — 확인 후 저장하세요";
   }catch(e){box.textContent="오류: "+e.message;}
@@ -1746,7 +1773,7 @@ function openTripPlan(){
   $("#tpStart").value=deps[0]||todayStr();
   $("#tpEnd").value=arrs[arrs.length-1]||deps[0]||todayStr();
   $("#tpDest").value=TP_PLAN.destinationCity||'';
-  $("#tpFlights").innerHTML=fl.length?fl.map(f=>`<div class="tp-fl">✈️ <b>${escapeHtml(((f.airline||'')+' '+(f.flightNo||'')).trim())}</b><br>${escapeHtml(f.depAp||'')} ${f.depDate||''} ${f.depTime||''} → ${escapeHtml(f.arrAp||'')} ${f.arrDate||''} ${f.arrTime||''}${f.seat?' · 좌석 '+escapeHtml(f.seat):''}</div>`).join(""):`<div class="wk-empty">항공편을 못 읽었어요. 생성 후 직접 추가할 수 있어요.</div>`;
+  $("#tpFlights").innerHTML=fl.length?fl.map(f=>`<div class="tp-fl">✈️ <b>${escapeHtml(((f.airline||'')+' '+(f.flightNo||'')).trim())}</b><br>${escapeHtml(f.depAp||'')} ${f.depDate||''} ${f.depTime||''} → ${escapeHtml(f.arrAp||'')} ${f.arrDate||''} ${f.arrTime||''}</div>`).join(""):`<div class="wk-empty">항공편을 못 읽었어요. 생성 후 직접 추가할 수 있어요.</div>`;
   $("#tripPlanModal").classList.add("show");
 }
 function closeTripPlan(){$("#tripPlanModal").classList.remove("show");}
@@ -1762,7 +1789,7 @@ async function createTripFromPlan(){
   if(!trip){toast("여행 확인 실패");return;}
   for(const f of (TP_PLAN.flights||[])){
     const title=((f.airline||'')+' '+(f.flightNo||'')).trim()||'항공';
-    await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId:trip.id,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',seat:f.seat||'',title}});
+    await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId:trip.id,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',depCity:f.depCity||'',arrCity:f.arrCity||'',title}});
   }
   if(dest){
     const arrDate=(TP_PLAN.flights&&TP_PLAN.flights[0]&&TP_PLAN.flights[0].arrDate)||start;

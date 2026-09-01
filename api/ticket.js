@@ -17,22 +17,35 @@ export default async function handler(req, res) {
   const type = (req.query.type || "flight").toString();
   const year = new Date().toISOString().slice(0, 4);
 
-  const prompt = type === "train"
+  const prompt = type === "place"
+    ? `이 이미지는 숙소/식당/투어 등의 예약 확인서(바우처)입니다. 아래를 추출해 JSON만 출력하세요. 설명·코드블록 금지.
+중요: 실제로 보이는 값만. 안 보이면 빈 문자열 "". 추측 금지.
+- name: 장소/시설 이름 (호텔명, 식당명 등)
+- address: 주소 (있으면)
+- date: 이용/체크인 날짜 YYYY-MM-DD (연도 없으면 ${year})
+- time: 시간 HH:MM (체크인/예약 시각, 있으면)
+- note: 예약번호·인원 등 짧은 참고 (있으면)
+형식: {"name":"","address":"","date":"","time":"","note":""}`
+    : type === "train"
     ? `이 이미지는 기차표(승차권)입니다. 아래를 추출해 JSON만 출력하세요. 설명·코드블록 금지.
+중요: 이미지에 실제로 보이는 값만 채우세요. 안 보이면 반드시 빈 문자열 "". 추측 금지.
 - op: 운영사/노선 (예: KTX, SRT, 신칸센, 무궁화)
 - trainNo: 열차번호
 - depSt: 출발역, arrSt: 도착역
+- depCity: 출발 도시(한글, 나라 포함), arrCity: 도착 도시
 - depDate: 출발일 YYYY-MM-DD (연도 없으면 ${year}), depTime: 출발시간 HH:MM (현지)
 - arrDate: 도착일 YYYY-MM-DD, arrTime: 도착시간 HH:MM (현지)
-- car: 열차칸(호차), seat: 좌석번호
-모르는 값은 "". 형식: {"op":"","trainNo":"","depSt":"","arrSt":"","depDate":"","depTime":"","arrDate":"","arrTime":"","car":"","seat":""}`
+- car: 열차칸(호차) (명확히 보일 때만, 아니면 "")
+형식: {"op":"","trainNo":"","depSt":"","arrSt":"","depCity":"","arrCity":"","depDate":"","depTime":"","arrDate":"","arrTime":"","car":""}`
     : `이 이미지는 항공권(탑승권/E-티켓)입니다. 아래를 추출해 JSON만 출력하세요. 설명·코드블록 금지.
+중요: 이미지에 실제로 보이는 값만 채우세요. 안 보이면 반드시 빈 문자열 "". 절대 추측하거나 지어내지 마세요.
 - airline: 항공사, flightNo: 편명 (예: KE001)
 - depAp: 출발 공항코드(IATA 3자, 예 ICN), arrAp: 도착 공항코드(예 KIX)
+- depCity: 출발 도시(한글, 나라 포함. 예 "서울, 대한민국"), arrCity: 도착 도시(예 "오사카, 일본")
 - depDate: 출발일 YYYY-MM-DD (연도 없으면 ${year}), depTime: 출발시간 HH:MM (현지)
 - arrDate: 도착일 YYYY-MM-DD, arrTime: 도착시간 HH:MM (현지)
-- gate: 게이트, seat: 좌석
-모르는 값은 "". 형식: {"airline":"","flightNo":"","depAp":"","arrAp":"","depDate":"","depTime":"","arrDate":"","arrTime":"","gate":"","seat":""}`;
+- gate: 게이트 (명확히 보일 때만, 아니면 "")
+형식: {"airline":"","flightNo":"","depAp":"","arrAp":"","depCity":"","arrCity":"","depDate":"","depTime":"","arrDate":"","arrTime":"","gate":""}`;
 
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
