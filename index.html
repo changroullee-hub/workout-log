@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01p  ·  feat: 같은 편 좌석2개=2인 병합표시 + 출발시각 필터 반영
+     build: 2026-09-01r  ·  feat: 원문표기(키릴 그대로)+이모지/중복 제거+도시 오타보정 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1743,6 +1743,17 @@ async function onTripFromTicket(input){
     const segs=merged.flights.concat(merged.trains).filter(x=>x.depDate).sort((a,b)=>((a.depDate+ (a.depTime||''))<(b.depDate+(b.depTime||''))?-1:1));
     if(segs.length){ merged.destinationCity=merged.destinationCity||segs[0].arrCity||''; }
     if(merged.flights.length===0&&merged.trains.length===0){toast("이동수단을 못 읽었어요. 사진을 더 선명하게 다시 시도해보세요.");return;}
+    // 텍스트 정리: 이모지/특수기호 제거, 중복반복 정리, 흔한 도시 오타 보정
+    const CITYFIX={"타슈케트":"타슈켄트","타쉬켄트":"타슈켄트","사마르칸트":"사마르칸트","사마르칸드":"사마르칸트","알마아타":"알마티"};
+    const clean=v=>{ if(typeof v!=='string')return v; let x=v.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u2139\uFE0F\u20E3]/gu,'').replace(/\s{2,}/g,' ').trim();
+      // "711ФА 711ФА"처럼 같은 토큰 반복 제거
+      const parts=x.split(' '); if(parts.length===2&&parts[0]===parts[1])x=parts[0];
+      return x; };
+    const fixCity=c=>{ if(!c)return c; let out=c; for(const k in CITYFIX)out=out.replace(k,CITYFIX[k]); return out; };
+    const scrub=o=>{ ['flightNo','trainNo','depSt','arrSt','op','airline','gate','car'].forEach(k=>{if(o[k])o[k]=clean(o[k]);}); ['depCity','arrCity'].forEach(k=>{if(o[k])o[k]=fixCity(clean(o[k]));}); return o; };
+    merged.flights=merged.flights.map(scrub);
+    merged.trains=merged.trains.map(scrub);
+    merged.destinationCity=fixCity(merged.destinationCity||'');
     TP_PLAN=merged;TP_PLAN.destLat="";TP_PLAN.destLng="";TP_PLAN.destAddr="";
     if(merged.destinationCity){
       try{const g=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(merged.destinationCity)}`);const gd=await g.json();if(g.ok&&gd.results&&gd.results[0]){TP_PLAN.destLat=gd.results[0].lat;TP_PLAN.destLng=gd.results[0].lng;TP_PLAN.destAddr=gd.results[0].address;}}catch(e){}
@@ -1800,15 +1811,24 @@ async function createTripFromPlan(){
     const trip=TRIPS.find(t=>t.id===tripId);
     start=trip?trip.start:todayStr();
   }
-  // 항공편 추가
+  // 기존 항목과 병합용 헬퍼: 같은 편이 있으면 빈 값만 채워 update, 없으면 insert
+  const fill=(cur,inc)=>{const out={...cur};for(const k in inc){const v=inc[k];const has=out[k]!==undefined&&out[k]!==''&&!(k==='pax'&&(out[k]||1)<=1);if((out[k]===undefined||out[k]===''||out[k]===null)&&v!==''&&v!==undefined)out[k]=v;}return out;};
+  const existing=TRIPITEMS.filter(x=>x.tripId===tripId);
+  // 항공편
   for(const f of (TP_PLAN.flights||[])){
     const title=((f.airline||'')+' '+(f.flightNo||'')).trim()||'항공';
-    await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',pax:f.pax||1,depCity:f.depCity||'',arrCity:f.arrCity||'',title}});
+    const nd={kind:"tripitem",tripId,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',pax:f.pax||1,depCity:f.depCity||'',arrCity:f.arrCity||'',title};
+    const dup=existing.find(x=>x.type==='flight'&&(x.flightNo||'')===(f.flightNo||'')&&(x.depDate||'')===(nd.depDate)&&(x.depTime||'')===(f.depTime||''));
+    if(dup){const merged2=fill({airline:dup.airline,flightNo:dup.flightNo,depAp:dup.depAp,arrAp:dup.arrAp,depDate:dup.depDate,depTime:dup.depTime,arrDate:dup.arrDate,arrTime:dup.arrTime,gate:dup.gate,pax:dup.pax||1,depCity:dup.depCity,arrCity:dup.arrCity},nd);merged2.pax=Math.max(dup.pax||1,f.pax||1);merged2.kind="tripitem";merged2.tripId=tripId;merged2.type="flight";merged2.title=title;await sb.from("workouts").update({data:merged2}).eq("id",dup.id);}
+    else{await sb.from("workouts").insert({title,workout_date:nd.depDate,data:nd});}
   }
-  // 기차 추가
+  // 기차
   for(const t of (TP_PLAN.trains||[])){
     const title=((t.op||'')+' '+(t.trainNo||'')).trim()||'기차';
-    await sb.from("workouts").insert({title,workout_date:t.depDate||start,data:{kind:"tripitem",tripId,type:"train",op:t.op||'',trainNo:t.trainNo||'',depSt:t.depSt||'',arrSt:t.arrSt||'',depDate:t.depDate||start,depTime:t.depTime||'',arrDate:t.arrDate||t.depDate||start,arrTime:t.arrTime||'',car:t.car||'',pax:t.pax||1,depCity:t.depCity||'',arrCity:t.arrCity||'',title}});
+    const nd={kind:"tripitem",tripId,type:"train",op:t.op||'',trainNo:t.trainNo||'',depSt:t.depSt||'',arrSt:t.arrSt||'',depDate:t.depDate||start,depTime:t.depTime||'',arrDate:t.arrDate||t.depDate||start,arrTime:t.arrTime||'',car:t.car||'',pax:t.pax||1,depCity:t.depCity||'',arrCity:t.arrCity||'',title};
+    const dup=existing.find(x=>x.type==='train'&&(x.trainNo||'')===(t.trainNo||'')&&(x.depDate||'')===(nd.depDate)&&(x.depTime||'')===(t.depTime||''));
+    if(dup){const merged2=fill({op:dup.op,trainNo:dup.trainNo,depSt:dup.depSt,arrSt:dup.arrSt,depDate:dup.depDate,depTime:dup.depTime,arrDate:dup.arrDate,arrTime:dup.arrTime,car:dup.car,pax:dup.pax||1,depCity:dup.depCity,arrCity:dup.arrCity},nd);merged2.pax=Math.max(dup.pax||1,t.pax||1);merged2.kind="tripitem";merged2.tripId=tripId;merged2.type="train";merged2.title=title;await sb.from("workouts").update({data:merged2}).eq("id",dup.id);}
+    else{await sb.from("workouts").insert({title,workout_date:nd.depDate,data:nd});}
   }
   // 기존 여행이면 종료일 자동 연장
   if(target!=='new'){

@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 형식: {"name":"","address":"","city":"","date":"","time":"","note":""}`
     : type === "train"
     ? `이 이미지는 기차표(승차권)입니다. 아래를 추출해 JSON만 출력하세요. 설명·코드블록 금지.
-중요: 이미지에 실제로 보이는 값만 채우세요. 안 보이면 반드시 빈 문자열 "". 추측 금지.
+중요: 실제로 보이는 값만. 안 보이면 "". 추측 금지. 역명·열차번호는 원문(키릴) 그대로, 이모지·특수기호 금지.
 - op: 운영사/노선 (예: KTX, SRT, 신칸센, 무궁화)
 - trainNo: 열차번호
 - depSt: 출발역, arrSt: 도착역
