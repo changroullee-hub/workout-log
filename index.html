@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (운동 일지)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01e  ·  feat: 항공권→여행 자동생성 + 여행 타임라인 + 가계부 + 일정
+     build: 2026-09-01f  ·  feat: 동선최적화 제안 + 항공권 자동생성 + 여행 타임라인 + 가계부 + 일정
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -281,6 +281,13 @@
   .pl-res span{display:block;font-size:11px;color:var(--ink-faint);margin-top:1px}
   .tp-fl{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:13px;line-height:1.6;color:var(--ink-soft)}
   .tp-fl b{color:var(--ink)}
+  .suggest{background:linear-gradient(135deg,#0f2018,#1c2027);border:1px solid var(--green);border-radius:12px;padding:13px;margin-bottom:12px}
+  .suggest-h{font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px}
+  .suggest-h b{color:#7dffcb}
+  .suggest-seq{font-size:14px;font-weight:700;line-height:1.9}
+  .suggest-seq .arw{color:var(--ink-faint);margin:0 6px;font-weight:400}
+  .suggest-seq .fix{color:var(--accent-soft)}
+  .suggest-note{font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
   .exp-add{display:flex;gap:8px;margin-bottom:8px}
   .exp-amt{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none;font-weight:700;font-size:17px}
   .exp-amt:focus{border-color:var(--accent)}
@@ -1493,6 +1500,7 @@ function renderTrip(){
   const trip=TRIPS.find(t=>t.id===CUR_TRIP);if(!trip){body.innerHTML="";return;}
   const items=TRIPITEMS.filter(x=>x.tripId===CUR_TRIP).sort((a,b)=>itemDT(a)<itemDT(b)?-1:1);
   let html=`<div class="trip-head"><span class="del" onclick="delTrip(${trip.id})">삭제</span><h3>${escapeHtml(trip.name)}</h3><div class="r">${trip.start}${trip.end&&trip.end!==trip.start?' ~ '+trip.end:''}</div></div>
+    <div id="tripSuggest"></div>
     <div class="tripadd">
       <button onclick="openTripModal('place')">📍 장소</button>
       <button onclick="openTripModal('flight')">✈️ 항공</button>
@@ -1515,6 +1523,7 @@ function renderTrip(){
   body.innerHTML=html;
   // 경로 비동기 계산
   items.forEach((it,idx)=>{const nx=items[idx+1];if(nx&&it.type==='place'&&nx.type==='place'&&it.lat&&nx.lat){const rk=`${it.lat},${it.lng}|${nx.lat},${nx.lng}`;if(!ROUTE_CACHE[rk])fetchRoute(it,nx,idx);}});
+  computeRouteSuggestions();
 }
 function routeText(r){
   if(r.err)return `🚗 경로 계산 불가`;
@@ -1689,6 +1698,58 @@ async function createTripFromPlan(){
   }
   CUR_TRIP=trip.id;
   await refreshData();closeTripPlan();switchTab('trip');renderTrip();toast("여행 생성 완료 ✈️");
+}
+
+/* --- 동선 최적화 제안 (같은 날·시간유연 장소 재정렬, 자동차 기준) --- */
+let SUGGEST_CACHE={};
+function permute(arr){ if(arr.length<=1)return [arr.slice()]; const out=[]; for(let i=0;i<arr.length;i++){const rest=arr.slice(0,i).concat(arr.slice(i+1));permute(rest).forEach(p=>out.push([arr[i],...p]));} return out; }
+async function computeRouteSuggestions(){
+  const el=$("#tripSuggest");if(!el||!CUR_TRIP)return;
+  const items=TRIPITEMS.filter(x=>x.tripId===CUR_TRIP&&x.type==='place');
+  const byDay={};
+  items.forEach(it=>{const lat=parseFloat(it.lat),lng=parseFloat(it.lng);if(isNaN(lat)||isNaN(lng))return;const day=it.date||'';(byDay[day]=byDay[day]||[]).push({id:it.id,title:it.title,lat,lng,time:it.time||'',dt:itemDT(it)});});
+  const banners=[];
+  for(const day of Object.keys(byDay)){
+    const places=byDay[day].sort((a,b)=>a.dt<b.dt?-1:1);
+    const n=places.length;
+    if(n<3||n>8)continue;
+    const flex=places.filter(p=>!p.time);
+    if(flex.length<2||flex.length>7)continue; // 재배열할 유연 장소가 2~7개일 때만
+    const sig=places.map(p=>p.lat.toFixed(4)+','+p.lng.toFixed(4)).join('|');
+    let matrix=SUGGEST_CACHE[sig];
+    if(!matrix){
+      try{
+        const coords=places.map(p=>`${p.lat},${p.lng}`).join('|');
+        const r=await fetch(`/api/gmaps?action=matrix&points=${encodeURIComponent(coords)}`);
+        const d=await r.json();if(!r.ok||!d.matrix)continue;
+        matrix=d.matrix;SUGGEST_CACHE[sig]=matrix;
+      }catch(e){continue;}
+    }
+    places.forEach((p,i)=>p.mi=i);
+    const fixedPos={};places.forEach((p,i)=>{if(p.time)fixedPos[i]=p;});
+    const freePos=[];for(let i=0;i<n;i++)if(!(i in fixedPos))freePos.push(i);
+    const total=seq=>{let s=0;for(let k=0;k<seq.length-1;k++)s+=matrix[seq[k].mi][seq[k+1].mi];return s;};
+    const curTotal=total(places);
+    if(curTotal>=9000000)continue; // 현재 경로에 계산불가 구간
+    let best=null,bestSeq=null;
+    permute(flex).forEach(perm=>{
+      const seq=new Array(n);Object.keys(fixedPos).forEach(k=>seq[+k]=fixedPos[+k]);let pi=0;freePos.forEach(pos=>seq[pos]=perm[pi++]);
+      const t=total(seq);if(best===null||t<best){best=t;bestSeq=seq;}
+    });
+    if(best>=9000000)continue;
+    const savedMin=Math.round((curTotal-best)/60);
+    if(savedMin>=10 && best<curTotal*0.9){
+      const dd=new Date(day+"T00:00:00");
+      const same=bestSeq.every((p,i)=>p.id===places[i].id);
+      if(same)continue;
+      banners.push(`<div class="suggest">
+        <div class="suggest-h">💡 ${dd.getMonth()+1}/${dd.getDate()} 동선 제안 · 약 <b>${savedMin}분</b> 절약</div>
+        <div class="suggest-seq">${bestSeq.map((p,i)=>`${i?'<span class="arw">→</span>':''}<span class="${p.time?'fix':''}">${escapeHtml(p.title)}${p.time?` (${p.time})`:''}</span>`).join('')}</div>
+        <div class="suggest-note">자동차 이동 기준 추천 순서예요. 시간 지정된 곳은 고정, 나머지만 재배열했어요. (제안일 뿐, 자동 변경 안 함)</div>
+      </div>`);
+    }
+  }
+  el.innerHTML=banners.join("");
 }
 
 /* ===== 분석 ===== */

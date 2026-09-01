@@ -31,6 +31,25 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (action === "matrix") {
+      const points = (req.query.points || "").toString(); // "lat,lng|lat,lng|..."
+      if (!points) { res.status(400).json({ error: "points 좌표가 필요합니다." }); return; }
+      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(points)}&destinations=${encodeURIComponent(points)}&mode=driving&language=ko&key=${key}`;
+      const r = await fetch(url);
+      const d = await r.json();
+      if (d.status && d.status !== "OK") {
+        res.status(502).json({ error: "구글 오류: " + d.status + (d.error_message ? " / " + d.error_message : "") });
+        return;
+      }
+      // 초 단위 소요시간 매트릭스 (계산 불가 셀은 큰 값)
+      const matrix = (d.rows || []).map((row) =>
+        (row.elements || []).map((e) => (e.status === "OK" ? e.duration.value : 9999999))
+      );
+      res.setHeader("Cache-Control", "s-maxage=604800, stale-while-revalidate");
+      res.status(200).json({ matrix });
+      return;
+    }
+
     if (action === "route") {
       const from = (req.query.from || "").toString();
       const to = (req.query.to || "").toString();
