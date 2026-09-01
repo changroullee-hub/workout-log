@@ -3,14 +3,25 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01g  ·  feat: 매직카펫 테마 + 화이트리스트 로그인 + 동선최적화 + 항공권 자동생성
+     build: 2026-09-01h  ·  feat: 앱 배경 매직테마 + 링크썸네일(og.png) + 화이트리스트
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<meta name="theme-color" content="#101216" />
+<meta name="theme-color" content="#241a3f" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="자스민과 알라딘의 매직카펫 라이드 🧞✨" />
+<meta property="og:description" content="우리 둘만의 여행·운동·일상 기록. 함께 타는 마법 양탄자." />
+<meta property="og:image" content="https://workout-log-lilac.vercel.app/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:url" content="https://workout-log-lilac.vercel.app" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="자스민과 알라딘의 매직카펫 라이드 🧞✨" />
+<meta name="twitter:description" content="우리 둘만의 여행·운동·일상 기록." />
+<meta name="twitter:image" content="https://workout-log-lilac.vercel.app/og.png" />
 <title>자스민과 알라딘의 매직카펫 라이드</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -23,6 +34,8 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--ink);
+    background-image:radial-gradient(120% 55% at 50% 0%, #241a3f 0%, #1a1730 22%, #14121e 45%, var(--bg) 70%);
+    background-attachment:fixed;
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",Roboto,"Noto Sans KR",sans-serif;
     font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
   body{max-width:560px;margin:0 auto;padding:0 0 92px;min-height:100vh}
