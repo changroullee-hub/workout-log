@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01m  ·  feat: 티켓 항공/기차 자동판별 + 기존/새 여행 선택 + 호텔도시 반영
+     build: 2026-09-01n  ·  feat: 티켓 여러장 개별분석·병합 + 환각방지 + 항공/기차 자동판별 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1716,17 +1716,31 @@ async function ticketOCR(input,kind){
 let TP_PLAN=null;
 async function onTripFromTicket(input){
   const files=[...input.files];input.value="";if(!files.length)return;
-  toast(`항공권 ${files.length}장 분석 중…`);
+  toast(`티켓 ${files.length}장 분석 중…`);
   try{
-    const images=[];
-    for(const f of files){ images.push({data:await imgToBase64(f),media_type:'image/jpeg'}); }
-    const r=await fetch('/api/trip-plan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({images})});
-    const d=await r.json();
-    if(!r.ok){toast("분석 실패: "+(d.error||''));return;}
-    TP_PLAN=d;TP_PLAN.destLat="";TP_PLAN.destLng="";TP_PLAN.destAddr="";
-    // 목적지 좌표(구글, 있으면)
-    if(d.destinationCity){
-      try{const g=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(d.destinationCity)}`);const gd=await g.json();if(g.ok&&gd.results&&gd.results[0]){TP_PLAN.destLat=gd.results[0].lat;TP_PLAN.destLng=gd.results[0].lng;TP_PLAN.destAddr=gd.results[0].address;}}catch(e){}
+    const merged={tripName:"",destinationCity:"",flights:[],trains:[]};
+    // 한 장씩 개별 분석 → 병합 (여러 장 섞임 혼란 방지)
+    for(const f of files){
+      const b64=await imgToBase64(f);
+      const r=await fetch('/api/trip-plan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({images:[{data:b64,media_type:'image/jpeg'}]})});
+      const d=await r.json();
+      if(!r.ok){toast("일부 분석 실패: "+(d.error||''));continue;}
+      if(Array.isArray(d.flights))merged.flights.push(...d.flights);
+      if(Array.isArray(d.trains))merged.trains.push(...d.trains);
+      if(!merged.tripName&&d.tripName)merged.tripName=d.tripName;
+      if(!merged.destinationCity&&d.destinationCity)merged.destinationCity=d.destinationCity;
+    }
+    // 중복 구간 제거(편명+출발일+출발시각 기준)
+    const uniq=(arr,keyf)=>{const seen=new Set();return arr.filter(x=>{const k=keyf(x);if(seen.has(k))return false;seen.add(k);return true;});};
+    merged.flights=uniq(merged.flights,f=>`${f.flightNo}|${f.depDate}|${f.depTime}|${f.depAp}`);
+    merged.trains=uniq(merged.trains,t=>`${t.trainNo}|${t.depDate}|${t.depTime}|${t.depSt}`);
+    // 목적지: 가장 이른 출발편의 도착 도시로 (첫 구간 기준)
+    const segs=merged.flights.concat(merged.trains).filter(x=>x.depDate).sort((a,b)=>((a.depDate+ (a.depTime||''))<(b.depDate+(b.depTime||''))?-1:1));
+    if(segs.length){ merged.destinationCity=merged.destinationCity||segs[0].arrCity||''; }
+    if(merged.flights.length===0&&merged.trains.length===0){toast("이동수단을 못 읽었어요. 사진을 더 선명하게 다시 시도해보세요.");return;}
+    TP_PLAN=merged;TP_PLAN.destLat="";TP_PLAN.destLng="";TP_PLAN.destAddr="";
+    if(merged.destinationCity){
+      try{const g=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(merged.destinationCity)}`);const gd=await g.json();if(g.ok&&gd.results&&gd.results[0]){TP_PLAN.destLat=gd.results[0].lat;TP_PLAN.destLng=gd.results[0].lng;TP_PLAN.destAddr=gd.results[0].address;}}catch(e){}
     }
     openTripPlan();
   }catch(e){toast("오류: "+e.message);}

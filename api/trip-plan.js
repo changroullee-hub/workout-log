@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-  const images = (body && body.images) || [];
+  const images = (body && body.images) || (body && body.image ? [{ data: body.image, media_type: body.media_type }] : []);
   if (!images.length) { res.status(400).json({ error: "이미지가 없습니다." }); return; }
 
   const year = new Date().toISOString().slice(0, 4);
@@ -19,23 +19,19 @@ export default async function handler(req, res) {
     source: { type: "base64", media_type: im.media_type || "image/jpeg", data: im.data },
   }));
   content.push({ type: "text", text:
-`이 이미지들은 여행 이동수단 티켓(항공권 또는 기차표, 여러 장 가능)입니다. 러시아어·현지어여도 읽으세요.
-각 구간이 '항공'인지 '기차'인지 스스로 판별해서 아래 JSON으로만 출력하세요. 설명·코드블록 금지.
-중요: 실제로 보이는 값만. 안 보이면 빈 문자열 "". 좌석 등은 추측 금지.
+`이 이미지는 여행 이동수단 티켓/예약서(항공권 또는 기차표)입니다. 러시아어·현지어여도 읽으세요.
+이미지에 실제로 적힌 구간만 추출하세요. 절대 없는 도시·구간을 지어내지 마세요(예: 이미지에 없는 "부산" 등 금지).
+각 구간이 '항공'인지 '기차'인지 스스로 판별해 JSON으로만 출력하세요. 설명·코드블록 금지. 안 보이는 값은 "".
 
 - flights: 항공편 배열. 각 {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
-    · depAp/arrAp = 공항 IATA 3자리 코드
+    · 한 문서에 여러 구간(예: 서울-타슈켄트, 타슈켄트-알마티, 알마티-서울)이 있으면 전부 포함.
+    · depAp/arrAp = 공항 IATA 코드(모르면 "").
 - trains: 기차 배열. 각 {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car}
-    · op = 운영사/열차종류(있으면), trainNo = 열차번호(예 711ФА)
-    · depSt/arrSt = 출발역/도착역명(원문 그대로 가능)
-    · car = 호차(칸) — 명확히 보일 때만
-- 공통: depCity/arrCity = 도시명(한글, 나라 포함. 예 "부하라, 우즈베키스탄" / "사마르칸트, 우즈베키스탄")
-    · 날짜 YYYY-MM-DD (연도 없으면 ${year}), 시간 HH:MM (현지)
-- destinationCity: 이 여행의 목적지 도시(한글). 보통 첫 구간의 도착 도시.
-- tripName: 여행 이름 추천.
+- 공통: depCity/arrCity = 도시명(한글, 나라 포함. 예 "타슈켄트, 우즈베키스탄"). 날짜 YYYY-MM-DD(연도 없으면 ${year}), 시간 HH:MM.
+- destinationCity: 이 티켓 기준 목적지 도시(한글). 첫 출발편의 최종 도착 도시. 모르면 "".
+- tripName: 여행 이름. 목적지 국가/도시 기반으로만(예: "중앙아시아 여행", "우즈베키스탄 여행"). 확실치 않으면 "".
 
-항공권이면 flights에, 기차표면 trains에 넣으세요. 형식:
-{"tripName":"","destinationCity":"","flights":[],"trains":[]}`
+형식: {"tripName":"","destinationCity":"","flights":[],"trains":[]}`
   });
 
   try {
