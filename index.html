@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01s  ·  feat: 가계부 한 장에 여러 결제건 모두 인식 + 모두저장 반영
+     build: 2026-09-01t  ·  feat: 가계부 USD 자동환산(×1400) + 저장금액/카테고리 수정 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1402,14 +1402,36 @@ function renderExpense(){
     <div class="exp-total"><div class="lab">${p.label} 지출</div><div class="amt">${won(total)}</div>
       <div style="font-size:12px;color:var(--ink-soft)">${rows.length}건${EXP_MODE!=='day'?` · 지출일 ${daysCnt}일 · 하루 평균 ${won(total/daysCnt)}`:''}</div></div>
     ${bars?`<div class="card" style="margin-bottom:12px"><div class="sect-h"><h2>카테고리별</h2></div>${bars}</div>`:''}`;
-  // 목록
+  // 목록 (금액·카테고리 탭하면 수정)
   $("#expList").innerHTML=rows.length?rows.map(e=>`<div class="exprow">
     <div class="ex-cat-dot" style="background:${catColor(e.category)}"></div>
-    <div class="ex-mid"><div class="ex-m">${escapeHtml(e.merchant||e.category)}</div><div class="ex-sub">${e.date} · ${escapeHtml(e.category)}${e.merchant&&e.memo?' · '+escapeHtml(e.memo):''}</div></div>
-    <div class="ex-amt">${won(e.amount)}</div>
+    <div class="ex-mid"><div class="ex-m">${escapeHtml(e.merchant||e.category)}</div><div class="ex-sub" onclick="editExpCat(${e.id})" style="cursor:pointer">${e.date} · ${escapeHtml(e.category)} ✎${e.merchant&&e.memo?' · '+escapeHtml(e.memo):''}</div></div>
+    <div class="ex-amt" onclick="editExpAmount(${e.id})" style="cursor:pointer">${won(e.amount)}</div>
     <div class="ex-del" onclick="delExpense(${e.id})">🗑</div>
   </div>`).join(""):`<div class="empty"><div class="big">🧾</div>이 기간 지출이 없어요.</div>`;
   renderDrafts();
+}
+async function editExpAmount(id){
+  const e=EXPENSES.find(x=>x.id===id);if(!e)return;
+  const v=prompt("금액(원) 수정",e.amount);if(v===null)return;
+  const amount=parseInt(String(v).replace(/[^0-9\-]/g,""))||0;
+  if(amount<=0){toast("올바른 금액을 입력하세요");return;}
+  const {error}=await sb.from("workouts").update({total_volume:amount,data:{kind:"expense",amount,category:e.category,merchant:e.merchant,memo:e.memo||""}}).eq("id",id);
+  if(error){toast("수정 실패: "+error.message);return;}
+  await refreshData();renderExpense();toast("금액 수정 ✓");
+}
+async function editExpCat(id){
+  const e=EXPENSES.find(x=>x.id===id);if(!e)return;
+  const cats=["데이트비","중개소 운영비","감정 영업비","생활비","기타"];
+  const cur=cats.indexOf(e.category);
+  const v=prompt(`카테고리 수정 (번호 입력)\n1.데이트비 2.중개소 운영비 3.감정 영업비 4.생활비 5.기타\n또는 직접 입력`, cur>=0?(cur+1):e.category);
+  if(v===null)return;
+  let category=v.trim();
+  const n=parseInt(category); if(n>=1&&n<=5)category=cats[n-1];
+  if(!category)return;
+  const {error}=await sb.from("workouts").update({data:{kind:"expense",amount:e.amount,category,merchant:e.merchant,memo:e.memo||""}}).eq("id",id);
+  if(error){toast("수정 실패: "+error.message);return;}
+  await refreshData();renderExpense();toast("카테고리 수정 ✓");
 }
 async function addExpense(){
   const amount=parseInt($("#expAmount").value)||0;
@@ -1461,15 +1483,11 @@ async function onExpImages(input){
       // 금액 0 이하 or 외화(원화 아님)는 참고로 표시하되 기본 제외하지 않고 드래프트로 올림(사용자가 판단)
       items.forEach(it=>{
         const cur=(it.currency||'KRW').toUpperCase();
-        const nonKRW=cur!=='KRW';
-        EXP_DRAFTS.push({
-          date:it.date||todayStr(),
-          amount:it.amount||0,
-          merchant:it.merchant||"",
-          category:it.category||"기타",
-          memo:(it.time?it.time+' ':'')+(it.memo||'')+(nonKRW?` [${cur}]`:''),
-          warn:(it.amount||0)<=0?'금액 0 — 확인':''
-        });
+        let amt=Number(it.amount)||0, memo=(it.time?it.time+' ':'')+(it.memo||'');
+        if(cur==='USD'){ const usd=amt; amt=Math.round(usd*1400); memo+=(memo?' · ':'')+`USD ${usd}×1400`; }
+        else if(cur!=='KRW'){ amt=Math.round(amt); memo+=(memo?' · ':'')+`[${cur}]`; }
+        else { amt=Math.round(amt); }
+        EXP_DRAFTS.push({date:it.date||todayStr(),amount:amt,merchant:it.merchant||"",category:it.category||"기타",memo,warn:amt<=0?'금액 0 — 확인':''});
         total++;
       });
     }catch(e){const idx=EXP_DRAFTS.indexOf(did);if(idx>=0)EXP_DRAFTS.splice(idx,1);toast('오류: '+e.message);}

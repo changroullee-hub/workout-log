@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     items = items.map((it) => ({
       date: it.date || today,
       time: it.time || "",
-      amount: parseInt(String(it.amount).replace(/[^0-9\-]/g, "")) || 0,
+      amount: Number(String(it.amount).replace(/[^0-9.\-]/g, "")) || 0,
       currency: it.currency || "KRW",
       merchant: it.merchant || "",
       category: it.category || "기타",
