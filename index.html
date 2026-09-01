@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01o  ·  feat: 출발시각 있는 구간만 인식(e티켓/PNR표 필터) + 도시-나라 정확도 반영
+     build: 2026-09-01p  ·  feat: 같은 편 좌석2개=2인 병합표시 + 출발시각 필터 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1613,10 +1613,12 @@ function tlCard(it){
     title=`${escapeHtml(it.airline||'항공')} ${escapeHtml(it.flightNo||'')}`;time=it.depTime||"";
     meta=`<b>${escapeHtml(it.depAp||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrAp||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
     if(it.gate)meta+='<br>게이트 '+escapeHtml(it.gate);
+    if(it.pax>1)meta+=(it.gate?' · ':'<br>')+'👥 '+it.pax+'인';
   }else{
     title=`${escapeHtml(it.op||'기차')} ${escapeHtml(it.trainNo||'')}`;time=it.depTime||"";
     meta=`<b>${escapeHtml(it.depSt||'')}</b> ${it.depTime||''} → <b>${escapeHtml(it.arrSt||'')}</b> ${it.arrTime||''} <span style="color:var(--ink-faint)">(현지)</span>`;
     if(it.car)meta+='<br>'+escapeHtml(it.car);
+    if(it.pax>1)meta+=(it.car?' · ':'<br>')+'👥 '+it.pax+'인';
   }
   return `<div class="tl-item"><div class="tl-dot">${icon}</div><div class="tl-card">
     <span class="tl-del" onclick="delTripItem(${it.id})">🗑</span>
@@ -1730,13 +1732,13 @@ async function onTripFromTicket(input){
       if(!merged.tripName&&d.tripName)merged.tripName=d.tripName;
       if(!merged.destinationCity&&d.destinationCity)merged.destinationCity=d.destinationCity;
     }
-    // 중복 구간 제거(편명+출발일+출발시각 기준)
-    const uniq=(arr,keyf)=>{const seen=new Set();return arr.filter(x=>{const k=keyf(x);if(seen.has(k))return false;seen.add(k);return true;});};
     // 출발시각 없는 항목 제거(e티켓/PNR 표가 잘못 들어온 것 걸러냄)
     merged.flights=merged.flights.filter(f=>f.depTime&&/^\d{1,2}:\d{2}/.test(f.depTime));
     merged.trains=merged.trains.filter(t=>t.depTime&&/^\d{1,2}:\d{2}/.test(t.depTime));
-    merged.flights=uniq(merged.flights,f=>`${f.flightNo}|${f.depDate}|${f.depTime}|${f.depAp}`);
-    merged.trains=uniq(merged.trains,t=>`${t.trainNo}|${t.depDate}|${t.depTime}|${t.depSt}`);
+    // 같은 편은 하나로 합치고 인원수(pax) 계산 (좌석 2개=2명 → 한 편 2인)
+    const groupMerge=(arr,keyf)=>{const m={};arr.forEach(x=>{const k=keyf(x);if(!m[k]){m[k]={rep:{...x},n:1,maxp:parseInt(x.pax)||1};}else{m[k].n++;m[k].maxp=Math.max(m[k].maxp,parseInt(x.pax)||1);}});return Object.values(m).map(g=>({...g.rep,pax:Math.max(g.n,g.maxp,1)}));};
+    merged.flights=groupMerge(merged.flights,f=>`${f.flightNo}|${f.depDate}|${f.depTime}|${f.depAp}`);
+    merged.trains=groupMerge(merged.trains,t=>`${t.trainNo}|${t.depDate}|${t.depTime}|${t.depSt}`);
     // 목적지: 가장 이른 출발편의 도착 도시로 (첫 구간 기준)
     const segs=merged.flights.concat(merged.trains).filter(x=>x.depDate).sort((a,b)=>((a.depDate+ (a.depTime||''))<(b.depDate+(b.depTime||''))?-1:1));
     if(segs.length){ merged.destinationCity=merged.destinationCity||segs[0].arrCity||''; }
@@ -1801,12 +1803,12 @@ async function createTripFromPlan(){
   // 항공편 추가
   for(const f of (TP_PLAN.flights||[])){
     const title=((f.airline||'')+' '+(f.flightNo||'')).trim()||'항공';
-    await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',depCity:f.depCity||'',arrCity:f.arrCity||'',title}});
+    await sb.from("workouts").insert({title,workout_date:f.depDate||start,data:{kind:"tripitem",tripId,type:"flight",airline:f.airline||'',flightNo:f.flightNo||'',depAp:f.depAp||'',arrAp:f.arrAp||'',depDate:f.depDate||start,depTime:f.depTime||'',arrDate:f.arrDate||f.depDate||start,arrTime:f.arrTime||'',gate:f.gate||'',pax:f.pax||1,depCity:f.depCity||'',arrCity:f.arrCity||'',title}});
   }
   // 기차 추가
   for(const t of (TP_PLAN.trains||[])){
     const title=((t.op||'')+' '+(t.trainNo||'')).trim()||'기차';
-    await sb.from("workouts").insert({title,workout_date:t.depDate||start,data:{kind:"tripitem",tripId,type:"train",op:t.op||'',trainNo:t.trainNo||'',depSt:t.depSt||'',arrSt:t.arrSt||'',depDate:t.depDate||start,depTime:t.depTime||'',arrDate:t.arrDate||t.depDate||start,arrTime:t.arrTime||'',car:t.car||'',depCity:t.depCity||'',arrCity:t.arrCity||'',title}});
+    await sb.from("workouts").insert({title,workout_date:t.depDate||start,data:{kind:"tripitem",tripId,type:"train",op:t.op||'',trainNo:t.trainNo||'',depSt:t.depSt||'',arrSt:t.arrSt||'',depDate:t.depDate||start,depTime:t.depTime||'',arrDate:t.arrDate||t.depDate||start,arrTime:t.arrTime||'',car:t.car||'',pax:t.pax||1,depCity:t.depCity||'',arrCity:t.arrCity||'',title}});
   }
   // 기존 여행이면 종료일 자동 연장
   if(target!=='new'){

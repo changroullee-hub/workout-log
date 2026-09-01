@@ -27,9 +27,11 @@ export default async function handler(req, res) {
     예) "595-4818150337", "A7TAYI", "YE5V2S" 같은 번호만 있는 항목은 절대 flights/trains에 넣지 말 것.
   - 출발시각(depTime)이 비어 있으면 그 구간은 아예 제외하세요.
 
-- flights: 항공편 배열. {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate}
+- flights: 항공편 배열. {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate, pax}
+    · pax = 이 편의 승객(인원) 수. 같은 편에 이름·좌석이 여러 개면 구간을 중복해 넣지 말고 pax 숫자를 올려서 한 번만 넣으세요(예: 2명이면 pax=2).
     · '출발 2026-10-03 12:10, 인천공항 → 도착 15:40, 타슈케트공항' 처럼 시각·공항·도시가 함께 있는 구간만.
-- trains: 기차 배열. {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car}
+- trains: 기차 배열. {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car, pax}
+    · pax = 승객 수(같은 열차에 여러 명이면 중복 없이 pax로).
 - 공통: depCity/arrCity = 도시명(한글, 나라 정확히. 예 "부하라, 우즈베키스탄"·"타슈케트, 우즈베키스탄"·"알마티, 카자흐스탄"). 도시-나라를 틀리지 말 것.
     · 날짜 YYYY-MM-DD(연도 없으면 ${year}), 시간 HH:MM(현지).
 - destinationCity: 첫 출발편의 최종 도착 도시(한글). 모르면 "".
