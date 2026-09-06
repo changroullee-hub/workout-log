@@ -30,6 +30,9 @@ export default async function handler(req, res) {
 - flights: 항공편 배열. {airline, flightNo, depAp, arrAp, depCity, arrCity, depDate, depTime, arrDate, arrTime, gate, pax}
     · pax = 이 편의 승객(인원) 수. 같은 편에 이름·좌석이 여러 개면 구간을 중복해 넣지 말고 pax 숫자를 올려서 한 번만 넣으세요(예: 2명이면 pax=2).
     · '출발 2026-10-03 12:10, 인천공항 → 도착 15:40, 타슈케트공항' 처럼 시각·공항·도시가 함께 있는 구간만.
+    ★ depAp/arrAp(공항코드)는 이미지에 IATA 3글자 코드가 명시된 경우에만 쓰고, 없으면 반드시 ""(빈값). 지명만 있으면 depCity/arrCity에 도시를 정확히 넣고 depAp/arrAp는 비우세요(억지 추측 금지).
+    ★ T1/T2/T3 같은 터미널 번호는 공항코드가 아니며 depAp/arrAp에 절대 넣지 마세요.
+    ★ 예: '사마르칸트 국제공항 → 타슈케트 국제공항 T3' → depCity="사마르칸트, 우즈베키스탄", arrCity="타슈케트, 우즈베키스탄", depAp/arrAp는 ""(코드가 안 보이므로).
 - trains: 기차 배열. {op, trainNo, depSt, arrSt, depCity, arrCity, depDate, depTime, arrDate, arrTime, car, pax}
     · pax = 승객 수(같은 열차에 여러 명이면 중복 없이 pax로).
 - 공통: depCity/arrCity = 도시명(한글, 나라 정확히. 예 "부하라, 우즈베키스탄"·"타슈케트, 우즈베키스탄"·"알마티, 카자흐스탄"). 도시-나라를 틀리지 말 것.
