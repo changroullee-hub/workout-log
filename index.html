@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01x  ·  feat: 공항코드 오인식 방지(도시 우선표시+수정) + 터미널 배제 반영
+     build: 2026-09-01y  ·  feat: 항공↔기차 탭 전환 시 공통정보(도시·날짜·시간·번호) 유지 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1716,11 +1716,25 @@ function openTripModal(type){
 }
 function closeTripModal(){$("#tripModal").classList.remove("show");}
 function tripType(t,btn){
+  const from=TRIP_TYPE;
+  // 탭 바꾸기 전, 현재 탭의 공통 정보를 수집
+  const g=id=>{const e=$("#"+id);return e?e.value:'';};
+  let common={depCity:'',arrCity:'',depDate:'',depTime:'',arrDate:'',arrTime:'',num:'',depName:'',arrName:''};
+  if(from==='flight'){common={depCity:g('flDepCity'),arrCity:g('flArrCity'),depDate:g('flDepDate'),depTime:g('flDepTime'),arrDate:g('flArrDate'),arrTime:g('flArrTime'),num:g('flNo'),depName:g('flDepAp'),arrName:g('flArrAp')};}
+  else if(from==='train'){common={depCity:g('trDepCity'),arrCity:g('trArrCity'),depDate:g('trDepDate'),depTime:g('trDepTime'),arrDate:g('trArrDate'),arrTime:g('trArrTime'),num:g('trNo'),depName:g('trDepSt'),arrName:g('trArrSt')};}
+  else if(from==='place'){common.depDate=g('plDate');common.depTime=g('plTime');}
+
   TRIP_TYPE=t;
   $$("#tripTypeSeg button").forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');
   $("#tf-place").style.display=t==='place'?'block':'none';
   $("#tf-flight").style.display=t==='flight'?'block':'none';
   $("#tf-train").style.display=t==='train'?'block':'none';
+
+  // 새 탭으로 공통 정보 이월 (빈 칸만 채움)
+  const s=(id,v)=>{const e=$("#"+id);if(e&&v&&!e.value)e.value=v;};
+  if(t==='flight'){s('flDepCity',common.depCity);s('flArrCity',common.arrCity);s('flDepDate',common.depDate);s('flDepTime',common.depTime);s('flArrDate',common.arrDate);s('flArrTime',common.arrTime);s('flNo',common.num);}
+  else if(t==='train'){s('trDepCity',common.depCity);s('trArrCity',common.arrCity);s('trDepDate',common.depDate);s('trDepTime',common.depTime);s('trArrDate',common.arrDate);s('trArrTime',common.arrTime);s('trNo',common.num);s('trDepSt',common.depName);s('trArrSt',common.arrName);}
+  else if(t==='place'){s('plDate',common.depDate);s('plTime',common.depTime);}
 }
 async function placeSearch(){
   const q=$("#plQuery").value.trim();if(!q){toast("검색어를 입력하세요");return;}
