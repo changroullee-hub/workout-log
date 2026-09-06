@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01v  ·  feat: 앱 켜면 여행 탭부터 시작 반영
+     build: 2026-09-01w  ·  feat: 날짜별 이동경로 표시 + 목적지 자동장소 제거 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -272,7 +272,7 @@
   .trip-new{background:var(--accent);color:#1a1206;font-weight:800;border-radius:11px;padding:0 15px;white-space:nowrap}
   .tl-day{font-size:12px;color:var(--accent-soft);font-weight:800;letter-spacing:.03em;margin:16px 2px 10px;text-transform:uppercase}
   .tl-day:first-child{margin-top:2px}
-  .tl-loc{margin-left:9px;font-size:11px;color:var(--blue);font-weight:700;letter-spacing:0}
+  .tl-loc{margin-left:9px;font-size:11px;color:var(--blue);font-weight:700;letter-spacing:0;display:inline-block;line-height:1.5}
   .tl-item{position:relative;padding-left:26px;margin-bottom:10px}
   .tl-item::before{content:"";position:absolute;left:8px;top:6px;bottom:-16px;width:2px;background:var(--line)}
   .tl-item:last-child::before{display:none}
@@ -1600,6 +1600,20 @@ function locForDay(items,day){
   if(!loc)loc=startCity||'';
   return loc;
 }
+// 국가 약칭 + "약칭 도시" 포맷
+const CTRY_ABBR={"대한민국":"한국","우즈베키스탄":"우즈벡","카자흐스탄":"카자흐","키르기스스탄":"키르기스","타지키스탄":"타지크","투르크메니스탄":"투르크멘","일본":"일본","중국":"중국","대만":"대만","홍콩":"홍콩","태국":"태국","베트남":"베트남","싱가포르":"싱가포르","말레이시아":"말레이","인도네시아":"인니","필리핀":"필리핀","미국":"미국","프랑스":"프랑스","영국":"영국","이탈리아":"이탈리아","스페인":"스페인","독일":"독일","네덜란드":"네덜란드","튀르키예":"튀르키예","UAE":"UAE","조지아":"조지아","아제르바이잔":"아제르","아르메니아":"아르메니아","호주":"호주"};
+function fmtCity(c){ if(!c)return''; const p=c.split(','); const city=p[0].trim(); const ctry=p[1]?p[1].trim():''; const ab=CTRY_ABBR[ctry]||ctry; return ab?`${ab} ${city}`:city; }
+// 그날의 이동 경로 도시 나열 (출발→도착 순, 연속중복 제거)
+function routeForDay(items,day){
+  const segs=items.filter(x=>(x.type==='flight'||x.type==='train')&&(x.depDate||'')===day)
+    .map(x=>({dep:x.type==='flight'?(x.depCity||cityOf(x.depAp)):(x.depCity||x.depSt),arr:x.type==='flight'?(x.arrCity||cityOf(x.arrAp)):(x.arrCity||x.arrSt),t:x.depTime||''}))
+    .sort((a,b)=>a.t<b.t?-1:1);
+  if(!segs.length){const c=locForDay(items,day);return c?[c]:[];}
+  const cities=[];
+  segs.forEach((s,i)=>{if(i===0&&s.dep)cities.push(s.dep);if(s.arr)cities.push(s.arr);});
+  const dd=[];cities.forEach(c=>{if(c&&dd[dd.length-1]!==c)dd.push(c);});
+  return dd;
+}
 function renderTrip(){
   renderTripSel();
   const body=$("#tripBody");
@@ -1617,7 +1631,7 @@ function renderTrip(){
   let lastDay="";
   items.forEach((it,idx)=>{
     const day=(it.type==='place'?it.date:(it.depDate||it.date))||"";
-    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;const loc=day?locForDay(items,day):'';html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}${loc?`<span class="tl-loc">🌍 ${escapeHtml(loc)}</span>`:''}</div>`;}
+    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;const route=day?routeForDay(items,day):[];const loc=route.map(fmtCity).join(' → ');html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}${loc?`<span class="tl-loc">🌍 ${escapeHtml(loc)}</span>`:''}</div>`;}
     html+=tlCard(it);
     // 다음 항목이 장소이고 현재도 장소면 경로시간
     const nx=items[idx+1];
@@ -1882,11 +1896,7 @@ async function createTripFromPlan(){
     const trip=TRIPS.find(t=>t.name===name&&t.start===start);
     if(!trip){toast("여행 확인 실패");return;}
     tripId=trip.id;
-    // 새 여행일 때만 목적지를 첫 장소로 추가
-    if(dest){
-      const firstArr=(TP_PLAN.flights||[]).concat(TP_PLAN.trains||[]).map(x=>x.arrDate||x.depDate).filter(Boolean).sort()[0]||start;
-      await sb.from("workouts").insert({title:dest,workout_date:firstArr,data:{kind:"tripitem",tripId,type:"place",title:dest,address:TP_PLAN.destAddr||'',city:TP_PLAN.destinationCity||'',date:firstArr,time:'',note:'',lat:TP_PLAN.destLat||'',lng:TP_PLAN.destLng||''}});
-    }
+    // (목적지 장소 자동추가 제거 — 도시 경로는 날짜 헤더에 표시됨)
   }else{
     tripId=+target;
     const trip=TRIPS.find(t=>t.id===tripId);
