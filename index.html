@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01z  ·  feat: 캡처 이미지 붙여넣기(Ctrl+V)로 티켓·카드 자동인식 반영
+     build: 2026-09-01aa  ·  feat: 이동없는 날도 직전 도착지 표시 + 붙여넣기 인식 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -1641,18 +1641,25 @@ function renderTrip(){
       <button onclick="openTripModal('train')">🚆 기차</button>
     </div>`;
   if(items.length===0){html+=`<div class="empty" style="padding:34px 20px">아직 일정이 없어요.<br>위에서 장소·항공·기차를 추가하세요.</div>`;body.innerHTML=html;return;}
-  let lastDay="";
-  items.forEach((it,idx)=>{
-    const day=(it.type==='place'?it.date:(it.depDate||it.date))||"";
-    if(day!==lastDay){lastDay=day;const dd=day?new Date(day+"T00:00:00"):null;const route=day?routeForDay(items,day):[];const loc=route.map(fmtCity).join(' → ');html+=`<div class="tl-day">${dd?`${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})`:'날짜미정'}${loc?`<span class="tl-loc">🌍 ${escapeHtml(loc)}</span>`:''}</div>`;}
-    html+=tlCard(it);
-    // 다음 항목이 장소이고 현재도 장소면 경로시간
-    const nx=items[idx+1];
-    if(nx&&it.type==='place'&&nx.type==='place'&&it.lat&&nx.lat){
-      const rk=`${it.lat},${it.lng}|${nx.lat},${nx.lng}`;
-      const cached=ROUTE_CACHE[rk];
-      html+=`<div class="tl-route" id="route-${idx}">${cached?routeText(cached):'🚗 소요시간 계산 중…'}</div>`;
-    }
+  // 날짜 범위: 여행 시작~종료 + 항목 날짜 포함
+  const itemDates=items.map(it=>(it.type==='place'?it.date:(it.depDate||it.date))||"").filter(Boolean);
+  let minD=trip.start||itemDates[0], maxD=trip.end||trip.start||itemDates[itemDates.length-1];
+  itemDates.forEach(d=>{if(d&&d<minD)minD=d;if(d&&d>maxD)maxD=d;});
+  const allDays=[]; for(let c=new Date(minD+"T00:00:00"),e=new Date(maxD+"T00:00:00");c<=e;c.setDate(c.getDate()+1))allDays.push(ymd(c));
+  allDays.forEach(day=>{
+    const dd=new Date(day+"T00:00:00");
+    const route=routeForDay(items,day); const loc=route.map(fmtCity).join(' → ');
+    html+=`<div class="tl-day">${dd.getMonth()+1}/${dd.getDate()} (${DOWK[dd.getDay()]})${loc?`<span class="tl-loc">🌍 ${escapeHtml(loc)}</span>`:''}</div>`;
+    const dayItems=items.filter(it=>((it.type==='place'?it.date:(it.depDate||it.date))||"")===day);
+    dayItems.forEach(it=>{
+      const gidx=items.indexOf(it);
+      html+=tlCard(it);
+      const nx=items[gidx+1];
+      if(nx&&it.type==='place'&&nx.type==='place'&&it.lat&&nx.lat){
+        const rk=`${it.lat},${it.lng}|${nx.lat},${nx.lng}`;const cached=ROUTE_CACHE[rk];
+        html+=`<div class="tl-route" id="route-${gidx}">${cached?routeText(cached):'🚗 소요시간 계산 중…'}</div>`;
+      }
+    });
   });
   body.innerHTML=html;
   // 경로 비동기 계산
