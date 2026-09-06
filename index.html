@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01t  ·  feat: 가계부 USD 자동환산(×1400) + 저장금액/카테고리 수정 반영
+     build: 2026-09-01u  ·  feat: 여행탭 맨앞 + 여행이름/기간 수정 + 항목 시간·정보 수정 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -614,6 +614,8 @@
   </section>
 
   <nav>
+    <button id="nav-trip" onclick="switchTab('trip')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5"/></svg>여행</button>
     <button class="on" id="nav-log" onclick="switchTab('log')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>기록하기</button>
     <button id="nav-list" onclick="switchTab('list')">
@@ -624,8 +626,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
     <button id="nav-expense" onclick="switchTab('expense')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v12H3zM3 10h18M7 15h4" stroke-linecap="round" stroke-linejoin="round"/></svg>가계부</button>
-    <button id="nav-trip" onclick="switchTab('trip')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5"/></svg>여행</button>
     <button id="nav-timer" onclick="switchTab('timer')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
     <button id="nav-stat" onclick="switchTab('stat')">
@@ -1607,7 +1607,7 @@ function renderTrip(){
   if(!CUR_TRIP){body.innerHTML=`<div class="empty"><div class="big">✈️</div>여행이 없어요.<br><b style="color:var(--accent-soft)">"🎫 티켓/이동수단"</b>에 항공권·기차표 사진을 올리면<br>여행·날짜·목적지가 자동으로 만들어져요.<br><span style="font-size:12px;color:var(--ink-faint)">또는 "＋"로 직접 만들 수 있어요.</span></div>`;return;}
   const trip=TRIPS.find(t=>t.id===CUR_TRIP);if(!trip){body.innerHTML="";return;}
   const items=TRIPITEMS.filter(x=>x.tripId===CUR_TRIP).sort((a,b)=>itemDT(a)<itemDT(b)?-1:1);
-  let html=`<div class="trip-head"><span class="del" onclick="delTrip(${trip.id})">삭제</span><h3>${escapeHtml(trip.name)}</h3><div class="r">${trip.start}${trip.end&&trip.end!==trip.start?' ~ '+trip.end:''}</div></div>
+  let html=`<div class="trip-head"><span class="del" onclick="delTrip(${trip.id})">삭제</span><span class="del" style="margin-right:6px" onclick="editTrip(${trip.id})">✎ 수정</span><h3>${escapeHtml(trip.name)}</h3><div class="r">${trip.start}${trip.end&&trip.end!==trip.start?' ~ '+trip.end:''}</div></div>
     <div id="tripSuggest"></div>
     <div class="tripadd">
       <button onclick="openTripModal('place')">📍 장소</button>
@@ -1669,6 +1669,7 @@ function tlCard(it){
   }
   return `<div class="tl-item"><div class="tl-dot">${icon}</div><div class="tl-card">
     <span class="tl-del" onclick="delTripItem(${it.id})">🗑</span>
+    <span class="tl-del" style="right:38px" onclick="editTripItem(${it.id})">✎</span>
     ${time?`<div class="tl-time">${time}</div>`:''}
     <div class="tl-title">${title}</div>
     ${meta?`<div class="tl-meta">${meta}</div>`:''}
@@ -1726,9 +1727,43 @@ async function saveTripItem(){
     payload={kind:"tripitem",tripId:CUR_TRIP,type:"train",op:$("#trOp").value.trim(),trainNo:$("#trNo").value.trim(),depSt:$("#trDepSt").value.trim(),arrSt:$("#trArrSt").value.trim(),depDate:$("#trDepDate").value,depTime:$("#trDepTime").value,arrDate:$("#trArrDate").value,arrTime:$("#trArrTime").value,car:$("#trCar").value.trim(),title:($("#trOp").value.trim()+" "+$("#trNo").value.trim()).trim()||"기차"};
   }
   const wdate=payload.date||payload.depDate||todayStr();
+  if(EDIT_ITEM){
+    const prev=TRIPITEMS.find(x=>x.id===EDIT_ITEM);
+    if(prev){ // 기존 값 보존(인원·좌표·도시 등 폼에 없는 것)
+      if(payload.type==='flight'){payload.pax=prev.pax||1;if(!payload.depCity)payload.depCity=prev.depCity||'';if(!payload.arrCity)payload.arrCity=prev.arrCity||'';}
+      if(payload.type==='train'){payload.pax=prev.pax||1;if(!payload.depCity)payload.depCity=prev.depCity||'';if(!payload.arrCity)payload.arrCity=prev.arrCity||'';}
+      if(payload.type==='place'&&!payload.city)payload.city=prev.city||'';
+    }
+    const {error}=await sb.from("workouts").update({title:payload.title,workout_date:wdate,data:payload}).eq("id",EDIT_ITEM);
+    if(error){toast("수정 실패: "+error.message);return;}
+    EDIT_ITEM=null;closeTripModal();await refreshData();renderTrip();toast("수정 완료 ✓");return;
+  }
   const {error}=await sb.from("workouts").insert({title:payload.title,workout_date:wdate,data:payload});
   if(error){toast("저장 실패: "+error.message);return;}
   closeTripModal();await refreshData();renderTrip();toast("일정 추가 ✓");
+}
+/* 여행 이름·기간 수정 */
+async function editTrip(id){
+  const t=TRIPS.find(x=>x.id===id);if(!t)return;
+  const name=prompt("여행 이름",t.name);if(name===null)return;
+  const start=prompt("시작일 (YYYY-MM-DD)",t.start)||t.start;
+  const end=prompt("종료일 (YYYY-MM-DD)",t.end||t.start)||start;
+  const {error}=await sb.from("workouts").update({title:name.trim()||t.name,workout_date:start,data:{kind:"trip",name:name.trim()||t.name,start,end}}).eq("id",id);
+  if(error){toast("수정 실패: "+error.message);return;}
+  await refreshData();renderTripSel();renderTrip();toast("여행 수정 ✓");
+}
+/* 항목 수정: 모달을 기존 값으로 열기 */
+function editTripItem(id){
+  const it=TRIPITEMS.find(x=>x.id===id);if(!it)return;
+  openTripModal(it.type);
+  EDIT_ITEM=id;$("#tripModalTitle").textContent="일정 수정";
+  if(it.type==='place'){
+    $("#plName").value=it.title||'';$("#plAddr").value=it.address||'';$("#plDate").value=it.date||'';$("#plTime").value=it.time||'';$("#plNote").value=it.note||'';$("#plLat").value=it.lat||'';$("#plLng").value=it.lng||'';LAST_PL_CITY=it.city||'';
+  }else if(it.type==='flight'){
+    $("#flAirline").value=it.airline||'';$("#flNo").value=it.flightNo||'';$("#flDepAp").value=it.depAp||'';$("#flArrAp").value=it.arrAp||'';$("#flDepDate").value=it.depDate||'';$("#flDepTime").value=it.depTime||'';$("#flArrDate").value=it.arrDate||'';$("#flArrTime").value=it.arrTime||'';$("#flGate").value=it.gate||'';LAST_FL_CITY={dep:it.depCity||'',arr:it.arrCity||''};
+  }else{
+    $("#trOp").value=it.op||'';$("#trNo").value=it.trainNo||'';$("#trDepSt").value=it.depSt||'';$("#trArrSt").value=it.arrSt||'';$("#trDepDate").value=it.depDate||'';$("#trDepTime").value=it.depTime||'';$("#trArrDate").value=it.arrDate||'';$("#trArrTime").value=it.arrTime||'';$("#trCar").value=it.car||'';
+  }
 }
 /* --- 항공/기차표 OCR --- */
 async function ticketOCR(input,kind){
