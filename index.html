@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01u  ·  feat: 여행탭 맨앞 + 여행이름/기간 수정 + 항목 시간·정보 수정 반영
+     build: 2026-09-01v  ·  feat: 앱 켜면 여행 탭부터 시작 반영
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -614,9 +614,9 @@
   </section>
 
   <nav>
-    <button id="nav-trip" onclick="switchTab('trip')">
+    <button class="on" id="nav-trip" onclick="switchTab('trip')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5"/></svg>여행</button>
-    <button class="on" id="nav-log" onclick="switchTab('log')">
+    <button id="nav-log" onclick="switchTab('log')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>기록하기</button>
     <button id="nav-list" onclick="switchTab('list')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>기록</button>
@@ -859,8 +859,7 @@ async function showApp(){
   if(!MKEY) await tryRestoreKey();               // 자동로그인: 저장된 키 복원 → 칼로리 탭 비번 재입력 생략
   await refreshData();
   if(notifOn())startNotifWatch();
-  if($("#tab-list").classList.contains("active"))loadList();
-  if($("#tab-cal").classList.contains("active"))renderCal();
+  switchTab('trip');   // 앱 켜면 여행 탭부터
 }
 
 sb.auth.onAuthStateChange((event,session)=>{
@@ -2081,7 +2080,7 @@ function switchTab(name){
   window.scrollTo(0,0);
   if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")renderTrip();if(name==="stat")loadStat();
 }
-$("#tab-log").classList.add("active");
+$("#tab-trip").classList.add("active");
 // 자동로그인: 저장된 이메일·설정 프리필
 try{const em=localStorage.getItem('wlog_email');if(em)$("#email").value=em;const rm=localStorage.getItem('wlog_remember');if(rm!==null)$("#rememberMe").checked=(rm==='1');}catch(e){}
 </script>
