@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-09-01aa  ·  feat: 이동없는 날도 직전 도착지 표시 + 붙여넣기 인식 반영
+     build: 2026-10-12a  ·  feat: 항공권 시세(인천·김포·청주 출발, 1~4h / 5~9h)
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -300,6 +300,13 @@
   .pl-res b{font-size:13px;font-weight:700}
   .pl-res span{display:block;font-size:11px;color:var(--ink-faint);margin-top:1px}
   .tp-fl{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:13px;line-height:1.6;color:var(--ink-soft)}
+  .fare-open{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin:-6px 0 12px;font-size:13px;font-weight:700;color:var(--ink-soft);text-align:left}
+  .fare-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--ink-soft);text-decoration:none}
+  .fare-row .fr-main{flex:1;min-width:0;line-height:1.5}
+  .fare-row .fr-main b{color:var(--ink)}
+  .fare-row .fr-sub{font-size:11px;color:var(--ink-faint)}
+  .fare-row .fr-price{font-weight:800;color:var(--accent);white-space:nowrap;text-align:right}
+  .fare-row.none{opacity:.5}
   .tp-fl b{color:var(--ink)}
   .suggest{background:linear-gradient(135deg,#0f2018,#1c2027);border:1px solid var(--green);border-radius:12px;padding:13px;margin-bottom:12px}
   .suggest-h{font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px}
@@ -569,6 +576,7 @@
       <button class="trip-new" onclick="newTrip()">＋</button>
       <button class="trip-new" style="background:var(--blue);color:#03121f" onclick="document.getElementById('tripPlanImg').click()">🎫 티켓/이동수단</button>
     </div>
+    <button class="fare-open" onclick="openFare()">💸 어디로 갈까? 항공권 시세 (인천·김포·청주 출발)</button>
     <input id="tripPlanImg" type="file" accept="image/*" multiple style="display:none" onchange="onTripFromTicket(this)" />
     <div style="font-size:11px;color:var(--ink-faint);margin:-8px 2px 12px">📋 캡처 이미지를 복사해 <b>붙여넣기(Ctrl+V)</b> 해도 티켓이 자동 인식돼요.</div>
     <div id="tripBody"></div>
@@ -766,6 +774,32 @@
     <div id="tpFlights"></div>
     <button class="btn-primary" id="tpSaveBtn" onclick="createTripFromPlan()">이 내용으로 여행 생성</button>
     <button class="btn-ghost" onclick="closeTripPlan()">취소</button>
+  </div>
+</div>
+
+<!-- 항공권 시세 MODAL -->
+<div class="modal-bg" id="fareModal">
+  <div class="modal" style="max-height:88vh;overflow-y:auto">
+    <h2>💸 항공권 시세</h2>
+    <p class="msub">인천·김포·청주 출발 최저가예요. 최근 이틀 안에 실제 검색된 가격이라 예매 시점엔 달라질 수 있어요.</p>
+    <div class="seg" id="fareSeg">
+      <button class="on" onclick="fareGroup('short',this)">✈️ 1~4시간</button>
+      <button onclick="fareGroup('mid',this)">🌏 5~9시간</button>
+    </div>
+    <div class="m2">
+      <div class="mfield"><label>출발 공항</label><select id="fareOrigin" onchange="loadFare()"><option value="ALL">전체(최저가)</option><option value="ICN">인천 ICN</option><option value="GMP">김포 GMP</option><option value="CJJ">청주 CJJ</option></select></div>
+      <div class="mfield"><label>출발 월</label><input id="fareMonth" type="month" onchange="loadFare()" /></div>
+    </div>
+    <div class="m2">
+      <div class="mfield"><label>여정</label><select id="fareOneway" onchange="loadFare()"><option value="0">왕복</option><option value="1">편도</option></select></div>
+      <div class="mfield"><label>경유</label><select id="fareDirect" onchange="loadFare()"><option value="0">경유 포함</option><option value="1">직항만</option></select></div>
+    </div>
+    <div class="seg" id="fareView" style="margin-top:4px">
+      <button class="on" onclick="fareViewSet('country',this)">국가별 최저가</button>
+      <button onclick="fareViewSet('city',this)">도시 전체</button>
+    </div>
+    <div id="fareBody"></div>
+    <button class="btn-ghost" onclick="closeFare()">닫기</button>
   </div>
 </div>
 
@@ -2024,6 +2058,48 @@ async function computeRouteSuggestions(){
     }
   }
   el.innerHTML=banners.join("");
+}
+
+/* --- 항공권 시세 (인천·김포·청주 출발, 1~4시간 / 5~9시간) --- */
+let FARE_GROUP='short', FARE_VIEW='country', FARE_CACHE={}, FARE_SEQ=0;
+function openFare(){
+  if(!$("#fareMonth").value){const d=new Date();d.setMonth(d.getMonth()+1);$("#fareMonth").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+  $("#fareModal").classList.add("show");loadFare();
+}
+function closeFare(){$("#fareModal").classList.remove("show");}
+function fareGroup(g,btn){FARE_GROUP=g;$$("#fareSeg button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");loadFare();}
+function fareViewSet(v,btn){FARE_VIEW=v;$$("#fareView button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");const k=fareKey();if(FARE_CACHE[k])renderFare(FARE_CACHE[k]);}
+function fareKey(){return [FARE_GROUP,$("#fareOrigin").value,$("#fareMonth").value,$("#fareOneway").value,$("#fareDirect").value].join("|");}
+async function loadFare(){
+  const k=fareKey();if(FARE_CACHE[k]){renderFare(FARE_CACHE[k]);return;}
+  const seq=++FARE_SEQ;
+  $("#fareBody").innerHTML=`<div class="spin"></div><div class="wk-empty" style="text-align:center">공항×도시별 최저가 모으는 중… (10초쯤 걸려요)</div>`;
+  const [group,origin,month,oneway,direct]=k.split("|");
+  try{
+    const r=await fetch(`/api/flights?group=${group}&origin=${origin}&month=${month}&oneway=${oneway}&direct=${direct}`);
+    const d=await r.json();if(seq!==FARE_SEQ)return;
+    if(!r.ok||d.error){$("#fareBody").innerHTML=`<div class="wk-empty">${escapeHtml(d.error||"조회 실패")}</div>`;return;}
+    FARE_CACHE[k]=d;renderFare(d);
+  }catch(e){if(seq===FARE_SEQ)$("#fareBody").innerHTML=`<div class="wk-empty">조회 실패: ${escapeHtml(e.message)}</div>`;}
+}
+function renderFare(d){
+  let rows=(d.results||[]).slice();
+  if(FARE_VIEW==='country'){ // 국가마다 가장 싼 도시 하나
+    const by={};rows.forEach(x=>{const c=by[x.country];if(!c||(x.price&&(!c.price||x.price<c.price)))by[x.country]=x;});
+    rows=Object.values(by);
+  }
+  rows.sort((a,b)=>(a.price||9e15)-(b.price||9e15));
+  const md=s=>s?s.slice(5,10).replace('-','/'):'';
+  const tr=n=>n==null?'':(n===0?'직항':`경유 ${n}회`);
+  const has=rows.filter(x=>x.price).length;
+  let h=`<div class="wk-empty" style="margin-bottom:8px">${d.month.replace('-','년 ')}월 출발 · ${d.oneway?'편도':'왕복'}${d.direct?' · 직항만':''} · 가격 있는 곳 ${has}/${rows.length}</div>`;
+  h+=rows.map(x=>{
+    const sub=x.price?`${escapeHtml(x.origin)}→${escapeHtml(x.destAp)} · ${md(x.departAt)}${x.returnAt?'~'+md(x.returnAt):''} · ${tr(x.transfers)}${x.airline?' · '+escapeHtml(x.airline):''}`:'최근 검색된 가격 없음';
+    const inner=`<div class="fr-main"><b>${escapeHtml(x.country)}</b> ${escapeHtml(x.city)}<div class="fr-sub">${sub} · 약 ${x.hours}시간</div></div><div class="fr-price">${x.price?won(x.price):'—'}</div>`;
+    return x.price&&x.link?`<a class="fare-row" href="${escapeHtml(x.link)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="fare-row${x.price?'':' none'}">${inner}</div>`;
+  }).join("");
+  h+=`<div class="wk-empty" style="margin:4px 0 10px">항목을 누르면 아비아세일즈에서 해당 날짜 항공편을 열어요. 비행시간은 인천 직항 기준 대략치.</div>`;
+  $("#fareBody").innerHTML=h;
 }
 
 /* ===== 분석 ===== */
