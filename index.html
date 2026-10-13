@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13k  ·  feat: 경유 여행 최저가 일정 TOP3(출발일 범위 탐색 + 체류 +1~2박)
+     build: 2026-10-13l  ·  feat: 경유 여행 총액에 1인당 금액
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -306,7 +306,7 @@
   .fare-row .fr-sub{font-size:11px;color:var(--ink-faint)}
   .fare-row .fr-price{font-weight:800;color:var(--accent);white-space:nowrap;text-align:right}
   .fare-row.none{opacity:.5}
-  .fare-row .fr-pp{display:block;font-size:10.5px;font-weight:600;color:var(--ink-faint)}
+  .fr-pp{display:block;font-size:10.5px;font-weight:600;color:var(--ink-faint)}
   .fare-bag{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:1px}
   .stop-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px;font-size:13px;color:var(--ink-soft);line-height:1.55}
   .stop-card h3{margin:0 0 6px;font-size:15px;color:var(--ink);letter-spacing:-.01em}
@@ -2266,7 +2266,7 @@ function tripHtml(x,t,ti,pax){
     const inner=`<span>${j===t.legs.length-1?'🇰🇷':'✈️'} ${route} · ${mdw(l.departAt)} · ${l.transfers===0?'직항':'경유 '+l.transfers+'회'}${l.airline?' · '+escapeHtml(l.airline):''}${viaNote}</span><b>${won(l.price*pax)}</b>`;
     return l.link&&!l.via?`<a class="stop-leg" href="${escapeHtml(paxLink(l.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="stop-leg">${inner}</div>`;}).join('');
   return `<div class="stop-legs"${ti?' style="opacity:.92"':''}>
-    <div class="stop-sum" style="border:0;margin:0 0 4px;padding:0"><span>${['🥇','🥈','🥉'][ti]} ${mdw(first.departAt)} 출발 · ${nts}박${nts+1}일</span><span>${won(t.total*pax)}</span></div>
+    <div class="stop-sum" style="border:0;margin:0 0 4px;padding:0"><span>${['🥇','🥈','🥉'][ti]} ${mdw(first.departAt)} 출발 · ${nts}박${nts+1}일</span><span style="text-align:right">${won(t.total*pax)}${pax>1?`<span class="fr-pp">1인 ${won(t.total)}</span>`:''}</span></div>
     ${stays(x,t)}${rows}
     <a class="stop-multi" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener">🔎 이 날짜로 다구간 검색 (아비아세일즈)</a></div>`;
 }
