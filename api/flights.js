@@ -1,5 +1,5 @@
 // Vercel Serverless Function: /api/flights
-//  ?group=short|mid      short = 비행 1~4시간대, mid = 5~9시간대
+//  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10~20시간대(대부분 경유)
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -29,6 +29,25 @@ const DESTS = {
     ["인도","델리","DEL",8.5],["네팔","카트만두","KTM",7.5],["스리랑카","콜롬보","CMB",8.8],
     ["미국","하와이(호놀룰루)","HNL",8.3],["호주","케언즈","CNS",8],
   ],
+  // 10~20시간: 직항 없는 곳은 1회 경유 기준 대략 총 소요시간
+  long: [
+    ["미국","로스앤젤레스","LAX",11],["미국","샌프란시스코","SFO",10.5],["미국","시애틀","SEA",10],["미국","라스베이거스","LAS",11],["미국","뉴욕","NYC",14],["미국","시카고","CHI",13],
+    ["캐나다","밴쿠버","YVR",10],["캐나다","토론토","YTO",13],["멕시코","칸쿤","CUN",18],
+    ["영국","런던","LON",14],["프랑스","파리","PAR",14],["이탈리아","로마","ROM",13.5],["이탈리아","밀라노","MIL",13.5],["스페인","바르셀로나","BCN",14],["스페인","마드리드","MAD",14],
+    ["독일","프랑크푸르트","FRA",13.5],["네덜란드","암스테르담","AMS",13.5],["스위스","취리히","ZRH",13.5],["오스트리아","비엔나","VIE",13],["체코","프라하","PRG",13],["헝가리","부다페스트","BUD",13],
+    ["포르투갈","리스본","LIS",17],["그리스","아테네","ATH",15],["핀란드","헬싱키","HEL",13.5],["튀르키예","이스탄불","IST",12.5],["크로아티아","자그레브","ZAG",15],
+    ["아랍에미리트","두바이","DXB",10],["카타르","도하","DOH",10.5],["이집트","카이로","CAI",15],["모로코","마라케시","RAK",19],["남아공","케이프타운","CPT",20],["케냐","나이로비","NBO",16],
+    ["몰디브","말레","MLE",11],["호주","시드니","SYD",10.5],["호주","멜버른","MEL",11],["호주","브리즈번","BNE",10],["뉴질랜드","오클랜드","AKL",11.5],
+  ],
+};
+// 경유 항공권의 첫 구간 항공사 → 대표 환승지 (추정용)
+const HUB = {
+  TK:"이스탄불",EK:"두바이",QR:"도하",EY:"아부다비",SV:"리야드",WY:"무스카트",GF:"바레인",ET:"아디스아바바",MS:"카이로",
+  SQ:"싱가포르",TR:"싱가포르",CX:"홍콩",HX:"홍콩",UO:"홍콩",BR:"타이베이",CI:"타이베이",JX:"타이베이",IT:"타이베이",
+  JL:"도쿄",NH:"도쿄",MM:"오사카",CA:"베이징",MU:"상하이",FM:"상하이",CZ:"광저우",HU:"하이커우",MF:"샤먼",ZH:"선전",SC:"칭다오","3U":"청두",
+  TG:"방콕",FD:"방콕",VN:"하노이·호치민",VJ:"하노이·호치민",MH:"쿠알라룸푸르",AK:"쿠알라룸푸르",D7:"쿠알라룸푸르",PR:"마닐라","5J":"마닐라",GA:"자카르타",AI:"델리",UL:"콜롬보",
+  LH:"프랑크푸르트·뮌헨",AF:"파리",KL:"암스테르담",BA:"런던",AY:"헬싱키",LO:"바르샤바",LX:"취리히",OS:"비엔나",AZ:"로마",IB:"마드리드",HY:"타슈켄트",KC:"알마티",
+  AC:"밴쿠버·토론토",UA:"미국 경유",DL:"미국 경유",AA:"미국 경유",AS:"시애틀",QF:"시드니",VA:"브리즈번",NZ:"오클랜드",
 };
 const ORIGINS = ["ICN","GMP","CJJ"];
 
@@ -36,22 +55,22 @@ async function cheapest(token, origin, dest, q) {
   const p = new URLSearchParams({
     origin, destination: dest, departure_at: q.month, currency: "krw", market: "kr",
     one_way: q.oneway ? "true" : "false", direct: q.direct ? "true" : "false",
-    sorting: "price", limit: "1", token,
+    sorting: "price", limit: "5", token,
   });
   const r = await fetch("https://api.travelpayouts.com/aviasales/v3/prices_for_dates?" + p);
   if (r.status === 401) throw new Error("TOKEN");
   if (!r.ok) return null;
   const d = await r.json();
-  const t = d && d.success && Array.isArray(d.data) ? d.data[0] : null;
-  if (!t || !t.price) return null;
-  return {
+  const rows = d && d.success && Array.isArray(d.data) ? d.data : [];
+  return rows.filter((t) => t && t.price).map((t) => ({
     origin: t.origin_airport || origin, destAp: t.destination_airport || dest,
     price: t.price, airline: t.airline || "", flightNo: t.flight_number || "",
     departAt: t.departure_at || "", returnAt: t.return_at || "",
     transfers: t.transfers ?? null, returnTransfers: t.return_transfers ?? null,
     durationMin: t.duration_to || t.duration || null,
+    hub: t.transfers > 0 ? HUB[t.airline] || "" : "",
     link: t.link ? "https://www.aviasales.com" + t.link : "",
-  };
+  }));
 }
 
 // 동시 요청 수를 n개로 제한해서 병렬 처리
@@ -68,7 +87,7 @@ export default async function handler(req, res) {
 
   const group = (req.query.group || "short").toString();
   const list = DESTS[group];
-  if (!list) { res.status(400).json({ error: "group 은 short 또는 mid 여야 합니다." }); return; }
+  if (!list) { res.status(400).json({ error: "group 은 short, mid, long 중 하나여야 합니다." }); return; }
   const o = (req.query.origin || "ALL").toString().toUpperCase();
   const origins = o === "ALL" ? ORIGINS : ORIGINS.includes(o) ? [o] : null;
   if (!origins) { res.status(400).json({ error: "origin 은 ALL, ICN, GMP, CJJ 중 하나여야 합니다." }); return; }
@@ -79,12 +98,18 @@ export default async function handler(req, res) {
 
   try {
     const jobs = [];
-    list.forEach((d, di) => origins.forEach((og) => jobs.push(async () => { const r = await cheapest(token, og, d[2], q); return r && { di, ...r }; })));
-    const found = await pool(jobs, 12);
-    // 목적지별로 출발공항 중 최저가 하나만
-    const best = {};
-    found.forEach((r) => { if (r && (!best[r.di] || r.price < best[r.di].price)) best[r.di] = r; });
-    const results = list.map((d, di) => { const { di: _, ...b } = best[di] || { price: null }; return { country: d[0], city: d[1], code: d[2], hours: d[3], ...b }; });
+    list.forEach((d, di) => origins.forEach((og) => jobs.push(async () => ({ di, opts: (await cheapest(token, og, d[2], q)) || [] }))));
+    const found = await pool(jobs, 16);
+    // 목적지별로 출발공항 전체의 후보를 모아 최저가 + 직항 최저가 + 경유 방법(환승지별 최저가 최대 3개)
+    const opts = {};
+    found.forEach((r) => { if (r) (opts[r.di] = opts[r.di] || []).push(...r.opts); });
+    const results = list.map((d, di) => {
+      const all = (opts[di] || []).sort((a, b) => a.price - b.price);
+      const direct = all.find((x) => x.transfers === 0) || null;
+      const vias = []; const seen = new Set();
+      all.forEach((x) => { const k = x.hub || x.airline; if (x.transfers > 0 && !seen.has(k) && vias.length < 3) { seen.add(k); vias.push(x); } });
+      return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias };
+    });
     res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
     res.status(200).json({ group, month, origins, oneway: q.oneway, direct: q.direct, results });
   } catch (e) {

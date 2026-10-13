@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13b  ·  feat: 하단 탭 4개(항공권 예매·가계부·일정·운동)로 정리
+     build: 2026-10-13c  ·  feat: 항공권 10~20시간 + 경유 방법
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -306,6 +306,13 @@
   .fare-row .fr-sub{font-size:11px;color:var(--ink-faint)}
   .fare-row .fr-price{font-weight:800;color:var(--accent);white-space:nowrap;text-align:right}
   .fare-row.none{opacity:.5}
+  .fare-card{margin-bottom:8px}
+  .fare-card .fare-row{margin-bottom:0}
+  .fare-card.has-via .fare-row{border-radius:10px 10px 0 0}
+  .fare-via{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-top:0;padding:7px 12px 7px 22px;font-size:11.5px;color:var(--ink-soft);text-decoration:none}
+  .fare-via:last-child{border-radius:0 0 10px 10px}
+  .fare-via .fv-main{flex:1;min-width:0;line-height:1.45}
+  .fare-via .fv-price{font-weight:700;white-space:nowrap;color:var(--ink)}
   .tp-fl b{color:var(--ink)}
   .suggest{background:linear-gradient(135deg,#0f2018,#1c2027);border:1px solid var(--green);border-radius:12px;padding:13px;margin-bottom:12px}
   .suggest-h{font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px}
@@ -588,6 +595,7 @@
       <div class="seg" id="fareSeg">
         <button class="on" onclick="fareGroup('short',this)">✈️ 1~4시간</button>
         <button onclick="fareGroup('mid',this)">🌏 5~9시간</button>
+        <button onclick="fareGroup('long',this)">🌍 10~20시간</button>
       </div>
       <div class="m2">
         <div class="mfield"><label>출발 공항</label><select id="fareOrigin" onchange="loadFare()"><option value="ALL">전체(최저가)</option><option value="ICN">인천 ICN</option><option value="GMP">김포 GMP</option><option value="CJJ">청주 CJJ</option></select></div>
@@ -2096,14 +2104,23 @@ function renderFare(d){
   rows.sort((a,b)=>(a.price||9e15)-(b.price||9e15));
   const md=s=>s?s.slice(5,10).replace('-','/'):'';
   const tr=n=>n==null?'':(n===0?'직항':`경유 ${n}회`);
+  const dur=m=>m?`${Math.floor(m/60)}시간${m%60?' '+(m%60)+'분':''}`:'';
+  const lk=(x,cls,inner)=>x.link?`<a class="${cls}" href="${escapeHtml(x.link)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="${cls}">${inner}</div>`;
   const has=rows.filter(x=>x.price).length;
   let h=`<div class="wk-empty" style="margin-bottom:8px">${d.month.replace('-','년 ')}월 출발 · ${d.oneway?'편도':'왕복'}${d.direct?' · 직항만':''} · 가격 있는 곳 ${has}/${rows.length}</div>`;
   h+=rows.map(x=>{
-    const sub=x.price?`${escapeHtml(x.origin)}→${escapeHtml(x.destAp)} · ${md(x.departAt)}${x.returnAt?'~'+md(x.returnAt):''} · ${tr(x.transfers)}${x.airline?' · '+escapeHtml(x.airline):''}`:'최근 검색된 가격 없음';
-    const inner=`<div class="fr-main"><b>${escapeHtml(x.country)}</b> ${escapeHtml(x.city)}<div class="fr-sub">${sub} · 약 ${x.hours}시간</div></div><div class="fr-price">${x.price?won(x.price):'—'}</div>`;
-    return x.price&&x.link?`<a class="fare-row" href="${escapeHtml(x.link)}" target="_blank" rel="noopener">${inner}</a>`:`<div class="fare-row${x.price?'':' none'}">${inner}</div>`;
+    const via=x.transfers>0&&x.hub?` · ${escapeHtml(x.hub)} 경유`:'';
+    const sub=x.price?`${escapeHtml(x.origin)}→${escapeHtml(x.destAp)} · ${md(x.departAt)}${x.returnAt?'~'+md(x.returnAt):''} · ${tr(x.transfers)}${via}${x.airline?' · '+escapeHtml(x.airline):''}`:'최근 검색된 가격 없음';
+    const time=x.durationMin?`편도 ${dur(x.durationMin)}`:`약 ${x.hours}시간`;
+    const inner=`<div class="fr-main"><b>${escapeHtml(x.country)}</b> ${escapeHtml(x.city)}<div class="fr-sub">${sub} · ${time}</div></div><div class="fr-price">${x.price?won(x.price):'—'}</div>`;
+    // 경유 방법: 최저가 외의 다른 선택지 (직항 최저가 + 환승지별 최저가)
+    const alts=[];
+    if(x.direct&&x.direct.price!==x.price)alts.push(x.direct);
+    (x.vias||[]).forEach(v=>{if(v.link!==x.link)alts.push(v);});
+    const altH=alts.map(v=>lk(v,'fare-via',`<div class="fv-main">↳ ${v.transfers===0?'<b>직항</b>':`<b>경유 ${v.transfers}회</b>${v.hub?' · '+escapeHtml(v.hub)+' 경유':''}`} · ${escapeHtml(v.airline)} · ${escapeHtml(v.origin)}출발 · ${md(v.departAt)}${v.durationMin?' · '+dur(v.durationMin):''}</div><div class="fv-price">${won(v.price)}</div>`)).join('');
+    return `<div class="fare-card${altH?' has-via':''}">${x.price?lk(x,'fare-row',inner):`<div class="fare-row none">${inner}</div>`}${altH}</div>`;
   }).join("");
-  h+=`<div class="wk-empty" style="margin:4px 0 10px">항목을 누르면 아비아세일즈에서 해당 날짜 항공편을 열어요. 비행시간은 인천 직항 기준 대략치.</div>`;
+  h+=`<div class="wk-empty" style="margin:4px 0 10px">항목을 누르면 아비아세일즈에서 해당 날짜 항공편을 열어요. ↳ 줄은 다른 방법(직항·다른 환승지)이에요. 환승지는 항공사 기준 추정이라 정확한 경로는 링크에서 확인하세요.</div>`;
   $("#fareBody").innerHTML=h;
 }
 
