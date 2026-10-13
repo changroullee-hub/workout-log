@@ -3,6 +3,7 @@
 //  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-22,TIA-ICN@2026-11-25&flex=1
 //     → 구간별 편도 최저가 (경유 여행 추천 탭용). 각 구간은 목표일 ±flex일 안에서,
 //       앞 구간 출발일보다 하루 이상 뒤인 항공편만 고릅니다(날짜 순서 보장).
+//     &hub=IST  → 마지막 귀국편이 비면 '마지막 도시→허브→한국' 2구간으로 대신 찾습니다.
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -112,9 +113,9 @@ export default async function handler(req, res) {
       const opts = legs.map(() => []);
       found.forEach((r) => { if (r) opts[r.li].push(...r.opts); });
       // 앞 구간부터 순서대로: 창 안 + 앞 구간 다음날 이후 중 최저가
-      let prev = "";
+      let prev = ""; const mins = [];
       const out = legs.map((l, li) => {
-        const lo = addDay(l.date, -flex), hi = addDay(l.date, flex), min = prev ? addDay(prev, 1) : "";
+        const lo = addDay(l.date, -flex), hi = addDay(l.date, flex), min = prev ? addDay(prev, 1) : ""; mins[li] = min;
         const ok = opts[li].filter((x) => { const d = (x.departAt || "").slice(0, 10); return d >= lo && d <= hi && (!min || d >= min); }).sort((x, y) => x.price - y.price);
         const pick = ok[0];
         if (pick) prev = pick.departAt.slice(0, 10); else prev = l.date > prev ? l.date : prev;
@@ -123,6 +124,18 @@ export default async function handler(req, res) {
         if (!pick) { const later = opts[li].filter((x) => (x.departAt || "").slice(0, 10) >= (min || "")); later.sort((x, y) => Math.abs(new Date(x.departAt) - new Date(l.date)) - Math.abs(new Date(y.departAt) - new Date(l.date)) || x.price - y.price); near = later[0] || null; }
         return { from: l.a, to: l.b, target: l.date, ...(pick || { price: null }), near };
       });
+      // 귀국편이 없으면 허브 경유 2구간(마지막 도시→허브, 허브→한국)으로 이어 붙이기
+      const li = legs.length - 1, last = legs[li], hub = (req.query.hub || "").toString().toUpperCase();
+      if (!out[li].price && ORIGINS.includes(last.b) && /^[A-Z]{3}$/.test(hub) && hub !== last.a && hub !== last.b) {
+        const lo = addDay(last.date, -flex), hi = addDay(last.date, flex), min = mins[li];
+        const months = [...new Set([lo.slice(0, 7), addDay(hi, 1).slice(0, 7)])];
+        const [p1, p2] = await Promise.all([[last.a, hub], [hub, last.b]].map(async ([a, b]) => (await Promise.all(months.map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 })))).flat().filter(Boolean)));
+        let best = null;
+        p1.forEach((x) => { const d1 = (x.departAt || "").slice(0, 10); if (d1 < lo || d1 > hi || (min && d1 < min)) return;
+          p2.forEach((y) => { const d2 = (y.departAt || "").slice(0, 10); if (d2 < d1 || d2 > addDay(d1, 1) || new Date(y.departAt) <= new Date(x.departAt)) return;
+            if (!best || x.price + y.price < best.price) best = { price: x.price + y.price, departAt: x.departAt, transfers: (x.transfers || 0) + (y.transfers || 0) + 1, airline: [x.airline, y.airline].filter(Boolean).join("+"), via: hub, parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...y }] }; }); });
+        if (best) out[li] = { from: last.a, to: last.b, target: last.date, ...best, near: null };
+      }
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
       res.status(200).json({ flex, legs: out });
     } catch (e) {
