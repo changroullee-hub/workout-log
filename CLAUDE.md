@@ -59,7 +59,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `ocr.js` | 카드 결제 알림 이미지 → 지출 항목(Claude 비전) | `ANTHROPIC_API_KEY` |
 | `ticket.js` | 항공권/기차표/숙소 바우처 1장 판독 | `ANTHROPIC_API_KEY` |
 | `trip-plan.js` | 티켓 이미지 여러 장 → 전체 여정 | `ANTHROPIC_API_KEY` |
-| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10~20h 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
+| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=` 는 경유 여행 추천 탭의 구간별 편도가. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
 
 환경변수는 Vercel 프로젝트 설정에 있습니다. 키가 없으면 500 + 한국어 안내 메시지를 반환하는 기존 방식을 유지하세요.
 
@@ -79,7 +79,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 - 커밋 메시지: `MAGIC CARPET <빌드태그>: <바뀐 내용>` (예: `MAGIC CARPET 0901aa: 빈 날짜 도착지 표시 + 붙여넣기`). 빌드태그는 `MMDD` + 그날의 알파벳 순번.
 - 코드 스타일은 index.html의 기존 밀집한 한 줄 스타일을 따릅니다. 포매터를 돌려 파일 전체를 다시 쓰지 마세요 — diff가 못 읽게 됩니다.
 - 사용자 노출 문자열은 `escapeHtml()`을 거칩니다. 알림은 `toast()`.
-- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 안에 항공권 예매·내 여행) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
+- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 안에 항공권 예매·내 여행·경유 여행 — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
 
 ## 확인 방법
 

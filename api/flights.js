@@ -1,5 +1,6 @@
 // Vercel Serverless Function: /api/flights
-//  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10~20시간대(대부분 경유)
+//  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10시간 이상(대부분 경유)
+//  ?legs=ICN-IST,IST-TIA,TIA-ICN&month=YYYY-MM  → 구간별 편도 최저가 (경유 여행 추천 탭용)
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -29,7 +30,7 @@ const DESTS = {
     ["인도","델리","DEL",8.5],["네팔","카트만두","KTM",7.5],["스리랑카","콜롬보","CMB",8.8],
     ["미국","하와이(호놀룰루)","HNL",8.3],["호주","케언즈","CNS",8],
   ],
-  // 10~20시간: 직항 없는 곳은 1회 경유 기준 대략 총 소요시간
+  // 10시간 이상: 직항 없는 곳은 경유 기준 대략 총 소요시간
   long: [
     ["미국","로스앤젤레스","LAX",11],["미국","샌프란시스코","SFO",10.5],["미국","시애틀","SEA",10],["미국","라스베이거스","LAS",11],["미국","뉴욕","NYC",14],["미국","시카고","CHI",13],
     ["캐나다","밴쿠버","YVR",10],["캐나다","토론토","YTO",13],["멕시코","칸쿤","CUN",18],
@@ -38,6 +39,9 @@ const DESTS = {
     ["포르투갈","리스본","LIS",17],["그리스","아테네","ATH",15],["핀란드","헬싱키","HEL",13.5],["튀르키예","이스탄불","IST",12.5],["크로아티아","자그레브","ZAG",15],
     ["아랍에미리트","두바이","DXB",10],["카타르","도하","DOH",10.5],["이집트","카이로","CAI",15],["모로코","마라케시","RAK",19],["남아공","케이프타운","CPT",20],["케냐","나이로비","NBO",16],
     ["몰디브","말레","MLE",11],["호주","시드니","SYD",10.5],["호주","멜버른","MEL",11],["호주","브리즈번","BNE",10],["뉴질랜드","오클랜드","AKL",11.5],
+    ["조지아","트빌리시","TBS",11],["요르단","암만","AMM",13],["알바니아","티라나","TIA",15],["폴란드","바르샤바","WAW",12.5],["덴마크","코펜하겐","CPH",14],["노르웨이","오슬로","OSL",14],
+    ["아일랜드","더블린","DUB",15],["아이슬란드","레이캬비크","REK",17],["미국","보스턴","BOS",14.5],["미국","마이애미","MIA",17],["쿠바","하바나","HAV",21],["탄자니아","잔지바르","ZNZ",16],
+    ["페루","리마","LIM",22],["칠레","산티아고","SCL",25],["브라질","상파울루","SAO",26],["아르헨티나","부에노스아이레스","BUE",28],
   ],
 };
 // 경유 항공권의 첫 구간 항공사 → 대표 환승지 (추정용)
@@ -85,15 +89,31 @@ export default async function handler(req, res) {
   const token = process.env.TRAVELPAYOUTS_TOKEN;
   if (!token) { res.status(500).json({ error: "서버에 TRAVELPAYOUTS_TOKEN 환경변수가 없습니다. (travelpayouts.com 가입 → API 토큰)" }); return; }
 
+  const now = new Date();
+  let month = (req.query.month || "").toString();
+  if (!/^\d{4}-\d{2}$/.test(month)) month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // 구간별 편도 최저가: legs=ICN-IST,IST-TIA,...
+  if (req.query.legs) {
+    const legs = req.query.legs.toString().toUpperCase().split(",").map((x) => x.split("-")).filter((x) => x.length === 2 && /^[A-Z]{3}$/.test(x[0]) && /^[A-Z]{3}$/.test(x[1])).slice(0, 6);
+    if (!legs.length) { res.status(400).json({ error: "legs 형식: ICN-IST,IST-TIA" }); return; }
+    try {
+      const out = await pool(legs.map(([a, b]) => async () => { const r = await cheapest(token, a, b, { month, oneway: true, direct: false }); return { from: a, to: b, ...((r && r[0]) || { price: null }) }; }), 6);
+      res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
+      res.status(200).json({ month, legs: out.map((x, i) => x || { from: legs[i][0], to: legs[i][1], price: null }) });
+    } catch (e) {
+      if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }
+      res.status(502).json({ error: "구간 가격 조회 실패: " + e.message });
+    }
+    return;
+  }
+
   const group = (req.query.group || "short").toString();
   const list = DESTS[group];
   if (!list) { res.status(400).json({ error: "group 은 short, mid, long 중 하나여야 합니다." }); return; }
   const o = (req.query.origin || "ALL").toString().toUpperCase();
   const origins = o === "ALL" ? ORIGINS : ORIGINS.includes(o) ? [o] : null;
   if (!origins) { res.status(400).json({ error: "origin 은 ALL, ICN, GMP, CJJ 중 하나여야 합니다." }); return; }
-  const now = new Date();
-  let month = (req.query.month || "").toString();
-  if (!/^\d{4}-\d{2}$/.test(month)) month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const q = { month, oneway: req.query.oneway === "1", direct: req.query.direct === "1" };
 
   try {
