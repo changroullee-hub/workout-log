@@ -4,7 +4,7 @@
 //  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-23,TIA-ICN@2026-11-27&from=2026-11-10&to=2026-12-10&extra=2&hub=IST
 //     → 경유 여행 최저가 일정 TOP3 (경유 여행 추천 탭용). @날짜 간격이 계획 체류일.
 //       출발일 from~to 전부를 따져, 다음 비행은 '앞 비행 현지 도착일 + 체류일' ~ +extra 일 사이만 허용.
-//       hub 를 주면 귀국편 후보에 '마지막 도시→허브→한국' 2장 조합도 넣습니다.
+//       hop=180 이면 중간 구간(나라 간 이동)은 비행 3시간 이내만. hub 를 주면 귀국편 후보에 '마지막 도시→허브→한국' 2장 조합도 넣습니다.
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -44,6 +44,9 @@ const DESTS = {
     ["포르투갈","리스본","LIS",17],["그리스","아테네","ATH",15],["핀란드","헬싱키","HEL",13.5],["튀르키예","이스탄불","IST",12.5],["크로아티아","자그레브","ZAG",15],
     ["아랍에미리트","두바이","DXB",10],["카타르","도하","DOH",10.5],["이집트","카이로","CAI",15],["모로코","마라케시","RAK",19],["남아공","케이프타운","CPT",20],["케냐","나이로비","NBO",16],
     ["몰디브","말레","MLE",11],["호주","시드니","SYD",10.5],["호주","멜버른","MEL",11],["호주","브리즈번","BNE",10],["뉴질랜드","오클랜드","AKL",11.5],
+    ["그리스","산토리니","JTR",16],["세르비아","베오그라드","BEG",14],["몬테네그로","포드고리차(코토르)","TGD",15],["보스니아","사라예보","SJJ",15],["북마케도니아","스코페","SKP",15],
+    ["불가리아","소피아","SOF",14],["루마니아","부쿠레슈티","BUH",14],["슬로베니아","류블랴나","LJU",15],["슬로바키아","브라티슬라바","BTS",14],["크로아티아","두브로브니크","DBV",15],["크로아티아","스플리트","SPU",15],
+    ["폴란드","크라쿠프","KRK",14],["리투아니아","빌뉴스","VNO",14],["라트비아","리가","RIX",14],["에스토니아","탈린","TLL",14],
     ["조지아","트빌리시","TBS",11],["요르단","암만","AMM",13],["알바니아","티라나","TIA",15],["폴란드","바르샤바","WAW",12.5],["덴마크","코펜하겐","CPH",14],["노르웨이","오슬로","OSL",14],
     ["아일랜드","더블린","DUB",15],["아이슬란드","레이캬비크","REK",17],["미국","보스턴","BOS",14.5],["미국","마이애미","MIA",17],["쿠바","하바나","HAV",21],["탄자니아","잔지바르","ZNZ",16],
     ["페루","리마","LIM",22],["칠레","산티아고","SCL",25],["브라질","상파울루","SAO",26],["아르헨티나","부에노스아이레스","BUE",28],
@@ -75,6 +78,16 @@ const OPENJAW = [
   ["튀르키예","카파도키아 → 이스탄불","NAV","IST","국내선 1시간 20분",7],
   ["호주","시드니 → 멜버른","SYD","MEL","국내선 1시간 30분",8],
   ["미국","샌프란시스코 → 로스앤젤레스","SFO","LAX","국내선 1시간 30분·1번 국도 드라이브",8],
+  // 동유럽·발칸: 들어가고 나오는 나라가 달라도 육로·짧은 비행으로 이어지는 코스
+  ["체코·오스트리아·헝가리","프라하 → 비엔나 → 부다페스트","PRG","BUD","기차 4시간 + 2시간 30분",8],
+  ["크로아티아","자그레브 → 플리트비체 → 스플리트 → 두브로브니크","ZAG","DBV","버스(해안도로)",8],
+  ["크로아티아·몬테네그로","두브로브니크 → 코토르 → 포드고리차","DBV","TGD","버스 2시간 + 2시간",8],
+  ["슬로베니아·크로아티아","류블랴나(블레드) → 자그레브","LJU","ZAG","기차·버스 2시간 30분",8],
+  ["폴란드","크라쿠프 → 바르샤바","KRK","WAW","기차 2시간 30분",8],
+  ["발트 3국","빌뉴스 → 리가 → 탈린","VNO","TLL","버스 4시간 + 4시간",9],
+  ["그리스","아테네 → 산토리니","ATH","JTR","페리 5~8시간·국내선 45분",8],
+  ["세르비아·보스니아","베오그라드 → 사라예보","BEG","SJJ","버스 7시간·국내선 1시간",9],
+  ["불가리아·루마니아","소피아 → 부쿠레슈티","SOF","BUH","버스 6시간",9],
 ];
 
 async function cheapest(token, origin, dest, q) {
@@ -84,7 +97,12 @@ async function cheapest(token, origin, dest, q) {
     sorting: "price", limit: String(q.limit || 5), token,
   });
   if (q.ret) p.set("return_at", q.ret);
-  const r = await fetch("https://api.travelpayouts.com/aviasales/v3/prices_for_dates?" + p);
+  let r;
+  for (let t = 0; t < 3; t++) { // 요청 제한(429)이면 잠깐 쉬고 다시
+    r = await fetch("https://api.travelpayouts.com/aviasales/v3/prices_for_dates?" + p);
+    if (r.status !== 429) break;
+    await new Promise((ok) => setTimeout(ok, 800 * (t + 1)));
+  }
   if (r.status === 401) throw new Error("TOKEN");
   if (!r.ok) return null;
   const d = await r.json();
@@ -142,7 +160,7 @@ export default async function handler(req, res) {
         const g = go.filter(goOk).sort((a, b) => a.price - b.price)[0], b = back.filter(backOk).sort((a, b) => a.price - b.price)[0];
         return g && b ? { openjaw: true, country: o[0], city: o[1], inCode: o[2], outCode: o[3], move: o[4], price: g.price + b.price, go: g, back: b } : null;
       }));
-      const out = (await pool(jobs, 16)).filter(Boolean);
+      const out = (await pool(jobs, 10)).filter(Boolean);
       // 도시별 최저가 하나만(출발공항 중복 제거)
       const rt = {}; out.filter((x) => !x.openjaw).forEach((x) => { if (!rt[x.code] || x.price < rt[x.code].price) rt[x.code] = x; });
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
@@ -167,6 +185,7 @@ export default async function handler(req, res) {
     if (to > addDay(from, 45)) to = addDay(from, 45);
     const extra = Math.min(3, Math.max(0, parseInt(req.query.extra, 10) || 0));
     const end = isDate(req.query.end) ? req.query.end : ""; // 이 날까지 한국 도착(휴가 끝)
+    const hop = parseInt(req.query.hop, 10) || 0; // 중간 구간(나라 간 이동) 최대 비행 분
     const stays = legs.map((l, i) => (i ? Math.round((new Date(l.date) - new Date(legs[i - 1].date)) / 86400000) : 0));
     const total = stays.reduce((x, y) => x + y, 0) + extra * (legs.length - 1) + 2;
     const hub = (req.query.hub || "").toString().toUpperCase();
@@ -199,6 +218,7 @@ export default async function handler(req, res) {
           opts[i].forEach((x) => {
             const d = x.departAt.slice(0, 10); let best = null, bestExt = 0;
             if (end && i === legs.length - 1 && (x.durationMin ? localDate(arrAbs(x), 540) > end : d >= end)) return;
+            if (hop && i < legs.length - 1 && x.durationMin && x.durationMin > hop) return;
             states.forEach((st) => { const p = st.chain[st.chain.length - 1]; const min = addDay(localDate(arrAbs(p), offMin(x.departAt)), stays[i]);
               if (d < min || d > addDay(min, extra) || Date.parse(x.departAt) <= arrAbs(p)) return;
               const ext = st.ext + Math.round((new Date(d) - new Date(min)) / 86400000);
@@ -238,8 +258,10 @@ export default async function handler(req, res) {
 
   try {
     const jobs = [];
-    list.forEach((d, di) => origins.forEach((og) => jobs.push(async () => ({ di, opts: (await cheapest(token, og, d[2], q)) || [] }))));
-    const found = await pool(jobs, 16);
+    // 김포는 단거리만, 청주는 중거리까지, 장거리는 인천만 (불필요한 요청을 줄여 요청 제한 회피)
+    const ogs = origins.filter((og) => og === "ICN" || (og === "GMP" && group === "short") || (og === "CJJ" && group !== "long"));
+    list.forEach((d, di) => (ogs.length ? ogs : origins).forEach((og) => jobs.push(async () => ({ di, opts: (await cheapest(token, og, d[2], q)) || [] }))));
+    const found = await pool(jobs, 10);
     // 목적지별로 출발공항 전체의 후보를 모아 최저가 + 직항 최저가 + 경유 방법(환승지별 최저가 최대 3개)
     const opts = {};
     found.forEach((r) => { if (r) (opts[r.di] = opts[r.di] || []).push(...r.opts); });
@@ -251,7 +273,9 @@ export default async function handler(req, res) {
       const direct = all.find((x) => x.transfers === 0) || null;
       const vias = []; const seen = new Set();
       all.forEach((x) => { const k = x.hub || x.airline; if (x.transfers > 0 && !seen.has(k) && vias.length < 3) { seen.add(k); vias.push(x); } });
-      return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias, dates };
+      // 여행 기간 조건에 맞는 게 없으면 다른 기간 최저가를 참고로
+      const alt = !all.length && nm ? (opts[di] || []).slice().sort((a, b) => a.price - b.price).map((x) => ({ ...x, nights: nightsOf(x) }))[0] || null : null;
+      return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias, dates, alt };
     });
     res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
     res.status(200).json({ group, month, origins, oneway: q.oneway, direct: q.direct, results });
