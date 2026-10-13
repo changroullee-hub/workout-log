@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13l  ·  feat: 경유 여행 총액에 1인당 금액
+     build: 2026-10-13m  ·  feat: 연차 꿀조합(2027~2030)
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -319,8 +319,17 @@
   .stop-leg{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-soft);text-decoration:none}
   .stop-plan{font-size:11.5px;color:var(--ink);background:var(--bg2);border-radius:8px;padding:6px 9px;margin-top:8px}
   .stop-leg small{display:block;color:var(--ink-faint);font-size:10.5px}
+  .stop-leg b,.stop-sum>span:last-child{white-space:nowrap;flex-shrink:0}
   .stop-days{margin-top:7px;font-size:12px;line-height:1.55;color:var(--ink-soft)}
   .stop-days b{color:var(--ink)}
+  .vac{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:13px}
+  .vac summary{cursor:pointer;list-style:none;color:var(--ink)}
+  .vac summary::-webkit-details-marker{display:none}
+  .vac-ctl{display:flex;flex-direction:column;gap:6px;align-items:stretch;margin:10px 0 8px}
+  .vac-g{border-top:1px dashed var(--line);padding:7px 0 3px}
+  .vac-g h4{margin:0 0 4px;font-size:12.5px;color:var(--ink)}
+  .vac-o{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:5px 8px;border-radius:8px;font-size:12.5px;color:var(--ink-soft);background:var(--bg2);margin-bottom:4px}
+  .vac-o b{color:var(--accent)}
   .stop-multi{display:block;margin-top:8px;text-align:center;background:var(--accent);color:#1a1206;border-radius:9px;padding:9px;font-size:13px;font-weight:800;text-decoration:none}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
   .fare-card{margin-bottom:8px}
@@ -603,6 +612,13 @@
 
   <!-- 여행 -->
   <section class="tab pad" id="tab-trip">
+    <details class="vac" id="vacBox">
+      <summary>🗓️ <b>연차 꿀조합</b> <span id="vacHead" style="color:var(--ink-faint);font-weight:600"></span></summary>
+      <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
+        <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap"><input type="checkbox" id="vacLabor" checked onchange="renderVac()" /> 근로자의날(5/1) 쉼</label></div>
+      <div id="vacBody"></div>
+      <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 날짜가 항공권 검색 출발 월·경유 여행 출발일에 들어가요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
+    </details>
     <div class="seg" id="tripSeg">
       <button class="on" id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
       <button id="tsub-stop" onclick="tripSub('stop')">🧭 경유 여행</button>
@@ -2139,7 +2155,52 @@ function onFarePax(){try{localStorage.setItem('wlog_farepax',$("#farePax").value
 function paxLink(url,n){return (url||'').replace(/(\/search\/[A-Z]{3}\d{4}[A-Z]{3}(?:\d{4})?)\d/,`$1${n}`);}
 try{const fp=localStorage.getItem('wlog_farepax');if(fp)$("#farePax").value=fp;}catch(e){}
 let TRIP_SUB='fare';
+/* --- 연차 꿀조합: 2027~2030 공휴일(대체공휴일 포함)로 '연차 n일 → 최대 N일' 계산 --- */
+const KR_HOL={"2027-01-01":"신정","2027-02-06":"설날 연휴","2027-02-07":"설날","2027-02-08":"설날 연휴","2027-02-09":"설날 대체공휴일","2027-03-01":"삼일절","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일","2027-08-15":"광복절","2027-08-16":"광복절 대체공휴일","2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴","2027-10-03":"개천절","2027-10-04":"개천절 대체공휴일","2027-10-09":"한글날","2027-10-11":"한글날 대체공휴일","2027-12-25":"성탄절","2027-12-27":"성탄절 대체공휴일",
+  "2028-01-01":"신정","2028-01-26":"설날 연휴","2028-01-27":"설날","2028-01-28":"설날 연휴","2028-03-01":"삼일절","2028-04-12":"국회의원선거","2028-05-02":"부처님오신날","2028-05-05":"어린이날","2028-06-06":"현충일","2028-08-15":"광복절","2028-10-02":"추석 연휴","2028-10-03":"개천절·추석","2028-10-04":"추석 연휴","2028-10-05":"대체공휴일","2028-10-09":"한글날","2028-12-25":"성탄절",
+  "2029-01-01":"신정","2029-02-12":"설날 연휴","2029-02-13":"설날","2029-02-14":"설날 연휴","2029-03-01":"삼일절","2029-05-05":"어린이날","2029-05-07":"어린이날 대체공휴일","2029-05-20":"부처님오신날","2029-05-21":"부처님오신날 대체공휴일","2029-06-06":"현충일","2029-08-15":"광복절","2029-09-21":"추석 연휴","2029-09-22":"추석","2029-09-23":"추석 연휴","2029-09-24":"추석 대체공휴일","2029-10-03":"개천절","2029-10-09":"한글날","2029-12-25":"성탄절",
+  "2030-01-01":"신정","2030-02-02":"설날 연휴","2030-02-03":"설날","2030-02-04":"설날 연휴","2030-02-05":"설날 대체공휴일","2030-03-01":"삼일절","2030-05-05":"어린이날","2030-05-06":"어린이날 대체공휴일","2030-05-09":"부처님오신날","2030-06-05":"지방선거","2030-06-06":"현충일","2030-08-15":"광복절","2030-09-11":"추석 연휴","2030-09-12":"추석","2030-09-13":"추석 연휴","2030-10-03":"개천절","2030-10-09":"한글날","2030-12-25":"성탄절"};
+let VAC_YEAR=null;
+function vacOff(d){const w=new Date(d+"T00:00:00").getDay();return w===0||w===6||!!KR_HOL[d]||($("#vacLabor").checked&&d.slice(5)==="05-01");}
+function vacHolName(d){return KR_HOL[d]||(d.slice(5)==="05-01"&&$("#vacLabor").checked?"근로자의날":"");}
+// 한 해의 꿀조합: 앞뒤가 근무일이고 양 끝이 쉬는 날인 최대 구간 중 연차 1~5일
+function vacDeals(y){
+  const res=[];
+  for(let s=`${y-1}-12-25`;s<=`${y}-12-31`;s=addDays(s,1)){
+    if(!vacOff(s)||vacOff(addDays(s,-1)))continue;
+    let leave=0;
+    for(let len=1;len<=18;len++){const e=addDays(s,len-1);if(!vacOff(e))leave++;if(leave>5)break;
+      if(vacOff(e)&&!vacOff(addDays(e,1))&&len>=3){const hol=[];for(let d=s;d<=e;d=addDays(d,1)){const n=vacHolName(d);if(n)hol.push(n);}
+        if(hol.length&&(e.slice(0,4)==String(y)||s.slice(0,4)==String(y)))res.push({s,e,len,leave,hol});}}
+  }
+  // 연차 1일당 2.5일 이상 쉬는 것만, 연차 없이도 4일 이상이면 포함
+  let ok=res.filter(r=>r.leave?r.len/r.leave>=2.5:r.len>=4);
+  // 겹치는 기간에 연차는 같거나 적게 쓰고 더 길게 쉬는 조합이 있으면 탈락
+  ok=ok.filter(o=>!ok.some(q=>q!==o&&q.s<=o.e&&o.s<=q.e&&q.leave<=o.leave&&q.len>=o.len&&(q.leave<o.leave||q.len>o.len)));
+  const base=h=>h.split('·').map(x=>x.replace(/ 연휴| 대체공휴일/,'')).filter(x=>x!=='대체공휴일');
+  const groups={};
+  ok.forEach(r=>{const k=[...new Set(r.hol.flatMap(base))].join('+');(groups[k]=groups[k]||[]).push(r);});
+  return Object.entries(groups).map(([k,arr])=>{
+    const byLeave={};arr.forEach(r=>{if(!byLeave[r.leave]||r.len>byLeave[r.leave].len)byLeave[r.leave]=r;});
+    return {name:k,opts:Object.values(byLeave).sort((a,b)=>a.leave-b.leave),first:arr.map(r=>r.s).sort()[0]};
+  }).filter(g=>g.first.slice(0,4)==String(y)||g.opts.some(o=>o.e.slice(0,4)==String(y)&&o.s.slice(0,4)==String(y))).sort((a,b)=>a.first<b.first?-1:1);
+}
+function renderVac(){
+  const ys=[2027,2028,2029,2030];if(!VAC_YEAR)VAC_YEAR=Math.max(2027,Math.min(2030,new Date().getFullYear()+1));
+  $("#vacYears").innerHTML=ys.map(y=>`<button class="${y===VAC_YEAR?'on':''}" onclick="VAC_YEAR=${y};renderVac()">${y}</button>`).join("");
+  const G=vacDeals(VAC_YEAR);let best=null;
+  G.forEach(g=>g.opts.forEach(o=>{if(o.leave&&(!best||o.len/o.leave>best.len/best.leave||(o.len/o.leave===best.len/best.leave&&o.len>best.len)))best={...o,name:g.name};}));
+  $("#vacHead").textContent=best?` · ${VAC_YEAR} 최고: 연차 ${best.leave}일 → ${best.len}일 (${best.name})`:'';
+  $("#vacBody").innerHTML=G.map(g=>`<div class="vac-g"><h4>${escapeHtml(g.name)}</h4>${g.opts.map(o=>`<button class="vac-o" onclick="useVac('${o.s}','${o.e}')"><span>${o.leave?`연차 <b>${o.leave}일</b>`:'연차 없이'} → 최대 <b>${o.len}일</b> 휴가${best&&o.s===best.s&&o.e===best.e?' ⭐':''}</span><span>${mdw(o.s)}~${mdw(o.e)}</span></button>`).join('')}</div>`).join('')||'<div class="wk-empty">조합이 없어요.</div>';
+}
+function useVac(s,e){
+  $("#fareMonth").value=s.slice(0,7);$("#stopDate").value=s;$("#stopRange").value="0";
+  const n=Math.round((new Date(e)-new Date(s))/86400000);const opt=[...$("#fareNights").options].find(o=>{const [a,b]=o.value.split('-').map(Number);return o.value&&n>=a&&n<=b;});if(opt)$("#fareNights").value=opt.value;
+  $("#vacBox").open=false;toast(`${mdw(s)}~${mdw(e)} 일정으로 검색 조건을 맞췄어요`);
+  if(TRIP_SUB==='stop')renderStop();else{FARE_CACHE={};loadFare();}
+}
 function tripSub(v){ // 여행 탭: 항공권 예매(시세) / 내 여행(타임라인) / 경유 여행(스톱오버 추천)
+  if(!$("#vacYears").innerHTML)renderVac();
   TRIP_SUB=v;["fare","mine","stop"].forEach(k=>{$(`#tsub-${k}`).classList.toggle("on",v===k);$(`#trip${k[0].toUpperCase()+k.slice(1)}`).style.display=v===k?'block':'none';});
   if(v==='mine')renderTrip(); else if(v==='stop')openStop(); else openFare();
 }
