@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13o  ·  feat: 휴가 추천에 경유 여행(실제 경유지 활용·3시간 이내) + 동유럽·발칸 + 장거리 가격 누락 개선
+     build: 2026-10-13p  ·  feat: 휴가 추천 왕복에 경유지 표시 + 먼 날짜 안내
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2245,26 +2245,27 @@ async function loadVacRec(s,e){
   // 1) 왕복 + 국가 안 이동 → 결과의 실제 경유지로 경유 여행 후보 추가
   fetch(`/api/flights?win=${s}..${e}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error){VREC.err=d.error||'조회 실패';renderVacRec();return;}
     VREC.rt=d;
+    // 준비된 경유 코스(나라 간 3시간 이내)를 휴가 길이에 맞춰
+    if(len>=4)STOPOVERS.forEach(x=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
+      add({key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,ee:x.r==="동유럽·발칸"});});
     if(len>=4)d.roundtrip.filter(x=>x.transfers>0&&HUB_AP[x.airline]&&HUB_AP[x.airline]!==x.code).slice(0,8).forEach(x=>{
       const hub=HUB_AP[x.airline],hn=AP_NAME[hub]||hub,hs=(HUB_STAY[hn]||[2])[0],ns=splitNights([Math.min(hs,2),Math.max(2,len-2-Math.min(hs,2))],len);if(!ns)return;
       add({key:hub+'-'+x.code,codes:[["ICN",hub],[hub,x.code],[x.code,"ICN"]],nights:ns,names:[hn,x.city],live:`실제 ${x.city} 경유편(${x.airline})의 환승지에서 놀다 가기`,ee:EE_COUNTRIES.includes(x.country)});});
     renderVacRec();runQueue();
   }).catch(err=>{if(seq!==VREC_SEQ)return;VREC.err='조회 실패: '+err.message;renderVacRec();});
-  // 2) 준비된 경유 코스(나라 간 3시간 이내)를 휴가 길이에 맞춰
-  if(len>=4)STOPOVERS.forEach(x=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
-    add({key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,ee:x.r==="동유럽·발칸"});});
-  renderVacRec();runQueue();
+  renderVacRec();
 }
 function renderVacRec(){
   const V=VREC;if(!V){$("#vacRec").innerHTML='';return;}
   const pax=farePax(), tot=v=>won(v*pax), pp=v=>pax>1?`<span class="fr-pp">1인 ${won(v)}</span>`:'';
-  const rtRow=(x,j)=>`<a class="vr" href="${escapeHtml(paxLink(x.link,pax))}" target="_blank" rel="noopener"><span>${j+1}. <b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>${escapeHtml(x.origin)} · ${mdw(x.departAt)}~${mdw(x.returnAt)} · ${x.transfers===0?'직항':'경유 '+x.transfers+'회'}${x.airline?' · '+escapeHtml(x.airline):''}</span><span class="p">${tot(x.price)}${pp(x.price)}</span></a>`;
+  const rtRow=(x,j)=>`<a class="vr" href="${escapeHtml(paxLink(x.link,pax))}" target="_blank" rel="noopener"><span>${j+1}. <b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>${escapeHtml(x.origin)} · ${mdw(x.departAt)}~${mdw(x.returnAt)} · ${x.transfers===0?'직항':'경유 '+x.transfers+'회'+(x.hub?` · <b>${escapeHtml(x.hub)} 경유</b>`:'')}${x.airline?' · '+escapeHtml(x.airline):''}${x.returnTransfers>0&&x.transfers===0?' · 귀국 경유':''}</span><span class="p">${tot(x.price)}${pp(x.price)}</span></a>`;
   const stRow=({names,nights,t,live,ee})=>{
     const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
     const real=t.legs.slice(0,-1).map((l,k)=>{const nx=t.legs[k+1];return l.arrDate?Math.round((new Date(nx.departAt.slice(0,10))-new Date(l.arrDate))/86400000):nights[k];});
     return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${ee?'🇪🇺 ':''}${names.map((n,k)=>escapeHtml(n)+' '+real[k]+'박').join(' + ')}</b><br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}${live?`<br><span style="color:var(--ink-faint)">💡 ${escapeHtml(live)}</span>`:''}</span><span class="p">${tot(t.total)}${pp(t.total)}</span></a>`;};
   let h=`<div class="vrec"><div style="display:flex;justify-content:space-between;gap:8px"><h3>🏝️ ${mdw(V.s)}~${mdw(V.e)} · ${V.len}일 휴가 추천</h3><button onclick="VREC=null;VREC_SEQ++;renderVacRec()" style="color:var(--ink-faint);font-size:12px">닫기 ✕</button></div>
-    <div class="wk-empty">휴가 첫날 출발 → 마지막 날까지 한국 도착 · 성인 ${pax}명 총액 · 직항·경유 포함 · 나라 간 이동은 비행 3시간 이내</div>`;
+    <div class="wk-empty">휴가 첫날 출발 → 마지막 날까지 한국 도착 · 성인 ${pax}명 총액 · 직항·경유 포함 · 나라 간 이동은 비행 3시간 이내</div>
+    ${V.s>addDays(todayStr(),240)?`<div class="stop-plan" style="margin-top:8px">ℹ️ 출발이 ${Math.round((new Date(V.s)-new Date(todayStr()))/2592000000)}개월 넘게 남은 날짜예요. 항공권은 보통 출발 약 11개월 전부터 팔리고, 여기 가격은 실제로 누가 검색한 표만 잡혀서 아직 비어 있을 수 있어요. 출발이 가까워질수록 채워져요.</div>`:''}`;
   if(V.err)h+=`<div class="wk-empty" style="margin-top:8px">${escapeHtml(V.err)}</div>`;
   else if(!V.rt)h+=`<div class="spin" style="margin:16px auto"></div><div class="wk-empty" style="text-align:center">휴가 기간에 맞는 최저가 찾는 중… (10~20초)</div>`;
   else{
