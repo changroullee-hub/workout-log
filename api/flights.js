@@ -1,9 +1,9 @@
 // Vercel Serverless Function: /api/flights
 //  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10시간 이상(대부분 경유)
-//  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-22,TIA-ICN@2026-11-25&flex=1
-//     → 구간별 편도 최저가 (경유 여행 추천 탭용). 각 구간은 목표일 ±flex일 안에서,
-//       다음 구간은 '앞 비행 도착일(현지) + 계획 체류일' ~ +flex 일 사이 편만 고릅니다(체류일 보장).
-//     &hub=IST  → 마지막 귀국편이 비면 '마지막 도시→허브→한국' 2구간으로 대신 찾습니다.
+//  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-23,TIA-ICN@2026-11-27&from=2026-11-10&to=2026-12-10&extra=2&hub=IST
+//     → 경유 여행 최저가 일정 TOP3 (경유 여행 추천 탭용). @날짜 간격이 계획 체류일.
+//       출발일 from~to 전부를 따져, 다음 비행은 '앞 비행 현지 도착일 + 체류일' ~ +extra 일 사이만 허용.
+//       hub 를 주면 귀국편 후보에 '마지막 도시→허브→한국' 2장 조합도 넣습니다.
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -97,64 +97,71 @@ export default async function handler(req, res) {
   let month = (req.query.month || "").toString();
   if (!/^\d{4}-\d{2}$/.test(month)) month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // 구간별 편도 최저가: legs=ICN-IST@YYYY-MM-DD,...
+  // 경유 여행 최저가 일정 찾기: legs=ICN-IST@YYYY-MM-DD,... (@날짜 간격 = 계획 체류일)
   if (req.query.legs) {
     const legs = req.query.legs.toString().toUpperCase().split(",").map((x) => { const [r, date] = x.split("@"); const [a, b] = (r || "").split("-"); return { a, b, date }; })
       .filter((x) => /^[A-Z]{3}$/.test(x.a || "") && /^[A-Z]{3}$/.test(x.b || "") && /^\d{4}-\d{2}-\d{2}$/.test(x.date || "")).slice(0, 6);
     if (!legs.length) { res.status(400).json({ error: "legs 형식: ICN-IST@2026-11-20,IST-TIA@2026-11-22" }); return; }
-    const flex = Math.min(3, Math.max(0, parseInt(req.query.flex, 10) || 0));
     const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+    const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || "");
+    // 출발일 검색 범위 [from, to] (최대 45일), 체류 늘리기 extra(0~3박)
+    const from = isDate(req.query.from) ? req.query.from : legs[0].date;
+    let to = isDate(req.query.to) && req.query.to >= from ? req.query.to : from;
+    if (to > addDay(from, 45)) to = addDay(from, 45);
+    const extra = Math.min(3, Math.max(0, parseInt(req.query.extra, 10) || 0));
+    const stays = legs.map((l, i) => (i ? Math.round((new Date(l.date) - new Date(legs[i - 1].date)) / 86400000) : 0));
+    const total = stays.reduce((x, y) => x + y, 0) + extra * (legs.length - 1) + 2;
+    const hub = (req.query.hub || "").toString().toUpperCase();
+    // 현지 날짜: 출발시각의 UTC 오프셋 + 비행시간으로 도착 추정
+    const offMin = (iso) => { const m = /([+-])(\d\d):?(\d\d)$/.exec(iso || ""); return m ? (m[1] === "-" ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0; };
+    const arrAbs = (x) => Date.parse(x.departAt) + (x.durationMin || 0) * 60000;
+    const localDate = (abs, off) => new Date(abs + off * 60000).toISOString().slice(0, 10);
+    const monthsOf = (lo, hi) => { const out = []; let m = lo.slice(0, 7); while (m <= hi.slice(0, 7)) { out.push(m); const [y, mm] = m.split("-").map(Number); m = mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, "0")}`; } return out; };
+    const fetchAll = async (a, b, lo, hi) => (await Promise.all(monthsOf(lo, hi).map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 300 }).catch((e) => { if (e.message === "TOKEN") throw e; return []; })))).flat().filter((x) => x && x.departAt);
     try {
-      // 현지 날짜 계산: 출발시각의 UTC 오프셋 + 비행시간으로 도착 추정
-      const offMin = (iso) => { const m = /([+-])(\d\d):?(\d\d)$/.exec(iso || ""); return m ? (m[1] === "-" ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0; };
-      const arrAbs = (x) => Date.parse(x.departAt) + (x.durationMin || 0) * 60000;
-      const localDate = (abs, off) => new Date(abs + off * 60000).toISOString().slice(0, 10);
-      const span = flex * legs.length + 3;
-      // 목표일 앞뒤로 일정이 밀릴 수 있는 범위의 달을 한꺼번에 받아 두고
-      const jobs = [];
-      legs.forEach((l, li) => { new Set([addDay(l.date, -flex).slice(0, 7), addDay(l.date, span).slice(0, 7)]).forEach((m) =>
-        jobs.push(async () => ({ li, opts: (await cheapest(token, l.a, l.b, { month: m, oneway: true, direct: false, limit: 100 })) || [] }))); });
-      const found = await pool(jobs, 8);
-      const opts = legs.map(() => []);
-      found.forEach((r) => { if (r) opts[r.li].push(...r.opts); });
-      // 체류일 보장: 다음 구간은 '앞 비행 도착일(현지) + 계획 체류일' 이후, 거기서 +flex 까지만.
-      // 첫 구간만 목표일 ±flex.
-      let prevPick = null; const wins = [];
-      const out = legs.map((l, li) => {
-        const stay = li ? Math.round((new Date(l.date) - new Date(legs[li - 1].date)) / 86400000) : 0;
-        const fallbackMin = li ? addDay(prevPick ? prevPick.departAt.slice(0, 10) : legs[li - 1].date, stay) : addDay(l.date, -flex);
-        const okDate = (x) => {
-          const d = (x.departAt || "").slice(0, 10);
-          if (!li) return d >= addDay(l.date, -flex) && d <= addDay(l.date, flex);
-          const min = prevPick ? addDay(localDate(arrAbs(prevPick), offMin(x.departAt)), stay) : fallbackMin;
-          return d >= min && d <= addDay(min, flex);
-        };
-        wins[li] = { okDate, stay };
-        const pick = opts[li].filter(okDate).sort((x, y) => x.price - y.price)[0];
-        let near = null;
-        if (!pick) { const later = opts[li].filter((x) => (x.departAt || "").slice(0, 10) >= fallbackMin); later.sort((x, y) => Math.abs(new Date(x.departAt) - new Date(l.date)) - Math.abs(new Date(y.departAt) - new Date(l.date)) || x.price - y.price); near = later[0] || null; }
-        const res_ = { from: l.a, to: l.b, target: l.date, ...(pick || { price: null }), near };
-        if (pick) res_.arrDate = localDate(arrAbs(pick), ORIGINS.includes(l.b) ? 540 : li + 1 < legs.length ? offMin((opts[li + 1].find(Boolean) || {}).departAt) : offMin(pick.departAt));
-        if (pick) prevPick = pick;
-        return res_;
-      });
-      // 귀국편이 없으면 허브 경유 2구간(마지막 도시→허브, 허브→한국)으로 이어 붙이기
-      const li = legs.length - 1, last = legs[li], hub = (req.query.hub || "").toString().toUpperCase();
-      if (!out[li].price && ORIGINS.includes(last.b) && /^[A-Z]{3}$/.test(hub) && hub !== last.a && hub !== last.b) {
-        const months = [...new Set([addDay(last.date, -flex).slice(0, 7), addDay(last.date, span).slice(0, 7)])];
-        const [p1, p2] = await Promise.all([[last.a, hub], [hub, last.b]].map(async ([a, b]) => (await Promise.all(months.map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 })))).flat().filter(Boolean)));
-        let best = null;
-        p1.filter(wins[li].okDate).forEach((x) => {
-          const arr = arrAbs(x);
-          p2.forEach((y) => { const d2 = (y.departAt || "").slice(0, 10); if (Date.parse(y.departAt) <= arr + 60 * 60000 || d2 > addDay(x.departAt.slice(0, 10), 1)) return;
-            if (!best || x.price + y.price < best.price) best = { price: x.price + y.price, departAt: x.departAt, durationMin: null, transfers: (x.transfers || 0) + (y.transfers || 0) + 1, airline: [x.airline, y.airline].filter(Boolean).join("+"), via: hub, parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...y }] }; }); });
-        if (best) out[li] = { from: last.a, to: last.b, target: last.date, ...best, near: null, arrDate: best.parts[1].durationMin ? localDate(arrAbs(best.parts[1]), 540) : null };
+      const hi = addDay(to, total);
+      const opts = await Promise.all(legs.map((l) => fetchAll(l.a, l.b, from, hi)));
+      // 귀국편: 마지막 도시→허브→한국 2장 이어 붙인 조합도 후보로 (환승 1시간 이상, 다음날까지)
+      const li = legs.length - 1, last = legs[li];
+      if (ORIGINS.includes(last.b) && /^[A-Z]{3}$/.test(hub) && hub !== last.a && hub !== last.b) {
+        const [p1, p2] = await Promise.all([fetchAll(last.a, hub, from, hi), fetchAll(hub, last.b, from, hi)]);
+        p1.forEach((x) => { let best = null; const arr = arrAbs(x);
+          p2.forEach((y) => { if (Date.parse(y.departAt) < arr + 60 * 60000 || y.departAt.slice(0, 10) > addDay(x.departAt.slice(0, 10), 1)) return; if (!best || y.price < best.price) best = y; });
+          if (best) opts[li].push({ ...x, price: x.price + best.price, durationMin: best.durationMin ? Math.round((arrAbs(best) - Date.parse(x.departAt)) / 60000) : null,
+            transfers: (x.transfers || 0) + (best.transfers || 0) + 1, airline: [x.airline, best.airline].filter(Boolean).join("+"), via: hub, link: "",
+            parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...best }] }); });
       }
+      // 출발일마다: 앞 비행 현지 도착일 + 체류일 ~ +extra 일 사이 다음 비행 중 누적 최저가 (구간별 DP)
+      const starts = [...new Set(opts[0].map((x) => x.departAt.slice(0, 10)).filter((d) => d >= from && d <= to))].sort();
+      const trips = [];
+      starts.forEach((sd) => {
+        let states = opts[0].filter((x) => x.departAt.slice(0, 10) === sd).map((x) => ({ cost: x.price, ext: 0, chain: [x] }));
+        for (let i = 1; i < legs.length && states.length; i++) {
+          const next = [];
+          opts[i].forEach((x) => {
+            const d = x.departAt.slice(0, 10); let best = null, bestExt = 0;
+            states.forEach((st) => { const p = st.chain[st.chain.length - 1]; const min = addDay(localDate(arrAbs(p), offMin(x.departAt)), stays[i]);
+              if (d < min || d > addDay(min, extra) || Date.parse(x.departAt) <= arrAbs(p)) return;
+              const ext = st.ext + Math.round((new Date(d) - new Date(min)) / 86400000);
+              // 같은 값이면 체류를 덜 늘린 쪽(계획에 가까운 일정)
+              if (!best || st.cost < best.cost || (st.cost === best.cost && ext < bestExt)) { best = st; bestExt = ext; } });
+            if (best) next.push({ cost: best.cost + x.price, ext: bestExt, chain: [...best.chain, x] });
+          });
+          states = next;
+        }
+        const done = states.filter((st) => st.chain.length === legs.length).sort((x, y) => x.cost - y.cost || x.ext - y.ext)[0];
+        if (done) trips.push(done);
+      });
+      trips.sort((x, y) => x.cost - y.cost || x.ext - y.ext);
+      const fmt = (st) => ({ total: st.cost, extraNights: st.ext, legs: st.chain.map((x, i) => ({ from: legs[i].a, to: legs[i].b, target: legs[i].date, ...x,
+        arrDate: x.durationMin ? localDate(arrAbs(x), ORIGINS.includes(legs[i].b) ? 540 : i + 1 < st.chain.length ? offMin(st.chain[i + 1].departAt) : offMin(x.departAt)) : null })) });
+      // 출발 시점에 그 구간에 가격 자체가 없는 경우 알려주기
+      const empty = legs.map((l, i) => (opts[i].length ? null : `${l.a}→${l.b}`)).filter(Boolean);
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
-      res.status(200).json({ flex, legs: out });
+      res.status(200).json({ from, to, extra, trips: trips.slice(0, 3).map(fmt), checked: starts.length, empty });
     } catch (e) {
       if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }
-      res.status(502).json({ error: "구간 가격 조회 실패: " + e.message });
+      res.status(502).json({ error: "경유 여행 가격 조회 실패: " + e.message });
     }
     return;
   }

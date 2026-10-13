@@ -59,7 +59,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `ocr.js` | 카드 결제 알림 이미지 → 지출 항목(Claude 비전) | `ANTHROPIC_API_KEY` |
 | `ticket.js` | 항공권/기차표/숙소 바우처 1장 판독 | `ANTHROPIC_API_KEY` |
 | `trip-plan.js` | 티켓 이미지 여러 장 → 전체 여정 | `ANTHROPIC_API_KEY` |
-| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=` 는 경유 여행 추천 탭의 구간별 편도가. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
+| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=…&from=&to=&extra=` 는 경유 여행 탭의 최저가 일정 TOP3 탐색(출발일 범위 × 체류 +extra박, 귀국편 허브 경유 대체). `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
 
 환경변수는 Vercel 프로젝트 설정에 있습니다. 키가 없으면 500 + 한국어 안내 메시지를 반환하는 기존 방식을 유지하세요.
 
