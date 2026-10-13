@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13f  ·  fix: 경유 여행 구간 날짜를 일정 순서대로
+     build: 2026-10-13g  ·  feat: 경유 여행 → 아비아세일즈 다구간 검색 링크
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -319,6 +319,7 @@
   .stop-leg{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-soft);text-decoration:none}
   .stop-plan{font-size:11.5px;color:var(--ink);background:var(--bg2);border-radius:8px;padding:6px 9px;margin-top:8px}
   .stop-leg small{display:block;color:var(--ink-faint);font-size:10.5px}
+  .stop-multi{display:block;margin-top:8px;text-align:center;background:var(--accent);color:#1a1206;border-radius:9px;padding:9px;font-size:13px;font-weight:800;text-decoration:none}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
   .fare-card{margin-bottom:8px}
   .fare-card .fare-row{margin-bottom:0}
@@ -2204,6 +2205,11 @@ function mdw(d){if(!d)return '';const t=new Date(d.slice(0,10)+"T00:00:00");retu
 function stopLegs(x,start){
   let off=0;return x.legs.split(",").map((l,i)=>{const [r,o]=l.split("@");if(o!=null)off=+o;else if(i>0)off+=(x.stops[i-1]||[0,0])[1];const [a,b]=r.split("-");return {a,b,date:addDays(start,off)};});
 }
+// 아비아세일즈 다구간 검색 링크: 구간을 ICN1011IST-IST1211TIA 로 잇되 이어지는 코드는 합쳐 ICN1011IST1211TIA, 끝에 인원수
+function multiLink(segs,pax){
+  let out='';segs.forEach((g,i)=>{const dm=g.date.slice(8,10)+g.date.slice(5,7);if(i>0&&segs[i-1].b===g.a)out+=dm+g.b;else out+=(i>0?'-':'')+g.a+dm+g.b;});
+  return `https://www.aviasales.com/search/${out}${pax}`;
+}
 function openStop(){
   if(!$("#stopDate").value){const fm=$("#fareMonth").value;$("#stopDate").value=fm?fm+"-10":addDays(todayStr(),30);}
   $("#stopPax").value=$("#farePax").value||"2";
@@ -2220,6 +2226,8 @@ function renderStop(){
     const L=start?stopLegs(x,start):[];
     const plan=L.length?`<div class="stop-plan">📅 ${L.map(l=>`${mdw(l.date)} ${escapeHtml(l.a)}→${escapeHtml(l.b)}`).join(' · ')}</div>`:'';
     const P=STOP_PRICES[`${start}|${flex}|${x.i}`];
+    const mlink=L.length?multiLink(P&&P.legs?L.map((l,j)=>{const g=P.legs[j];return {...l,date:g&&g.price&&g.departAt?g.departAt.slice(0,10):l.date};}):L,pax):'';
+    const multi=mlink?`<a class="stop-multi" href="${escapeHtml(mlink)}" target="_blank" rel="noopener">🔎 이 일정 그대로 다구간 검색 (아비아세일즈)</a>`:'';
     let legs=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 구간 가격 보기 (${start?mdw(start)+' 출발':'출발일 선택'} · ${flex==='0'?'날짜 고정':'±'+flex+'일'} · 성인 ${pax}명)</button>`;
     if(P==='loading')legs=`<div class="stop-legs"><div class="wk-empty">일정 순서대로 구간별 최저가 찾는 중…</div></div>`;
     else if(P&&P.error)legs=`<div class="stop-legs"><div class="wk-empty">${escapeHtml(P.error)}</div></div>`;
@@ -2231,9 +2239,9 @@ function renderStop(){
         const inner=`<span>✈️ ${escapeHtml(l.from)}→${escapeHtml(l.to)} · ${info}${moved}</span><b>${l.price?won(l.price*pax):'—'}</b>`;
         return l.price&&l.link?`<a class="stop-leg" href="${escapeHtml(paxLink(l.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="stop-leg">${inner}</div>`;}).join("")}
         <div class="stop-sum"><span>항공 합계 ${ok?'':'(일부 구간 가격 없음)'}</span><span>${won(sum*pax)}</span></div>
-        <div class="stop-meta">구간마다 앞 비행 다음날 이후 편만 골라 날짜 순서를 맞췄어요. 편도 최저가를 더한 추정치라 예매 시 다시 확인하세요.</div></div>`;
+        <div class="stop-meta">구간마다 앞 비행 다음날 이후 편만 골라 날짜 순서를 맞췄어요. 편도 최저가를 더한 추정치예요 — 아래 다구간 검색은 위 날짜로 열려요(한 장으로 묶으면 더 쌀 때가 많아요).</div></div>`;
     }
-    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${plan}${legs}</div>`;
+    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${plan}${legs}${multi}</div>`;
   }).join("")+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 async function loadStop(i){
