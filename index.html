@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13m  ·  feat: 연차 꿀조합(2027~2030)
+     build: 2026-10-13n  ·  feat: 꿀조합 누르면 휴가 맞춤 최저가 여행지 추천(왕복·국가 내 이동·경유)
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -330,6 +330,12 @@
   .vac-g h4{margin:0 0 4px;font-size:12.5px;color:var(--ink)}
   .vac-o{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:5px 8px;border-radius:8px;font-size:12.5px;color:var(--ink-soft);background:var(--bg2);margin-bottom:4px}
   .vac-o b{color:var(--accent)}
+  .vrec{background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:12px 13px;margin-bottom:12px;font-size:13px}
+  .vrec h3{margin:0 0 2px;font-size:15px;color:var(--ink)}
+  .vrec h4{margin:12px 0 6px;font-size:13px;color:var(--ink)}
+  .vrec .vr{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;background:var(--bg2);border-radius:8px;margin-bottom:5px;color:var(--ink-soft);text-decoration:none;font-size:12.5px;line-height:1.45}
+  .vrec .vr b{color:var(--ink)}
+  .vrec .vr .p{white-space:nowrap;flex-shrink:0;font-weight:800;color:var(--accent);text-align:right}
   .stop-multi{display:block;margin-top:8px;text-align:center;background:var(--accent);color:#1a1206;border-radius:9px;padding:9px;font-size:13px;font-weight:800;text-decoration:none}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
   .fare-card{margin-bottom:8px}
@@ -617,8 +623,9 @@
       <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
         <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap"><input type="checkbox" id="vacLabor" checked onchange="renderVac()" /> 근로자의날(5/1) 쉼</label></div>
       <div id="vacBody"></div>
-      <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 날짜가 항공권 검색 출발 월·경유 여행 출발일에 들어가요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
+      <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 휴가 기간에 다녀올 수 있는 최저가 여행지(왕복·국가 내 이동·경유 여행)를 찾아줘요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
     </details>
+    <div id="vacRec"></div>
     <div class="seg" id="tripSeg">
       <button class="on" id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
       <button id="tsub-stop" onclick="tripSub('stop')">🧭 경유 여행</button>
@@ -2196,8 +2203,59 @@ function renderVac(){
 function useVac(s,e){
   $("#fareMonth").value=s.slice(0,7);$("#stopDate").value=s;$("#stopRange").value="0";
   const n=Math.round((new Date(e)-new Date(s))/86400000);const opt=[...$("#fareNights").options].find(o=>{const [a,b]=o.value.split('-').map(Number);return o.value&&n>=a&&n<=b;});if(opt)$("#fareNights").value=opt.value;
-  $("#vacBox").open=false;toast(`${mdw(s)}~${mdw(e)} 일정으로 검색 조건을 맞췄어요`);
-  if(TRIP_SUB==='stop')renderStop();else{FARE_CACHE={};loadFare();}
+  $("#vacBox").open=false;
+  loadVacRec(s,e);
+}
+/* --- 꿀조합 휴가 기간에 맞춘 최저가 여행지 추천 --- */
+let VREC=null, VREC_SEQ=0;
+// 경유 코스 체류일을 휴가 길이에 맞게 조정 (오가는 날 빼고 len-2박, 도시마다 최소 1박; 안 되면 null)
+function fitStops(x,len){
+  if(x.legs.includes('@'))return null; // 페리 구간 코스는 제외
+  if(len<({"아시아":4,"미주·태평양":5,"중동·아프리카":6,"유럽":7}[x.r]||7))return null; // 멀수록 최소 휴가일수
+  const T=len-2, n=x.stops.length;if(T<n)return null;
+  const P=x.stops.reduce((a,s)=>a+s[1],0);let d=x.stops.map(s=>Math.max(1,Math.floor(s[1]*T/P)));
+  let sum=d.reduce((a,b)=>a+b,0);
+  for(let k=n-1;sum<T;k=(k-1+n)%n){d[k]++;sum++;}
+  for(let k=0;sum>T;k=(k+1)%n){if(d[k]>1){d[k]--;sum--;}}
+  return d;
+}
+async function loadVacRec(s,e){
+  const seq=++VREC_SEQ, len=Math.round((new Date(e)-new Date(s))/86400000)+1, pax=farePax();
+  VREC={s,e,len,rt:null,stops:[],stopTotal:0,stopDone:0,err:''};renderVacRec();
+  $("#vacRec").scrollIntoView({behavior:'smooth',block:'start'});
+  // 왕복 + 국가 안 이동
+  fetch(`/api/flights?win=${s}..${e}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error)VREC.err=d.error||'조회 실패';else VREC.rt=d;renderVacRec();}).catch(err=>{if(seq!==VREC_SEQ)return;VREC.err='조회 실패: '+err.message;renderVacRec();});
+  // 경유 여행 (휴가 4일 이상): 체류일을 휴가에 맞춰 조정해서 최저가 일정 찾기
+  if(len<4)return;
+  const cand=STOPOVERS.map((x,i)=>({x,i,d:fitStops(x,len)})).filter(c=>c.d);
+  VREC.stopTotal=cand.length;renderVacRec();
+  let k=0;const worker=async()=>{while(k<cand.length){const c=cand[k++];
+    let off=0;const legs=c.x.legs.split(',').map((l,j)=>{if(j>0)off+=c.d[j-1];const [a,b]=l.split('-');return `${a}-${b}@${addDays(s,off)}`;}).join(',');
+    try{const r=await fetch(`/api/flights?legs=${encodeURIComponent(legs)}&from=${s}&to=${addDays(s,1)}&extra=1&end=${e}&hub=${c.x.legs.split(',')[0].split('-')[1]}`);const d=await r.json();
+      if(seq!==VREC_SEQ)return;if(r.ok&&d.trips&&d.trips[0])VREC.stops.push({x:{...c.x,stops:c.x.stops.map((st,j)=>[st[0],c.d[j],st[2],st[3]])},t:d.trips[0]});}catch(err){}
+    if(seq!==VREC_SEQ)return;VREC.stopDone++;renderVacRec();}};
+  await Promise.all([worker(),worker(),worker()]);
+}
+function renderVacRec(){
+  const V=VREC;if(!V){$("#vacRec").innerHTML='';return;}
+  const pax=farePax(), tot=v=>won(v*pax);
+  let h=`<div class="vrec"><div style="display:flex;justify-content:space-between;gap:8px"><h3>🏝️ ${mdw(V.s)}~${mdw(V.e)} · ${V.len}일 휴가 추천</h3><button onclick="VREC=null;VREC_SEQ++;renderVacRec()" style="color:var(--ink-faint);font-size:12px">닫기 ✕</button></div>
+    <div class="wk-empty">휴가 첫날 출발 → 마지막 날까지 한국 도착 기준 · 성인 ${pax}명 총액 · 직항·경유 모두 포함</div>`;
+  if(V.err)h+=`<div class="wk-empty" style="margin-top:8px">${escapeHtml(V.err)}</div>`;
+  else if(!V.rt)h+=`<div class="spin" style="margin:16px auto"></div><div class="wk-empty" style="text-align:center">휴가 기간에 맞는 왕복·국가 내 이동 최저가 찾는 중… (10~20초)</div>`;
+  else{
+    const rt=V.rt.roundtrip.slice(0,8), oj=V.rt.openjaw.slice(0,5);
+    h+=`<h4>✈️ 왕복 최저가 TOP ${rt.length}</h4>`+(rt.map((x,j)=>`<a class="vr" href="${escapeHtml(paxLink(x.link,pax))}" target="_blank" rel="noopener"><span>${j+1}. <b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>${escapeHtml(x.origin)} · ${mdw(x.departAt)}~${mdw(x.returnAt)} · ${x.transfers===0?'직항':'경유 '+x.transfers+'회'}${x.airline?' · '+escapeHtml(x.airline):''}</span><span class="p">${tot(x.price)}${pax>1?`<span class="fr-pp">1인 ${won(x.price)}</span>`:''}</span></a>`).join('')||'<div class="wk-empty">이 기간에 맞는 왕복 가격 데이터가 없어요.</div>');
+    h+=`<h4>🚆 국가 안 이동 (들어가는 도시 ≠ 나오는 도시)</h4>`+(oj.map(x=>`<a class="vr" href="${escapeHtml(multiLink([{a:'ICN',b:x.inCode,date:x.go.departAt.slice(0,10)},{a:x.outCode,b:'ICN',date:x.back.departAt.slice(0,10)}],pax))}" target="_blank" rel="noopener"><span><b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>인천→${escapeHtml(x.inCode)} ${mdw(x.go.departAt)} · 현지 ${escapeHtml(x.move)} · ${escapeHtml(x.outCode)}→인천 ${mdw(x.back.departAt)}</span><span class="p">${tot(x.price)}${pax>1?`<span class="fr-pp">1인 ${won(x.price)}</span>`:''}<span class="fr-pp">항공만</span></span></a>`).join('')||`<div class="wk-empty">${V.len<4?'휴가가 짧아 국가 내 이동 코스는 빼고 찾았어요.':'이 기간에 맞는 조합 가격 데이터가 없어요.'}</div>`);
+  }
+  if(V.len>=4){
+    const st=V.stops.slice().sort((a,b)=>a.t.total-b.t.total).slice(0,4);
+    h+=`<h4>🧭 경유 여행 (체류일을 휴가에 맞춤)${V.stopDone<V.stopTotal?` <span style="color:var(--ink-faint);font-weight:600">· ${V.stopDone}/${V.stopTotal} 확인 중…</span>`:''}</h4>`+(st.map(({x,t})=>{
+      const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
+      return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${x.stops.map(s=>escapeHtml(s[0])+' '+s[1]+'박').join(' + ')}</b><br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}</span><span class="p">${tot(t.total)}${pax>1?`<span class="fr-pp">1인 ${won(t.total)}</span>`:''}</span></a>`;}).join('')||(V.stopDone<V.stopTotal?'':'<div class="wk-empty">이 기간에 맞는 경유 조합이 없어요.</div>'));
+  }
+  h+=`<div class="wk-empty" style="margin-top:6px">누르면 아비아세일즈가 그 날짜·인원으로 열려요(국가 안 이동·경유는 다구간 검색). 최근 검색된 가격 기준이라 예매 시 다시 확인하세요.</div></div>`;
+  $("#vacRec").innerHTML=h;
 }
 function tripSub(v){ // 여행 탭: 항공권 예매(시세) / 내 여행(타임라인) / 경유 여행(스톱오버 추천)
   if(!$("#vacYears").innerHTML)renderVac();
