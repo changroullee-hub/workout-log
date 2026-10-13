@@ -2,7 +2,7 @@
 //  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10시간 이상(대부분 경유)
 //  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-22,TIA-ICN@2026-11-25&flex=1
 //     → 구간별 편도 최저가 (경유 여행 추천 탭용). 각 구간은 목표일 ±flex일 안에서,
-//       앞 구간 출발일보다 하루 이상 뒤인 항공편만 고릅니다(날짜 순서 보장).
+//       다음 구간은 '앞 비행 도착일(현지) + 계획 체류일' ~ +flex 일 사이 편만 고릅니다(체류일 보장).
 //     &hub=IST  → 마지막 귀국편이 비면 '마지막 도시→허브→한국' 2구간으로 대신 찾습니다.
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
@@ -105,36 +105,50 @@ export default async function handler(req, res) {
     const flex = Math.min(3, Math.max(0, parseInt(req.query.flex, 10) || 0));
     const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
     try {
-      // 목표일 ±flex 창이 걸친 달(1~2개)을 한꺼번에 받아 두고
+      // 현지 날짜 계산: 출발시각의 UTC 오프셋 + 비행시간으로 도착 추정
+      const offMin = (iso) => { const m = /([+-])(\d\d):?(\d\d)$/.exec(iso || ""); return m ? (m[1] === "-" ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0; };
+      const arrAbs = (x) => Date.parse(x.departAt) + (x.durationMin || 0) * 60000;
+      const localDate = (abs, off) => new Date(abs + off * 60000).toISOString().slice(0, 10);
+      const span = flex * legs.length + 3;
+      // 목표일 앞뒤로 일정이 밀릴 수 있는 범위의 달을 한꺼번에 받아 두고
       const jobs = [];
-      legs.forEach((l, li) => { new Set([addDay(l.date, -flex).slice(0, 7), addDay(l.date, flex).slice(0, 7)]).forEach((m) =>
+      legs.forEach((l, li) => { new Set([addDay(l.date, -flex).slice(0, 7), addDay(l.date, span).slice(0, 7)]).forEach((m) =>
         jobs.push(async () => ({ li, opts: (await cheapest(token, l.a, l.b, { month: m, oneway: true, direct: false, limit: 100 })) || [] }))); });
       const found = await pool(jobs, 8);
       const opts = legs.map(() => []);
       found.forEach((r) => { if (r) opts[r.li].push(...r.opts); });
-      // 앞 구간부터 순서대로: 창 안 + 앞 구간 다음날 이후 중 최저가
-      let prev = ""; const mins = [];
+      // 체류일 보장: 다음 구간은 '앞 비행 도착일(현지) + 계획 체류일' 이후, 거기서 +flex 까지만.
+      // 첫 구간만 목표일 ±flex.
+      let prevPick = null; const wins = [];
       const out = legs.map((l, li) => {
-        const lo = addDay(l.date, -flex), hi = addDay(l.date, flex), min = prev ? addDay(prev, 1) : ""; mins[li] = min;
-        const ok = opts[li].filter((x) => { const d = (x.departAt || "").slice(0, 10); return d >= lo && d <= hi && (!min || d >= min); }).sort((x, y) => x.price - y.price);
-        const pick = ok[0];
-        if (pick) prev = pick.departAt.slice(0, 10); else prev = l.date > prev ? l.date : prev;
-        // 창 안에 없으면 참고용으로 가장 가까운 날짜의 가격
+        const stay = li ? Math.round((new Date(l.date) - new Date(legs[li - 1].date)) / 86400000) : 0;
+        const fallbackMin = li ? addDay(prevPick ? prevPick.departAt.slice(0, 10) : legs[li - 1].date, stay) : addDay(l.date, -flex);
+        const okDate = (x) => {
+          const d = (x.departAt || "").slice(0, 10);
+          if (!li) return d >= addDay(l.date, -flex) && d <= addDay(l.date, flex);
+          const min = prevPick ? addDay(localDate(arrAbs(prevPick), offMin(x.departAt)), stay) : fallbackMin;
+          return d >= min && d <= addDay(min, flex);
+        };
+        wins[li] = { okDate, stay };
+        const pick = opts[li].filter(okDate).sort((x, y) => x.price - y.price)[0];
         let near = null;
-        if (!pick) { const later = opts[li].filter((x) => (x.departAt || "").slice(0, 10) >= (min || "")); later.sort((x, y) => Math.abs(new Date(x.departAt) - new Date(l.date)) - Math.abs(new Date(y.departAt) - new Date(l.date)) || x.price - y.price); near = later[0] || null; }
-        return { from: l.a, to: l.b, target: l.date, ...(pick || { price: null }), near };
+        if (!pick) { const later = opts[li].filter((x) => (x.departAt || "").slice(0, 10) >= fallbackMin); later.sort((x, y) => Math.abs(new Date(x.departAt) - new Date(l.date)) - Math.abs(new Date(y.departAt) - new Date(l.date)) || x.price - y.price); near = later[0] || null; }
+        const res_ = { from: l.a, to: l.b, target: l.date, ...(pick || { price: null }), near };
+        if (pick) res_.arrDate = localDate(arrAbs(pick), ORIGINS.includes(l.b) ? 540 : li + 1 < legs.length ? offMin((opts[li + 1].find(Boolean) || {}).departAt) : offMin(pick.departAt));
+        if (pick) prevPick = pick;
+        return res_;
       });
       // 귀국편이 없으면 허브 경유 2구간(마지막 도시→허브, 허브→한국)으로 이어 붙이기
       const li = legs.length - 1, last = legs[li], hub = (req.query.hub || "").toString().toUpperCase();
       if (!out[li].price && ORIGINS.includes(last.b) && /^[A-Z]{3}$/.test(hub) && hub !== last.a && hub !== last.b) {
-        const lo = addDay(last.date, -flex), hi = addDay(last.date, flex), min = mins[li];
-        const months = [...new Set([lo.slice(0, 7), addDay(hi, 1).slice(0, 7)])];
+        const months = [...new Set([addDay(last.date, -flex).slice(0, 7), addDay(last.date, span).slice(0, 7)])];
         const [p1, p2] = await Promise.all([[last.a, hub], [hub, last.b]].map(async ([a, b]) => (await Promise.all(months.map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 })))).flat().filter(Boolean)));
         let best = null;
-        p1.forEach((x) => { const d1 = (x.departAt || "").slice(0, 10); if (d1 < lo || d1 > hi || (min && d1 < min)) return;
-          p2.forEach((y) => { const d2 = (y.departAt || "").slice(0, 10); if (d2 < d1 || d2 > addDay(d1, 1) || new Date(y.departAt) <= new Date(x.departAt)) return;
-            if (!best || x.price + y.price < best.price) best = { price: x.price + y.price, departAt: x.departAt, transfers: (x.transfers || 0) + (y.transfers || 0) + 1, airline: [x.airline, y.airline].filter(Boolean).join("+"), via: hub, parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...y }] }; }); });
-        if (best) out[li] = { from: last.a, to: last.b, target: last.date, ...best, near: null };
+        p1.filter(wins[li].okDate).forEach((x) => {
+          const arr = arrAbs(x);
+          p2.forEach((y) => { const d2 = (y.departAt || "").slice(0, 10); if (Date.parse(y.departAt) <= arr + 60 * 60000 || d2 > addDay(x.departAt.slice(0, 10), 1)) return;
+            if (!best || x.price + y.price < best.price) best = { price: x.price + y.price, departAt: x.departAt, durationMin: null, transfers: (x.transfers || 0) + (y.transfers || 0) + 1, airline: [x.airline, y.airline].filter(Boolean).join("+"), via: hub, parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...y }] }; }); });
+        if (best) out[li] = { from: last.a, to: last.b, target: last.date, ...best, near: null, arrDate: best.parts[1].durationMin ? localDate(arrAbs(best.parts[1]), 540) : null };
       }
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
       res.status(200).json({ flex, legs: out });
