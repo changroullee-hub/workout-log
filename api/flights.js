@@ -52,15 +52,7 @@ const DESTS = {
     ["페루","리마","LIM",22],["칠레","산티아고","SCL",25],["브라질","상파울루","SAO",26],["아르헨티나","부에노스아이레스","BUE",28],
   ],
 };
-// 경유 항공권의 첫 구간 항공사 → 대표 환승지 (추정용)
-const HUB = {
-  TK:"이스탄불",EK:"두바이",QR:"도하",EY:"아부다비",SV:"리야드",WY:"무스카트",GF:"바레인",ET:"아디스아바바",MS:"카이로",
-  SQ:"싱가포르",TR:"싱가포르",CX:"홍콩",HX:"홍콩",UO:"홍콩",BR:"타이베이",CI:"타이베이",JX:"타이베이",IT:"타이베이",
-  JL:"도쿄",NH:"도쿄",MM:"오사카",CA:"베이징",MU:"상하이",FM:"상하이",CZ:"광저우",HU:"하이커우",MF:"샤먼",ZH:"선전",SC:"칭다오","3U":"청두",
-  TG:"방콕",FD:"방콕",VN:"하노이·호치민",VJ:"하노이·호치민",MH:"쿠알라룸푸르",AK:"쿠알라룸푸르",D7:"쿠알라룸푸르",PR:"마닐라","5J":"마닐라",GA:"자카르타",AI:"델리",UL:"콜롬보",
-  LH:"프랑크푸르트·뮌헨",AF:"파리",KL:"암스테르담",BA:"런던",AY:"헬싱키",LO:"바르샤바",LX:"취리히",OS:"비엔나",AZ:"로마",IB:"마드리드",HY:"타슈켄트",KC:"알마티",
-  AC:"밴쿠버·토론토",UA:"미국 경유",DL:"미국 경유",AA:"미국 경유",AS:"시애틀",QF:"시드니",VA:"브리즈번",NZ:"오클랜드",
-};
+// 경유 공항은 Travelpayouts 시세 데이터에 없어서 표시하지 않음(짐작 금지). 경유 여행은 구간을 직접 나눠 가격을 매김.
 const ORIGINS = ["ICN","GMP","CJJ"];
 // 국가 안 이동 코스: [국가, 설명, 들어가는 공항, 나오는 공항, 현지 이동, 최소 휴가일수]
 const OPENJAW = [
@@ -68,9 +60,9 @@ const OPENJAW = [
   ["일본","도쿄 → 오사카","TYO","OSA","신칸센 약 2시간 30분",4],
   ["일본","삿포로 → 도쿄","SPK","TYO","국내선 1시간 30분",5],
   ["대만","가오슝 → 타이베이","KHH","TPE","고속철 약 1시간 30분",4],
-  ["베트남","하노이 → 호치민","HAN","SGN","국내선 2시간",6],
-  ["베트남","다낭 → 나트랑","DAD","NHA","국내선 1시간 10분·기차",5],
-  ["태국","치앙마이 → 방콕","CNX","BKK","국내선 1시간 10분",5],
+  ["베트남","하노이 → 호치민","HAN","SGN","국내선 2시간",6,1],
+  ["베트남","다낭 → 나트랑","DAD","NHA","국내선 1시간 10분·기차",5,1],
+  ["태국","치앙마이 → 방콕","CNX","BKK","국내선 1시간 10분",5,1],
   ["중국","베이징 → 상하이","BJS","SHA","고속철 약 4시간 30분",5],
   ["이탈리아","로마 → 밀라노","ROM","MIL","고속열차 약 3시간",8],
   ["스페인","바르셀로나 → 마드리드","BCN","MAD","고속열차 약 2시간 30분",8],
@@ -88,6 +80,17 @@ const OPENJAW = [
   ["그리스","아테네 → 산토리니","ATH","JTR","페리 5~8시간·국내선 45분",8],
   ["세르비아·보스니아","베오그라드 → 사라예보","BEG","SJJ","버스 7시간·국내선 1시간",9],
   ["불가리아·루마니아","소피아 → 부쿠레슈티","SOF","BUH","버스 6시간",9],
+  // 중앙아시아·코카서스·튀르키예·중국 국가 내/육로 일주
+  ["우즈베키스탄","타슈켄트 → 사마르칸트 → 부하라 → 타슈켄트","TAS","TAS","고속열차 아프로시욥(타슈켄트↔사마르칸트 2시간, ↔부하라 1시간 30분)",5],
+  ["카자흐스탄","알마티 → 아스타나","ALA","NQZ","국내선 1시간 40분·야간열차",6],
+  ["카자흐스탄·키르기스스탄","알마티 → 비슈케크(이식쿨)","ALA","FRU","국경 버스 4시간",6],
+  ["조지아·아르메니아","트빌리시(카즈베기) → 예레반","TBS","EVN","국경 버스 5~6시간",6],
+  ["아제르바이잔·조지아","바쿠 → 트빌리시","GYD","TBS","야간열차·국제선 1시간",6],
+  ["튀르키예","이스탄불 → 카파도키아 → 파묵칼레 → 이즈미르(에페소)","IST","IZM","국내선 1시간 20분 + 야간버스",7],
+  ["튀르키예","이스탄불 → 안탈리아","IST","AYT","국내선 1시간 20분",6],
+  ["중국","베이징 → 시안","BJS","XIY","고속철 약 4시간 30분",5],
+  ["중국","시안 → 청두","XIY","CTU","고속철 약 3시간 30분",5],
+  ["그리스","아테네 → 메테오라 → 테살로니키","ATH","SKG","기차 4시간 + 3시간",7],
 ];
 
 async function cheapest(token, origin, dest, q) {
@@ -113,7 +116,6 @@ async function cheapest(token, origin, dest, q) {
     departAt: t.departure_at || "", returnAt: t.return_at || "",
     transfers: t.transfers ?? null, returnTransfers: t.return_transfers ?? null,
     durationMin: t.duration_to || t.duration || null,
-    hub: t.transfers > 0 ? HUB[t.airline] || "" : "",
     link: t.link ? "https://www.aviasales.com" + t.link : "",
   }));
 }
@@ -148,13 +150,13 @@ export default async function handler(req, res) {
     try {
       // 왕복: 단거리는 인천·김포·청주, 나머지는 인천
       const jobs = [];
-      groups.forEach((g) => DESTS[g].forEach((d) => (g === "short" ? ORIGINS : ["ICN"]).forEach((og) => jobs.push(async () => {
+      if (req.query.rt !== "0") groups.forEach((g) => DESTS[g].forEach((d) => (g === "short" ? ORIGINS : ["ICN"]).forEach((og) => jobs.push(async () => {
         const r = (await cheapest(token, og, d[2], { month: ws.slice(0, 7), ret: we.slice(0, 7), oneway: false, direct: false, limit: 100 })) || [];
         const ok = r.filter((x) => goOk(x) && x.returnAt && x.returnAt.slice(0, 10) <= we && x.returnAt.slice(0, 10) >= addDay(we, -1)).sort((a, b) => a.price - b.price)[0];
         return ok ? { country: d[0], city: d[1], code: d[2], hours: d[3], ...ok } : null;
       }))));
       // 국가 안 이동: 들어가는 도시와 나오는 도시가 다른 편도 2장
-      OPENJAW.filter((o) => len >= o[5]).forEach((o) => jobs.push(async () => {
+      OPENJAW.filter((o) => len >= o[5] && (!o[6] || req.query.sea !== "0")).forEach((o) => jobs.push(async () => {
         const [go, back] = await Promise.all([[`ICN`, o[2], ws], [o[3], `ICN`, we]].map(([a, b, d]) =>
           Promise.all([...new Set([addDay(d, -1).slice(0, 7), addDay(d, 1).slice(0, 7)])].map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 }))).then((x) => x.flat().filter(Boolean))));
         const g = go.filter(goOk).sort((a, b) => a.price - b.price)[0], b = back.filter(backOk).sort((a, b) => a.price - b.price)[0];
@@ -188,7 +190,9 @@ export default async function handler(req, res) {
     const hop = parseInt(req.query.hop, 10) || 0; // 중간 구간(나라 간 이동) 최대 비행 분
     const stays = legs.map((l, i) => (i ? Math.round((new Date(l.date) - new Date(legs[i - 1].date)) / 86400000) : 0));
     const total = stays.reduce((x, y) => x + y, 0) + extra * (legs.length - 1) + 2;
-    const hub = (req.query.hub || "").toString().toUpperCase();
+    // 귀국편 대체 환승지: hub(코스의 첫 도시) + 대표 환승지들. 귀국 직항·직접 경유편이 없을 때만 시도
+    // 지역에 맞는 환승지만 (클라이언트가 hubs=IST,FRA,... 로 지정). 없으면 코스 첫 도시만
+    const hubs = [...new Set([(req.query.hub || "").toString().toUpperCase(), ...(req.query.hubs || "").toString().toUpperCase().split(",")])].filter((h) => /^[A-Z]{3}$/.test(h)).slice(0, 6);
     // 현지 날짜: 출발시각의 UTC 오프셋 + 비행시간으로 도착 추정
     const offMin = (iso) => { const m = /([+-])(\d\d):?(\d\d)$/.exec(iso || ""); return m ? (m[1] === "-" ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0; };
     const arrAbs = (x) => Date.parse(x.departAt) + (x.durationMin || 0) * 60000;
@@ -200,7 +204,11 @@ export default async function handler(req, res) {
       const opts = await Promise.all(legs.map((l) => fetchAll(l.a, l.b, from, hi)));
       // 귀국편: 마지막 도시→허브→한국 2장 이어 붙인 조합도 후보로 (환승 1시간 이상, 다음날까지)
       const li = legs.length - 1, last = legs[li];
-      if (ORIGINS.includes(last.b) && /^[A-Z]{3}$/.test(hub) && hub !== last.a && hub !== last.b) {
+      const directBack = opts[li].length;
+      for (const hub of hubs) {
+        if (!ORIGINS.includes(last.b) || hub === last.a || hub === last.b) continue;
+        if (directBack && hub !== hubs[0]) break; // 귀국편이 있으면 코스 허브만 비교
+        if (opts[li].length > directBack + 30) break; // 대체 경로를 충분히 찾았으면 그만
         const [p1, p2] = await Promise.all([fetchAll(last.a, hub, from, hi), fetchAll(hub, last.b, from, hi)]);
         p1.forEach((x) => { let best = null; const arr = arrAbs(x);
           p2.forEach((y) => { if (Date.parse(y.departAt) < arr + 60 * 60000 || y.departAt.slice(0, 10) > addDay(x.departAt.slice(0, 10), 1)) return; if (!best || y.price < best.price) best = y; });
@@ -272,7 +280,7 @@ export default async function handler(req, res) {
       all.forEach((x) => { const k = (x.departAt || "").slice(0, 10); if (k && !dset.has(k) && dates.length < 3) { dset.add(k); dates.push(x); } });
       const direct = all.find((x) => x.transfers === 0) || null;
       const vias = []; const seen = new Set();
-      all.forEach((x) => { const k = x.hub || x.airline; if (x.transfers > 0 && !seen.has(k) && vias.length < 3) { seen.add(k); vias.push(x); } });
+      all.forEach((x) => { const k = x.airline; if (x.transfers > 0 && !seen.has(k) && vias.length < 3) { seen.add(k); vias.push(x); } });
       // 여행 기간 조건에 맞는 게 없으면 다른 기간 최저가를 참고로
       const alt = !all.length && nm ? (opts[di] || []).slice().sort((a, b) => a.price - b.price).map((x) => ({ ...x, nights: nightsOf(x) }))[0] || null : null;
       return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias, dates, alt };
