@@ -7,6 +7,7 @@
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
 //  &direct=0|1           1 = 직항만
+//  &nights=3-5           왕복일 때 여행 박수 범위 (없으면 전체)
 // Travelpayouts(아비아세일즈) Data API — 최근 48시간 내 실제 검색된 최저가 캐시입니다(실시간 예약가 아님).
 // 키는 브라우저에 노출되지 않고 환경변수 TRAVELPAYOUTS_TOKEN 에서 읽습니다.
 
@@ -137,7 +138,10 @@ export default async function handler(req, res) {
   const o = (req.query.origin || "ALL").toString().toUpperCase();
   const origins = o === "ALL" ? ORIGINS : ORIGINS.includes(o) ? [o] : null;
   if (!origins) { res.status(400).json({ error: "origin 은 ALL, ICN, GMP, CJJ 중 하나여야 합니다." }); return; }
-  const q = { month, oneway: req.query.oneway === "1", direct: req.query.direct === "1" };
+  const q = { month, oneway: req.query.oneway === "1", direct: req.query.direct === "1", limit: 30 };
+  const nm = /^(\d+)-(\d+)$/.exec((req.query.nights || "").toString());
+  const nightsOf = (x) => x.returnAt ? Math.round((new Date(x.returnAt.slice(0, 10)) - new Date(x.departAt.slice(0, 10))) / 86400000) : null;
+  const nightsOk = (x) => q.oneway || !nm || ((n) => n != null && n >= +nm[1] && n <= +nm[2])(nightsOf(x));
 
   try {
     const jobs = [];
@@ -147,11 +151,14 @@ export default async function handler(req, res) {
     const opts = {};
     found.forEach((r) => { if (r) (opts[r.di] = opts[r.di] || []).push(...r.opts); });
     const results = list.map((d, di) => {
-      const all = (opts[di] || []).sort((a, b) => a.price - b.price);
+      const all = (opts[di] || []).filter(nightsOk).map((x) => ({ ...x, nights: nightsOf(x) })).sort((a, b) => a.price - b.price);
+      // 왕복 최저가 날짜 추천: 출발일이 겹치지 않게 상위 3개
+      const dates = []; const dset = new Set();
+      all.forEach((x) => { const k = (x.departAt || "").slice(0, 10); if (k && !dset.has(k) && dates.length < 3) { dset.add(k); dates.push(x); } });
       const direct = all.find((x) => x.transfers === 0) || null;
       const vias = []; const seen = new Set();
       all.forEach((x) => { const k = x.hub || x.airline; if (x.transfers > 0 && !seen.has(k) && vias.length < 3) { seen.add(k); vias.push(x); } });
-      return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias };
+      return { country: d[0], city: d[1], code: d[2], hours: d[3], ...(all[0] || { price: null }), direct, vias, dates };
     });
     res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
     res.status(200).json({ group, month, origins, oneway: q.oneway, direct: q.direct, results });

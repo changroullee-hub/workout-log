@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13g  ·  feat: 경유 여행 → 아비아세일즈 다구간 검색 링크
+     build: 2026-10-13h  ·  feat: 경유지 추천 체류일수 + 왕복 날짜 추천·여행 기간 필터
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -319,6 +319,8 @@
   .stop-leg{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-soft);text-decoration:none}
   .stop-plan{font-size:11.5px;color:var(--ink);background:var(--bg2);border-radius:8px;padding:6px 9px;margin-top:8px}
   .stop-leg small{display:block;color:var(--ink-faint);font-size:10.5px}
+  .stop-days{margin-top:7px;font-size:12px;line-height:1.55;color:var(--ink-soft)}
+  .stop-days b{color:var(--ink)}
   .stop-multi{display:block;margin-top:8px;text-align:center;background:var(--accent);color:#1a1206;border-radius:9px;padding:9px;font-size:13px;font-weight:800;text-decoration:none}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
   .fare-card{margin-bottom:8px}
@@ -633,8 +635,9 @@
       </div>
       <div class="m2">
         <div class="mfield"><label>인원 (성인)</label><select id="farePax" onchange="onFarePax()"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option><option value="4">4명</option></select></div>
-        <div class="mfield"><label>&nbsp;</label><div style="font-size:11px;color:var(--ink-faint);line-height:1.5;padding-top:4px">가격은 인원수만큼 합친 총액이에요. 수하물은 일반석 기준.</div></div>
+        <div class="mfield"><label>여행 기간 (왕복)</label><select id="fareNights" onchange="loadFare()"><option value="">상관없음</option><option value="1-3">1~3박</option><option value="3-5">3~5박</option><option value="5-8">5~8박</option><option value="8-14">8~14박</option><option value="14-60">2주 이상</option></select></div>
       </div>
+      <div style="font-size:11px;color:var(--ink-faint);line-height:1.5;margin:-4px 2px 10px">가격은 인원수만큼 합친 <b>왕복 총액</b>이에요(편도 선택 시 편도). 수하물은 일반석 기준.</div>
       <div class="seg" id="fareView" style="margin-top:4px">
         <button class="on" onclick="fareViewSet('country',this)">국가별 최저가</button>
         <button onclick="fareViewSet('city',this)">도시 전체</button>
@@ -2117,6 +2120,15 @@ const BAGGAGE={
   UA:["유나이티드","무게 제한 없음 · 56×35×22","23kg 2개"],DL:["델타","무게 제한 없음 · 56×35×23","23kg 2개"],AA:["아메리칸","무게 제한 없음 · 56×36×23","23kg 2개"],
   AC:["에어캐나다","무게 제한 없음 · 55×40×23","23kg 2개"],QF:["콴타스","7kg · 56×36×23","30kg"],NZ:["에어뉴질랜드","7kg · 118cm 이내","23kg 1개"],
 };
+// 환승지에 들렀다 가기 좋은 일수 (항공권 예매 목록의 경유 표에 표시)
+const HUB_STAY={"이스탄불":[3,"구시가지·보스포루스·카디쾨이"],"두바이":[2,"부르즈 할리파·사막 사파리"],"도하":[1,"박물관·수크 와키프"],"아부다비":[1,"그랜드 모스크·루브르"],"무스카트":[2,"그랜드 모스크·와디 샤브"],
+  "카이로":[2,"피라미드·이집트 박물관"],"싱가포르":[2,"마리나베이·가든스바이더베이"],"홍콩":[2,"빅토리아피크·야경·딤섬"],"타이베이":[2,"야시장·지우펀"],"도쿄":[2,"시부야·아사쿠사"],"오사카":[2,"도톤보리·교토 당일"],
+  "베이징":[2,"자금성·만리장성"],"상하이":[2,"와이탄·예원"],"청두":[2,"판다기지·훠궈"],"광저우":[1,"시내 먹방"],"샤먼":[1,"구랑위"],"선전":[1,"시내"],"칭다오":[1,"맥주거리"],
+  "방콕":[2,"왕궁·야시장"],"하노이·호치민":[2,"구시가지·쌀국수"],"쿠알라룸푸르":[1,"페트로나스·바투동굴"],"마닐라":[1,"인트라무로스"],"자카르타":[1,"구시가지"],"델리":[2,"올드델리·아그라 당일"],"콜롬보":[1,"시내·골 당일"],
+  "파리":[3,"루브르·몽마르트·베르사유"],"런던":[3,"대영박물관·웨스트민스터·노팅힐"],"암스테르담":[2,"운하·반고흐 미술관"],"프랑크푸르트·뮌헨":[1,"구시가지 산책"],"헬싱키":[1,"대성당·사우나"],"바르샤바":[2,"구시가지·쇼팽"],
+  "취리히":[1,"호수·구시가지"],"비엔나":[2,"쇤브룬·미술관·카페"],"로마":[3,"콜로세움·바티칸·트레비"],"마드리드":[2,"프라도·톨레도 당일"],"타슈켄트":[2,"구시가지·사마르칸트 당일"],"알마티":[2,"콕토베·차른 캐니언"],
+  "밴쿠버·토론토":[2,"스탠리파크·나이아가라"],"시애틀":[1,"파이크플레이스"],"시드니":[3,"오페라하우스·블루마운틴·본다이"],"브리즈번":[1,"사우스뱅크"],"오클랜드":[2,"와이헤케섬·스카이타워"]};
+function hubStay(h){const v=HUB_STAY[h];return v?`🧭 ${escapeHtml(h)} ${v[0]}일 들렀다 가기 추천 · ${escapeHtml(v[1])} (다구간으로 발권)`:'';}
 function bagText(code){const b=BAGGAGE[code];return b?`🧳 ${escapeHtml(b[0])} · 기내 ${escapeHtml(b[1])} · 위탁 ${escapeHtml(b[2])}`:(code?`🧳 ${escapeHtml(code)} 수하물 규정은 링크에서 확인`:'');}
 function farePax(){return +($("#farePax").value||2);}
 function onFarePax(){try{localStorage.setItem('wlog_farepax',$("#farePax").value);}catch(e){}const k=fareKey();if(FARE_CACHE[k])renderFare(FARE_CACHE[k]);}
@@ -2134,14 +2146,14 @@ function openFare(){
 }
 function fareGroup(g,btn){FARE_GROUP=g;$$("#fareSeg button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");loadFare();}
 function fareViewSet(v,btn){FARE_VIEW=v;$$("#fareView button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");const k=fareKey();if(FARE_CACHE[k])renderFare(FARE_CACHE[k]);}
-function fareKey(){return [FARE_GROUP,$("#fareOrigin").value,$("#fareMonth").value,$("#fareOneway").value,$("#fareDirect").value].join("|");}
+function fareKey(){return [FARE_GROUP,$("#fareOrigin").value,$("#fareMonth").value,$("#fareOneway").value,$("#fareDirect").value,$("#fareNights").value].join("|");}
 async function loadFare(){
   const k=fareKey();if(FARE_CACHE[k]){renderFare(FARE_CACHE[k]);return;}
   const seq=++FARE_SEQ;
   $("#fareBody").innerHTML=`<div class="spin"></div><div class="wk-empty" style="text-align:center">공항×도시별 최저가 모으는 중… (10초쯤 걸려요)</div>`;
-  const [group,origin,month,oneway,direct]=k.split("|");
+  const [group,origin,month,oneway,direct,nights]=k.split("|");
   try{
-    const r=await fetch(`/api/flights?group=${group}&origin=${origin}&month=${month}&oneway=${oneway}&direct=${direct}`);
+    const r=await fetch(`/api/flights?group=${group}&origin=${origin}&month=${month}&oneway=${oneway}&direct=${direct}&nights=${nights}`);
     const d=await r.json();if(seq!==FARE_SEQ)return;
     if(!r.ok||d.error){$("#fareBody").innerHTML=`<div class="wk-empty">${escapeHtml(d.error||"조회 실패")}</div>`;return;}
     FARE_CACHE[k]=d;renderFare(d);
@@ -2158,44 +2170,47 @@ function renderFare(d){
   const tr=n=>n==null?'':(n===0?'직항':`경유 ${n}회`);
   const dur=m=>m?`${Math.floor(m/60)}시간${m%60?' '+(m%60)+'분':''}`:'';
   const pax=farePax(), tot=v=>won(v*pax);
+  // 왕복이면 "11/10(화)~11/12(목) 2박3일", 편도면 출발일만
+  const rng=x=>x.returnAt?`${mdw(x.departAt)}~${mdw(x.returnAt)} ${x.nights!=null?`${x.nights}박${x.nights+1}일`:''}`:mdw(x.departAt);
   const lk=(x,cls,inner)=>x.link?`<a class="${cls}" href="${escapeHtml(paxLink(x.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="${cls}">${inner}</div>`;
   const has=rows.filter(x=>x.price).length;
-  let h=`<div class="wk-empty" style="margin-bottom:8px">${d.month.replace('-','년 ')}월 출발 · ${d.oneway?'편도':'왕복'} · 성인 ${pax}명 총액${d.direct?' · 직항만':''} · 가격 있는 곳 ${has}/${rows.length}</div>`;
+  let h=`<div class="wk-empty" style="margin-bottom:8px">${d.month.replace('-','년 ')}월 출발 · ${d.oneway?'편도':'왕복'+($("#fareNights").value?' '+$("#fareNights").selectedOptions[0].text:'')} · 성인 ${pax}명 총액${d.direct?' · 직항만':''} · 가격 있는 곳 ${has}/${rows.length}</div>`;
   h+=rows.map(x=>{
     const via=x.transfers>0&&x.hub?` · ${escapeHtml(x.hub)} 경유`:'';
-    const sub=x.price?`${escapeHtml(x.origin)}→${escapeHtml(x.destAp)} · ${md(x.departAt)}${x.returnAt?'~'+md(x.returnAt):''} · ${tr(x.transfers)}${via}${x.airline?' · '+escapeHtml(x.airline):''}`:'최근 검색된 가격 없음';
+    const sub=x.price?`${escapeHtml(x.origin)}→${escapeHtml(x.destAp)} · ${rng(x)} · ${tr(x.transfers)}${via}${x.airline?' · '+escapeHtml(x.airline):''}`:'최근 검색된 가격 없음';
     const time=x.durationMin?`편도 ${dur(x.durationMin)}`:`약 ${x.hours}시간`;
-    const inner=`<div class="fr-main"><b>${escapeHtml(x.country)}</b> ${escapeHtml(x.city)}<div class="fr-sub">${sub} · ${time}</div>${x.price?`<div class="fare-bag">${bagText(x.airline)}</div>`:''}</div><div class="fr-price">${x.price?`${tot(x.price)}${pax>1?`<span class="fr-pp">1인 ${won(x.price)}</span>`:''}`:'—'}</div>`;
+    const inner=`<div class="fr-main"><b>${escapeHtml(x.country)}</b> ${escapeHtml(x.city)}<div class="fr-sub">${sub} · ${time}</div>${x.price?`<div class="fare-bag">${bagText(x.airline)}</div>`:''}${x.price&&x.transfers>0&&hubStay(x.hub)?`<div class="fare-bag" style="color:var(--accent)">${hubStay(x.hub)}</div>`:''}</div><div class="fr-price">${x.price?`${tot(x.price)}${pax>1?`<span class="fr-pp">1인 ${won(x.price)}</span>`:''}<span class="fr-pp">${x.returnAt?'왕복':'편도'}</span>`:'—'}</div>`;
     // 경유 방법: 최저가 외의 다른 선택지 (직항 최저가 + 환승지별 최저가)
     const alts=[];
     if(x.direct&&x.direct.price!==x.price)alts.push(x.direct);
     (x.vias||[]).forEach(v=>{if(v.link!==x.link)alts.push(v);});
-    const altH=alts.map(v=>lk(v,'fare-via',`<div class="fv-main">↳ ${v.transfers===0?'<b>직항</b>':`<b>경유 ${v.transfers}회</b>${v.hub?' · '+escapeHtml(v.hub)+' 경유':''}`} · ${escapeHtml(v.airline)} · ${escapeHtml(v.origin)}출발 · ${md(v.departAt)}${v.durationMin?' · '+dur(v.durationMin):''}<div class="fare-bag">${bagText(v.airline)}</div></div><div class="fv-price">${tot(v.price)}</div>`)).join('');
-    return `<div class="fare-card${altH?' has-via':''}">${x.price?lk(x,'fare-row',inner):`<div class="fare-row none">${inner}</div>`}${altH}</div>`;
+    const altH=alts.map(v=>lk(v,'fare-via',`<div class="fv-main">↳ ${v.transfers===0?'<b>직항</b>':`<b>경유 ${v.transfers}회</b>${v.hub?' · '+escapeHtml(v.hub)+' 경유':''}`} · ${escapeHtml(v.airline)} · ${escapeHtml(v.origin)}출발 · ${rng(v)}${v.durationMin?' · 편도 '+dur(v.durationMin):''}<div class="fare-bag">${bagText(v.airline)}</div>${v.transfers>0&&hubStay(v.hub)?`<div class="fare-bag" style="color:var(--accent)">${hubStay(v.hub)}</div>`:''}</div><div class="fv-price">${tot(v.price)}</div>`)).join('');
+    const dts=(x.dates||[]).length>1?`<div class="fare-via" style="display:block"><div style="margin-bottom:3px">📅 <b>${x.returnAt?'왕복':'편도'} 싼 날짜 추천</b></div>${x.dates.map((v,j)=>`<a href="${escapeHtml(paxLink(v.link,pax))}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:inherit;text-decoration:none"><span>${j+1}. ${rng(v)} · ${escapeHtml(v.origin)} · ${tr(v.transfers)}</span><b style="color:var(--ink)">${tot(v.price)}</b></a>`).join('')}</div>`:'';
+    return `<div class="fare-card${altH||dts?' has-via':''}">${x.price?lk(x,'fare-row',inner):`<div class="fare-row none">${inner}</div>`}${dts}${altH}</div>`;
   }).join("");
   h+=`<div class="wk-empty" style="margin:4px 0 10px">항목을 누르면 아비아세일즈에서 해당 날짜 항공편을 열어요. ↳ 줄은 다른 방법(직항·다른 환승지)이에요. 환승지는 항공사 기준 추정이라 정확한 경로는 링크에서 확인하세요.</div>`;
   $("#fareBody").innerHTML=h;
 }
 
 /* --- 경유 여행 추천 (스톱오버 코스) --- */
-// stops: [도시, 일수, 허브여부] / legs: 가격 조회 구간(편도). 구간 출발일은 앞 도시 일수를 누적(@n 이면 출발일+n일로 직접 지정)
+// stops: [도시, 일수, 허브여부, 그 일수인 이유] / legs: 가격 조회 구간(편도). 구간 출발일은 앞 도시 일수를 누적(@n 이면 출발일+n일로 직접 지정)
 const STOPOVERS=[
-  {t:"이스탄불 2일 + 알바니아 3일",r:"유럽",stops:[["이스탄불",2,1],["티라나·베라트(알바니아)",3]],legs:"ICN-IST,IST-TIA,TIA-ICN",air:"터키항공(TK)",why:"유럽 최저가권 알바니아를 이스탄불 경유로. 지중해 물가 중 가장 저렴한 편이고 이스탄불은 구시가지만 봐도 이틀이 꽉 차요.",tip:"터키항공 환승객 무료 시내투어(Touristanbul)도 있어요 — 환승 시간·조건 확인."},
-  {t:"이스탄불 2일 + 카파도키아 2일 + 조지아 4일",r:"유럽",stops:[["이스탄불",2,1],["카파도키아",2],["트빌리시(조지아)",4]],legs:"ICN-IST,IST-NAV,NAV-TBS,TBS-ICN",air:"터키항공(TK)·페가수스",why:"열기구 + 와인·코카서스 산맥. 조지아는 물가가 낮아 길게 있어도 부담이 적어요.",tip:"카파도키아는 네브셰히르(NAV)·카이세리(ASR) 공항 이용."},
-  {t:"이스탄불 2일 + 모로코 5일",r:"중동·아프리카",stops:[["이스탄불",2,1],["마라케시·사하라(모로코)",5]],legs:"ICN-IST,IST-RAK,RAK-ICN",air:"터키항공(TK)",why:"유럽과 아프리카를 한 번에. 마라케시 메디나 + 사막 1박 투어가 하이라이트.",tip:"사하라 투어는 마라케시 출발 2박3일이 일반적."},
-  {t:"도하 2일 + 몰디브 4일",r:"중동·아프리카",stops:[["도하",2,1],["몰디브",4]],legs:"ICN-DOH,DOH-MLE,MLE-ICN",air:"카타르항공(QR)",why:"신혼여행 단골 루트. 도하에서 사막 사파리·박물관, 몰디브는 리조트 휴양.",tip:"카타르항공 스톱오버 호텔 패키지(Discover Qatar)로 도하 숙박을 싸게 묶을 수 있어요."},
-  {t:"도하 2일 + 잔지바르 5일",r:"중동·아프리카",stops:[["도하",2,1],["잔지바르(탄자니아)",5]],legs:"ICN-DOH,DOH-ZNZ,ZNZ-ICN",air:"카타르항공(QR)",why:"인도양 해변 + 스톤타운. 몰디브보다 훨씬 저렴한 아프리카 휴양.",tip:"탄자니아는 입국 비자가 필요해요(전자비자)."},
-  {t:"두바이 2일 + 이집트 5일",r:"중동·아프리카",stops:[["두바이",2,1],["카이로·룩소르(이집트)",5]],legs:"ICN-DXB,DXB-CAI,CAI-ICN",air:"에미레이트(EK)",why:"초고층 도시 + 피라미드. 이동이 짧아(약 3.5시간) 체력 부담이 적어요.",tip:"에미레이트 환승 호텔(Dubai Connect)은 운임·대기시간 조건이 있어요."},
-  {t:"아부다비 2일 + 요르단 4일",r:"중동·아프리카",stops:[["아부다비",2,1],["페트라·와디럼(요르단)",4]],legs:"ICN-AUH,AUH-AMM,AMM-ICN",air:"에티하드(EY)",why:"루브르 아부다비·그랜드 모스크 + 페트라·와디럼 사막 캠핑.",tip:"에티하드는 스톱오버 무료 호텔 프로모션을 자주 해요. 요르단은 요르단 패스로 입장료+비자 해결."},
-  {t:"헬싱키 2일 + 라플란드 3일",r:"유럽",stops:[["헬싱키",2,1],["로바니에미(오로라)",3]],legs:"ICN-HEL,HEL-RVN,RVN-ICN",air:"핀에어(AY)",why:"12~3월 오로라 + 산타마을. 헬싱키는 사우나·디자인 거리.",tip:"핀에어 스톱오버 프로그램으로 헬싱키 체류 추가가 쉬워요."},
-  {t:"헬싱키 2일 + 탈린 2일 + 프라하 3일",r:"유럽",stops:[["헬싱키",2,1],["탈린(에스토니아)",2],["프라하",3]],legs:"ICN-HEL@0,TLL-PRG@4,PRG-ICN@7",air:"핀에어(AY)",why:"헬싱키→탈린은 페리 2시간. 중세 구시가지 두 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
-  {t:"파리 2일 + 아이슬란드 4일",r:"유럽",stops:[["파리",2,1],["레이캬비크·링로드(아이슬란드)",4]],legs:"ICN-PAR,PAR-REK,REK-ICN",air:"에어프랑스(AF)·대한항공",why:"직항 있는 파리를 거점으로 아이슬란드 렌터카 여행. 겨울엔 오로라.",tip:"아이슬란드는 렌터카가 사실상 필수."},
-  {t:"싱가포르 2일 + 발리 4일",r:"아시아",stops:[["싱가포르",2,1],["발리",4]],legs:"ICN-SIN,SIN-DPS,DPS-ICN",air:"싱가포르항공(SQ)",why:"도시 야경 + 리조트 휴양 조합. 싱가포르-발리는 2.5시간.",tip:"싱가포르항공 스톱오버 홀리데이로 호텔·관광 패키지 할인."},
-  {t:"방콕 2일 + 루앙프라방 3일",r:"아시아",stops:[["방콕",2,1],["루앙프라방(라오스)",3]],legs:"ICN-BKK,BKK-LPQ,LPQ-ICN",air:"타이항공(TG)·라오항공",why:"방콕 먹방 + 라오스 탁발·꽝시폭포. 조용한 휴식형.",tip:"루앙프라방→인천은 비엔티안·방콕 경유가 일반적."},
-  {t:"쿠알라룸푸르 1일 + 카트만두 5일",r:"아시아",stops:[["쿠알라룸푸르",1,1],["카트만두·포카라(네팔)",5]],legs:"ICN-KUL,KUL-KTM,KTM-ICN",air:"에어아시아X·말레이시아항공",why:"저가항공 허브 KL 경유로 네팔 트레킹(안나푸르나 베이스캠프 입문).",tip:"저가항공 연결은 별도 발권이라 환승 시간을 넉넉히."},
-  {t:"도쿄 1일 + 하와이 5일",r:"미주·태평양",stops:[["도쿄",1,1],["호놀룰루(하와이)",5]],legs:"ICN-TYO,TYO-HNL,HNL-ICN",air:"일본항공(JL)·ANA",why:"일본 항공사로 도쿄 스톱오버 + 하와이. 하와이 직항보다 쌀 때가 있어요.",tip:"김포-하네다로 출발하면 도심 이동이 편해요."},
-  {t:"타이베이 2일 + 로스앤젤레스 5일",r:"미주·태평양",stops:[["타이베이",2,1],["로스앤젤레스",5]],legs:"ICN-TPE,TPE-LAX,LAX-ICN",air:"에바항공(BR)·중화항공(CI)",why:"대만 야시장 + 미국 서부. 대만 항공사 미주 노선이 저렴한 편.",tip:"미국은 ESTA 사전 신청 필요."},
-  {t:"밴쿠버 2일 + 칸쿤 5일",r:"미주·태평양",stops:[["밴쿠버",2,1],["칸쿤(멕시코)",5]],legs:"ICN-YVR,YVR-CUN,CUN-ICN",air:"에어캐나다(AC)",why:"캐나다 도시 + 카리브해 올인클루시브 리조트.",tip:"캐나다 환승·체류는 eTA 필요."},
+  {t:"이스탄불 3일 + 알바니아 4일",r:"유럽",stops:[["이스탄불",3,1,"구시가지(아야소피아·블루모스크·톱카프) 1일, 그랜드바자르·보스포루스 크루즈 1일, 아시아 쪽 카디쾨이 1일"],["알바니아",4,0,"티라나 1일, 베라트(천 개의 창) 1일, 남부 해변 사란다·크사밀 2일"]],legs:"ICN-IST,IST-TIA,TIA-ICN",air:"터키항공(TK)",why:"유럽 최저가권 알바니아를 이스탄불 경유로. 지중해 물가 중 가장 저렴한 편이에요.",tip:"터키항공 환승객 무료 시내투어(Touristanbul)도 있어요 — 환승 시간·조건 확인."},
+  {t:"이스탄불 2일 + 카파도키아 2일 + 조지아 4일",r:"유럽",stops:[["이스탄불",2,1,"뒤에 일정이 길어 핵심만: 구시가지 1일 + 보스포루스 1일"],["카파도키아",2,0,"열기구는 바람 때문에 자주 취소돼서 이틀 아침을 확보"],["조지아",4,0,"트빌리시 2일, 카즈베기 산악 1일, 와인 마을 시그나기 1일"]],legs:"ICN-IST,IST-NAV,NAV-TBS,TBS-ICN",air:"터키항공(TK)·페가수스",why:"열기구 + 와인·코카서스 산맥. 조지아는 물가가 낮아 길게 있어도 부담이 적어요.",tip:"카파도키아는 네브셰히르(NAV)·카이세리(ASR) 공항 이용."},
+  {t:"이스탄불 2일 + 모로코 5일",r:"중동·아프리카",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스·갈라타 1일"],["모로코",5,0,"마라케시 메디나 2일 + 사하라 사막 2박3일 투어"]],legs:"ICN-IST,IST-RAK,RAK-ICN",air:"터키항공(TK)",why:"유럽과 아프리카를 한 번에. 사막 1박이 하이라이트.",tip:"사하라 투어는 마라케시 출발 2박3일이 일반적."},
+  {t:"도하 1일 + 몰디브 4일",r:"중동·아프리카",stops:[["도하",1,1,"이슬람 예술 박물관·수크 와키프·사막 사파리 반나절이면 충분 — 하루면 돼요"],["몰디브",4,0,"리조트 이동(수상비행기·스피드보트)에 반나절씩 들어서 최소 3박"]],legs:"ICN-DOH,DOH-MLE,MLE-ICN",air:"카타르항공(QR)",why:"신혼여행 단골 루트. 도시 하루 + 리조트 휴양.",tip:"카타르항공 스톱오버 호텔 패키지(Discover Qatar)로 도하 숙박을 싸게 묶을 수 있어요."},
+  {t:"도하 1일 + 잔지바르 5일",r:"중동·아프리카",stops:[["도하",1,1,"박물관·수크 하루"],["잔지바르",5,0,"스톤타운 1일, 스파이스 투어·돌고래 1일, 북부 해변(능귀) 3일"]],legs:"ICN-DOH,DOH-ZNZ,ZNZ-ICN",air:"카타르항공(QR)",why:"인도양 해변 + 스톤타운. 몰디브보다 훨씬 저렴한 아프리카 휴양.",tip:"탄자니아는 입국 비자가 필요해요(전자비자)."},
+  {t:"두바이 2일 + 이집트 6일",r:"중동·아프리카",stops:[["두바이",2,1,"부르즈 할리파·두바이몰 1일 + 사막 사파리·올드두바이 1일"],["이집트",6,0,"카이로·기자 피라미드 2일, 룩소르 신전 2일, 이동(국내선·야간열차) 2일"]],legs:"ICN-DXB,DXB-CAI,CAI-ICN",air:"에미레이트(EK)",why:"초고층 도시 + 피라미드. 두바이-카이로 약 3.5시간.",tip:"에미레이트 환승 호텔(Dubai Connect)은 운임·대기시간 조건이 있어요."},
+  {t:"아부다비 1일 + 요르단 4일",r:"중동·아프리카",stops:[["아부다비",1,1,"그랜드 모스크 + 루브르 아부다비 — 하루 코스"],["요르단",4,0,"암만 1일, 페트라 1.5일, 와디럼 사막 캠프 1박, 사해 반나절"]],legs:"ICN-AUH,AUH-AMM,AMM-ICN",air:"에티하드(EY)",why:"도시 하루 + 페트라·와디럼 사막.",tip:"에티하드는 스톱오버 무료 호텔 프로모션을 자주 해요. 요르단은 요르단 패스로 입장료+비자 해결."},
+  {t:"헬싱키 1일 + 라플란드 3일",r:"유럽",stops:[["헬싱키",1,1,"도심이 작아 하루면 충분: 대성당·마켓광장·사우나"],["라플란드",3,0,"오로라는 날씨 운이라 최소 3박 — 산타마을·허스키 썰매 포함"]],legs:"ICN-HEL,HEL-RVN,RVN-ICN",air:"핀에어(AY)",why:"12~3월 오로라 + 산타마을.",tip:"핀에어 스톱오버 프로그램으로 헬싱키 체류 추가가 쉬워요."},
+  {t:"헬싱키 1일 + 탈린 1일 + 프라하 3일",r:"유럽",stops:[["헬싱키",1,1,"하루면 핵심은 다 봐요"],["탈린",1,0,"중세 구시가지가 작아 하루(페리 2시간으로 이동)"],["프라하",3,0,"구시가지·카를교 1일, 프라하성 1일, 체스키크룸로프 당일치기 1일"]],legs:"ICN-HEL@0,TLL-PRG@2,PRG-ICN@5",air:"핀에어(AY)",why:"중세 구시가지 세 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
+  {t:"파리 3일 + 아이슬란드 5일",r:"유럽",stops:[["파리",3,1,"직항 도착 시차 적응 겸: 루브르·에펠 1일, 몽마르트·마레 1일, 베르사유 1일"],["아이슬란드",5,0,"렌터카로 골든서클 1일 + 남부 해안(빅·요쿨살론) 3일 + 블루라군 1일"]],legs:"ICN-PAR,PAR-REK,REK-ICN",air:"에어프랑스(AF)·대한항공",why:"직항 있는 파리를 거점으로 아이슬란드 렌터카 여행. 겨울엔 오로라.",tip:"아이슬란드는 렌터카가 사실상 필수."},
+  {t:"싱가포르 2일 + 발리 5일",r:"아시아",stops:[["싱가포르",2,1,"마리나베이·가든스바이더베이 1일 + 센토사 또는 차이나타운·리틀인디아 1일"],["발리",5,0,"우붓(논·사원) 2일 + 해변(스미냑·울루와뚜) 3일"]],legs:"ICN-SIN,SIN-DPS,DPS-ICN",air:"싱가포르항공(SQ)",why:"도시 야경 + 리조트 휴양. 싱가포르-발리 2.5시간.",tip:"싱가포르항공 스톱오버 홀리데이로 호텔·관광 패키지 할인."},
+  {t:"방콕 2일 + 루앙프라방 3일",r:"아시아",stops:[["방콕",2,1,"왕궁·왓포 1일 + 짜뚜짝·야시장 먹방 1일"],["루앙프라방",3,0,"새벽 탁발·푸시산 1일, 꽝시폭포 1일, 메콩강 보트 1일"]],legs:"ICN-BKK,BKK-LPQ,LPQ-ICN",air:"타이항공(TG)·라오항공",why:"방콕 먹방 + 라오스 조용한 휴식.",tip:"루앙프라방→인천은 비엔티안·방콕 경유가 일반적."},
+  {t:"쿠알라룸푸르 1일 + 네팔 6일",r:"아시아",stops:[["쿠알라룸푸르",1,1,"페트로나스·바투동굴 하루"],["네팔",6,0,"카트만두 1일 + 포카라 거점 푼힐 트레킹 4일 + 예비 1일"]],legs:"ICN-KUL,KUL-KTM,KTM-ICN",air:"에어아시아X·말레이시아항공",why:"저가항공 허브 KL 경유로 히말라야 입문 트레킹.",tip:"저가항공 연결은 별도 발권이라 환승 시간을 넉넉히."},
+  {t:"도쿄 1일 + 하와이 5일",r:"미주·태평양",stops:[["도쿄",1,1,"환승 겸 하루: 시부야·신주쿠 저녁"],["하와이",5,0,"와이키키 2일 + 노스쇼어 1일 + 다이아몬드헤드·하나우마베이 2일"]],legs:"ICN-TYO,TYO-HNL,HNL-ICN",air:"일본항공(JL)·ANA",why:"하와이 직항보다 쌀 때가 있어요.",tip:"김포-하네다로 출발하면 도심 이동이 편해요."},
+  {t:"타이베이 2일 + 로스앤젤레스 5일",r:"미주·태평양",stops:[["타이베이",2,1,"시내·야시장 1일 + 지우펀·스펀 1일"],["로스앤젤레스",5,0,"할리우드·그리피스 1일, 산타모니카 1일, 유니버설·디즈니 1일, 라스베이거스·그랜드캐니언 2일"]],legs:"ICN-TPE,TPE-LAX,LAX-ICN",air:"에바항공(BR)·중화항공(CI)",why:"대만 항공사 미주 노선이 저렴한 편.",tip:"미국은 ESTA 사전 신청 필요."},
+  {t:"밴쿠버 2일 + 칸쿤 5일",r:"미주·태평양",stops:[["밴쿠버",2,1,"스탠리파크·개스타운 1일 + 휘슬러 또는 그라우스산 1일"],["칸쿤",5,0,"올인클루시브 리조트 3일 + 세노테·치첸이트사 1일 + 이슬라 무헤레스 1일"]],legs:"ICN-YVR,YVR-CUN,CUN-ICN",air:"에어캐나다(AC)",why:"캐나다 도시 + 카리브해 리조트.",tip:"캐나다 환승·체류는 eTA 필요."},
 ];
 let STOP_REGION="전체", STOP_PRICES={};
 const WD="일월화수목금토";
@@ -2223,6 +2238,7 @@ function renderStop(){
   $("#stopBody").innerHTML=list.map(x=>{
     const days=x.stops.reduce((a,s)=>a+s[1],0);
     const chips=x.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}일</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>');
+    const dayWhy=`<div class="stop-days">${x.stops.map(s=>`<div>📍 <b>${escapeHtml(s[0])} ${s[1]}일</b> — ${escapeHtml(s[3]||'')}</div>`).join('')}</div>`;
     const L=start?stopLegs(x,start):[];
     const plan=L.length?`<div class="stop-plan">📅 ${L.map(l=>`${mdw(l.date)} ${escapeHtml(l.a)}→${escapeHtml(l.b)}`).join(' · ')}</div>`:'';
     const P=STOP_PRICES[`${start}|${flex}|${x.i}`];
@@ -2241,7 +2257,7 @@ function renderStop(){
         <div class="stop-sum"><span>항공 합계 ${ok?'':'(일부 구간 가격 없음)'}</span><span>${won(sum*pax)}</span></div>
         <div class="stop-meta">구간마다 앞 비행 다음날 이후 편만 골라 날짜 순서를 맞췄어요. 편도 최저가를 더한 추정치예요 — 아래 다구간 검색은 위 날짜로 열려요(한 장으로 묶으면 더 쌀 때가 많아요).</div></div>`;
     }
-    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${plan}${legs}${multi}</div>`;
+    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}${dayWhy}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${plan}${legs}${multi}</div>`;
   }).join("")+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 async function loadStop(i){
