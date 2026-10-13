@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13e  ·  feat: 항공권 10시간+ 확장 + 경유 여행 추천 탭
+     build: 2026-10-13f  ·  fix: 경유 여행 구간 날짜를 일정 순서대로
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -317,6 +317,8 @@
   .stop-btn{margin-top:9px;width:100%;border:1px solid var(--line);background:var(--bg2);border-radius:9px;padding:8px;font-size:12.5px;font-weight:700;color:var(--ink)}
   .stop-legs{margin-top:9px;border-top:1px dashed var(--line);padding-top:8px}
   .stop-leg{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-soft);text-decoration:none}
+  .stop-plan{font-size:11.5px;color:var(--ink);background:var(--bg2);border-radius:8px;padding:6px 9px;margin-top:8px}
+  .stop-leg small{display:block;color:var(--ink-faint);font-size:10.5px}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
   .fare-card{margin-bottom:8px}
   .fare-card .fare-row{margin-bottom:0}
@@ -604,11 +606,12 @@
       <button id="tsub-stop" onclick="tripSub('stop')">🧭 경유 여행</button>
     </div>
     <div id="tripStop" style="display:none">
-      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">가는 길에 환승 도시에서 며칠 놀다 가는 코스예요. <b>구간 가격 보기</b>를 누르면 구간별 편도 최저가를 모아 보여줘요.</p>
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">가는 길에 환승 도시에서 며칠 놀다 가는 코스예요. 출발일을 정하고 <b>구간 가격 보기</b>를 누르면 일정 순서대로 구간별 편도 최저가를 찾아요.</p>
       <div class="m2">
-        <div class="mfield"><label>출발 월</label><input id="stopMonth" type="month" onchange="STOP_PRICES={};renderStop()" /></div>
-        <div class="mfield"><label>인원 (성인)</label><select id="stopPax" onchange="renderStop()"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option><option value="4">4명</option></select></div>
+        <div class="mfield"><label>출발일</label><input id="stopDate" type="date" onchange="renderStop()" /></div>
+        <div class="mfield"><label>날짜 유연성</label><select id="stopFlex" onchange="renderStop()"><option value="0">정확히</option><option value="1" selected>±1일</option><option value="2">±2일</option><option value="3">±3일</option></select></div>
       </div>
+      <div class="mfield"><label>인원 (성인)</label><select id="stopPax" onchange="renderStop()"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option><option value="4">4명</option></select></div>
       <div class="seg" id="stopSeg"></div>
       <div id="stopBody"></div>
     </div>
@@ -2174,7 +2177,7 @@ function renderFare(d){
 }
 
 /* --- 경유 여행 추천 (스톱오버 코스) --- */
-// stops: [도시, 일수, 허브여부] / legs: 가격 조회 구간(편도). 출발은 인천 기준
+// stops: [도시, 일수, 허브여부] / legs: 가격 조회 구간(편도). 구간 출발일은 앞 도시 일수를 누적(@n 이면 출발일+n일로 직접 지정)
 const STOPOVERS=[
   {t:"이스탄불 2일 + 알바니아 3일",r:"유럽",stops:[["이스탄불",2,1],["티라나·베라트(알바니아)",3]],legs:"ICN-IST,IST-TIA,TIA-ICN",air:"터키항공(TK)",why:"유럽 최저가권 알바니아를 이스탄불 경유로. 지중해 물가 중 가장 저렴한 편이고 이스탄불은 구시가지만 봐도 이틀이 꽉 차요.",tip:"터키항공 환승객 무료 시내투어(Touristanbul)도 있어요 — 환승 시간·조건 확인."},
   {t:"이스탄불 2일 + 카파도키아 2일 + 조지아 4일",r:"유럽",stops:[["이스탄불",2,1],["카파도키아",2],["트빌리시(조지아)",4]],legs:"ICN-IST,IST-NAV,NAV-TBS,TBS-ICN",air:"터키항공(TK)·페가수스",why:"열기구 + 와인·코카서스 산맥. 조지아는 물가가 낮아 길게 있어도 부담이 적어요.",tip:"카파도키아는 네브셰히르(NAV)·카이세리(ASR) 공항 이용."},
@@ -2184,7 +2187,7 @@ const STOPOVERS=[
   {t:"두바이 2일 + 이집트 5일",r:"중동·아프리카",stops:[["두바이",2,1],["카이로·룩소르(이집트)",5]],legs:"ICN-DXB,DXB-CAI,CAI-ICN",air:"에미레이트(EK)",why:"초고층 도시 + 피라미드. 이동이 짧아(약 3.5시간) 체력 부담이 적어요.",tip:"에미레이트 환승 호텔(Dubai Connect)은 운임·대기시간 조건이 있어요."},
   {t:"아부다비 2일 + 요르단 4일",r:"중동·아프리카",stops:[["아부다비",2,1],["페트라·와디럼(요르단)",4]],legs:"ICN-AUH,AUH-AMM,AMM-ICN",air:"에티하드(EY)",why:"루브르 아부다비·그랜드 모스크 + 페트라·와디럼 사막 캠핑.",tip:"에티하드는 스톱오버 무료 호텔 프로모션을 자주 해요. 요르단은 요르단 패스로 입장료+비자 해결."},
   {t:"헬싱키 2일 + 라플란드 3일",r:"유럽",stops:[["헬싱키",2,1],["로바니에미(오로라)",3]],legs:"ICN-HEL,HEL-RVN,RVN-ICN",air:"핀에어(AY)",why:"12~3월 오로라 + 산타마을. 헬싱키는 사우나·디자인 거리.",tip:"핀에어 스톱오버 프로그램으로 헬싱키 체류 추가가 쉬워요."},
-  {t:"헬싱키 2일 + 탈린 2일 + 프라하 3일",r:"유럽",stops:[["헬싱키",2,1],["탈린(에스토니아)",2],["프라하",3]],legs:"ICN-HEL,TLL-PRG,PRG-ICN",air:"핀에어(AY)",why:"헬싱키→탈린은 페리 2시간. 중세 구시가지 두 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
+  {t:"헬싱키 2일 + 탈린 2일 + 프라하 3일",r:"유럽",stops:[["헬싱키",2,1],["탈린(에스토니아)",2],["프라하",3]],legs:"ICN-HEL@0,TLL-PRG@4,PRG-ICN@7",air:"핀에어(AY)",why:"헬싱키→탈린은 페리 2시간. 중세 구시가지 두 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
   {t:"파리 2일 + 아이슬란드 4일",r:"유럽",stops:[["파리",2,1],["레이캬비크·링로드(아이슬란드)",4]],legs:"ICN-PAR,PAR-REK,REK-ICN",air:"에어프랑스(AF)·대한항공",why:"직항 있는 파리를 거점으로 아이슬란드 렌터카 여행. 겨울엔 오로라.",tip:"아이슬란드는 렌터카가 사실상 필수."},
   {t:"싱가포르 2일 + 발리 4일",r:"아시아",stops:[["싱가포르",2,1],["발리",4]],legs:"ICN-SIN,SIN-DPS,DPS-ICN",air:"싱가포르항공(SQ)",why:"도시 야경 + 리조트 휴양 조합. 싱가포르-발리는 2.5시간.",tip:"싱가포르항공 스톱오버 홀리데이로 호텔·관광 패키지 할인."},
   {t:"방콕 2일 + 루앙프라방 3일",r:"아시아",stops:[["방콕",2,1],["루앙프라방(라오스)",3]],legs:"ICN-BKK,BKK-LPQ,LPQ-ICN",air:"타이항공(TG)·라오항공",why:"방콕 먹방 + 라오스 탁발·꽝시폭포. 조용한 휴식형.",tip:"루앙프라방→인천은 비엔티안·방콕 경유가 일반적."},
@@ -2194,42 +2197,56 @@ const STOPOVERS=[
   {t:"밴쿠버 2일 + 칸쿤 5일",r:"미주·태평양",stops:[["밴쿠버",2,1],["칸쿤(멕시코)",5]],legs:"ICN-YVR,YVR-CUN,CUN-ICN",air:"에어캐나다(AC)",why:"캐나다 도시 + 카리브해 올인클루시브 리조트.",tip:"캐나다 환승·체류는 eTA 필요."},
 ];
 let STOP_REGION="전체", STOP_PRICES={};
+const WD="일월화수목금토";
+function addDays(d,n){const t=new Date(d+"T00:00:00");t.setDate(t.getDate()+n);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;}
+function mdw(d){if(!d)return '';const t=new Date(d.slice(0,10)+"T00:00:00");return `${t.getMonth()+1}/${t.getDate()}(${WD[t.getDay()]})`;}
+// 코스의 구간별 [출발공항, 도착공항, 목표 출발일]
+function stopLegs(x,start){
+  let off=0;return x.legs.split(",").map((l,i)=>{const [r,o]=l.split("@");if(o!=null)off=+o;else if(i>0)off+=(x.stops[i-1]||[0,0])[1];const [a,b]=r.split("-");return {a,b,date:addDays(start,off)};});
+}
 function openStop(){
-  if(!$("#stopMonth").value)$("#stopMonth").value=$("#fareMonth").value||(()=>{const d=new Date();d.setMonth(d.getMonth()+1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;})();
+  if(!$("#stopDate").value){const fm=$("#fareMonth").value;$("#stopDate").value=fm?fm+"-10":addDays(todayStr(),30);}
   $("#stopPax").value=$("#farePax").value||"2";
   const regs=["전체",...new Set(STOPOVERS.map(x=>x.r))];
   $("#stopSeg").innerHTML=regs.map(r=>`<button class="${r===STOP_REGION?'on':''}" onclick="STOP_REGION='${r}';openStop()">${r}</button>`).join("");
   renderStop();
 }
 function renderStop(){
-  const pax=+$("#stopPax").value||2, month=$("#stopMonth").value;
+  const pax=+$("#stopPax").value||2, start=$("#stopDate").value, flex=$("#stopFlex").value;
   const list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>STOP_REGION==="전체"||x.r===STOP_REGION);
   $("#stopBody").innerHTML=list.map(x=>{
     const days=x.stops.reduce((a,s)=>a+s[1],0);
     const chips=x.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}일</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>');
-    const P=STOP_PRICES[month+"|"+x.i];
-    let legs=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 구간 가격 보기 (${escapeHtml(month||'')} · 성인 ${pax}명)</button>`;
-    if(P==='loading')legs=`<div class="stop-legs"><div class="wk-empty">구간별 최저가 찾는 중…</div></div>`;
+    const L=start?stopLegs(x,start):[];
+    const plan=L.length?`<div class="stop-plan">📅 ${L.map(l=>`${mdw(l.date)} ${escapeHtml(l.a)}→${escapeHtml(l.b)}`).join(' · ')}</div>`:'';
+    const P=STOP_PRICES[`${start}|${flex}|${x.i}`];
+    let legs=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 구간 가격 보기 (${start?mdw(start)+' 출발':'출발일 선택'} · ${flex==='0'?'날짜 고정':'±'+flex+'일'} · 성인 ${pax}명)</button>`;
+    if(P==='loading')legs=`<div class="stop-legs"><div class="wk-empty">일정 순서대로 구간별 최저가 찾는 중…</div></div>`;
     else if(P&&P.error)legs=`<div class="stop-legs"><div class="wk-empty">${escapeHtml(P.error)}</div></div>`;
     else if(P){
       const ok=P.legs.every(l=>l.price);const sum=P.legs.reduce((a,l)=>a+(l.price||0),0);
-      legs=`<div class="stop-legs">${P.legs.map(l=>{const inner=`<span>✈️ ${escapeHtml(l.from)}→${escapeHtml(l.to)}${l.price?` · ${l.departAt?l.departAt.slice(5,10).replace('-','/'):''} · ${l.transfers===0?'직항':'경유 '+l.transfers+'회'}${l.airline?' · '+escapeHtml(l.airline):''}`:''}</span><b>${l.price?won(l.price*pax):'가격 없음'}</b>`;return l.link?`<a class="stop-leg" href="${escapeHtml(paxLink(l.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="stop-leg">${inner}</div>`;}).join("")}
+      legs=`<div class="stop-legs">${P.legs.map(l=>{
+        const moved=l.price&&l.departAt&&l.departAt.slice(0,10)!==l.target?` <small>계획 ${mdw(l.target)} → ${mdw(l.departAt)} 출발이 더 쌈</small>`:'';
+        const info=l.price?`${mdw(l.departAt)} · ${l.transfers===0?'직항':'경유 '+l.transfers+'회'}${l.airline?' · '+escapeHtml(l.airline):''}`:`${mdw(l.target)} 근처 가격 없음${l.near?`<small>참고: ${mdw(l.near.departAt)} ${won(l.near.price*pax)} (일정과 안 맞음)</small>`:''}`;
+        const inner=`<span>✈️ ${escapeHtml(l.from)}→${escapeHtml(l.to)} · ${info}${moved}</span><b>${l.price?won(l.price*pax):'—'}</b>`;
+        return l.price&&l.link?`<a class="stop-leg" href="${escapeHtml(paxLink(l.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="stop-leg">${inner}</div>`;}).join("")}
         <div class="stop-sum"><span>항공 합계 ${ok?'':'(일부 구간 가격 없음)'}</span><span>${won(sum*pax)}</span></div>
-        <div class="stop-meta">편도 최저가를 더한 추정치예요. 날짜는 구간마다 따로 잡힌 최저가라 실제 일정에 맞춰 다시 확인하세요.</div></div>`;
+        <div class="stop-meta">구간마다 앞 비행 다음날 이후 편만 골라 날짜 순서를 맞췄어요. 편도 최저가를 더한 추정치라 예매 시 다시 확인하세요.</div></div>`;
     }
-    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${legs}</div>`;
+    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 총 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${plan}${legs}</div>`;
   }).join("")+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 async function loadStop(i){
-  const month=$("#stopMonth").value, k=month+"|"+i;
+  const start=$("#stopDate").value, flex=$("#stopFlex").value;
+  if(!start){toast("출발일을 먼저 골라주세요");return;}
+  const k=`${start}|${flex}|${i}`, legs=stopLegs(STOPOVERS[i],start).map(l=>`${l.a}-${l.b}@${l.date}`).join(",");
   STOP_PRICES[k]='loading';renderStop();
   try{
-    const r=await fetch(`/api/flights?legs=${encodeURIComponent(STOPOVERS[i].legs)}&month=${month}`);const d=await r.json();
+    const r=await fetch(`/api/flights?legs=${encodeURIComponent(legs)}&flex=${flex}`);const d=await r.json();
     STOP_PRICES[k]=(!r.ok||d.error)?{error:d.error||"조회 실패"}:d;
   }catch(e){STOP_PRICES[k]={error:"조회 실패: "+e.message};}
   if(TRIP_SUB==='stop')renderStop();
 }
-
 /* ===== 분석 ===== */
 let STAT_DATA=[], CUR_VIEW="overview";
 async function loadStat(){

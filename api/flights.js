@@ -1,6 +1,8 @@
 // Vercel Serverless Function: /api/flights
 //  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10시간 이상(대부분 경유)
-//  ?legs=ICN-IST,IST-TIA,TIA-ICN&month=YYYY-MM  → 구간별 편도 최저가 (경유 여행 추천 탭용)
+//  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-22,TIA-ICN@2026-11-25&flex=1
+//     → 구간별 편도 최저가 (경유 여행 추천 탭용). 각 구간은 목표일 ±flex일 안에서,
+//       앞 구간 출발일보다 하루 이상 뒤인 항공편만 고릅니다(날짜 순서 보장).
 //  &origin=ALL|ICN|GMP|CJJ  (ALL = 세 공항 중 최저가)
 //  &month=YYYY-MM        출발 월 (없으면 이번 달)
 //  &oneway=0|1           0 = 왕복(기본), 1 = 편도
@@ -59,7 +61,7 @@ async function cheapest(token, origin, dest, q) {
   const p = new URLSearchParams({
     origin, destination: dest, departure_at: q.month, currency: "krw", market: "kr",
     one_way: q.oneway ? "true" : "false", direct: q.direct ? "true" : "false",
-    sorting: "price", limit: "5", token,
+    sorting: "price", limit: String(q.limit || 5), token,
   });
   const r = await fetch("https://api.travelpayouts.com/aviasales/v3/prices_for_dates?" + p);
   if (r.status === 401) throw new Error("TOKEN");
@@ -93,14 +95,35 @@ export default async function handler(req, res) {
   let month = (req.query.month || "").toString();
   if (!/^\d{4}-\d{2}$/.test(month)) month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // 구간별 편도 최저가: legs=ICN-IST,IST-TIA,...
+  // 구간별 편도 최저가: legs=ICN-IST@YYYY-MM-DD,...
   if (req.query.legs) {
-    const legs = req.query.legs.toString().toUpperCase().split(",").map((x) => x.split("-")).filter((x) => x.length === 2 && /^[A-Z]{3}$/.test(x[0]) && /^[A-Z]{3}$/.test(x[1])).slice(0, 6);
-    if (!legs.length) { res.status(400).json({ error: "legs 형식: ICN-IST,IST-TIA" }); return; }
+    const legs = req.query.legs.toString().toUpperCase().split(",").map((x) => { const [r, date] = x.split("@"); const [a, b] = (r || "").split("-"); return { a, b, date }; })
+      .filter((x) => /^[A-Z]{3}$/.test(x.a || "") && /^[A-Z]{3}$/.test(x.b || "") && /^\d{4}-\d{2}-\d{2}$/.test(x.date || "")).slice(0, 6);
+    if (!legs.length) { res.status(400).json({ error: "legs 형식: ICN-IST@2026-11-20,IST-TIA@2026-11-22" }); return; }
+    const flex = Math.min(3, Math.max(0, parseInt(req.query.flex, 10) || 0));
+    const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
     try {
-      const out = await pool(legs.map(([a, b]) => async () => { const r = await cheapest(token, a, b, { month, oneway: true, direct: false }); return { from: a, to: b, ...((r && r[0]) || { price: null }) }; }), 6);
+      // 목표일 ±flex 창이 걸친 달(1~2개)을 한꺼번에 받아 두고
+      const jobs = [];
+      legs.forEach((l, li) => { new Set([addDay(l.date, -flex).slice(0, 7), addDay(l.date, flex).slice(0, 7)]).forEach((m) =>
+        jobs.push(async () => ({ li, opts: (await cheapest(token, l.a, l.b, { month: m, oneway: true, direct: false, limit: 100 })) || [] }))); });
+      const found = await pool(jobs, 8);
+      const opts = legs.map(() => []);
+      found.forEach((r) => { if (r) opts[r.li].push(...r.opts); });
+      // 앞 구간부터 순서대로: 창 안 + 앞 구간 다음날 이후 중 최저가
+      let prev = "";
+      const out = legs.map((l, li) => {
+        const lo = addDay(l.date, -flex), hi = addDay(l.date, flex), min = prev ? addDay(prev, 1) : "";
+        const ok = opts[li].filter((x) => { const d = (x.departAt || "").slice(0, 10); return d >= lo && d <= hi && (!min || d >= min); }).sort((x, y) => x.price - y.price);
+        const pick = ok[0];
+        if (pick) prev = pick.departAt.slice(0, 10); else prev = l.date > prev ? l.date : prev;
+        // 창 안에 없으면 참고용으로 가장 가까운 날짜의 가격
+        let near = null;
+        if (!pick) { const later = opts[li].filter((x) => (x.departAt || "").slice(0, 10) >= (min || "")); later.sort((x, y) => Math.abs(new Date(x.departAt) - new Date(l.date)) - Math.abs(new Date(y.departAt) - new Date(l.date)) || x.price - y.price); near = later[0] || null; }
+        return { from: l.a, to: l.b, target: l.date, ...(pick || { price: null }), near };
+      });
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
-      res.status(200).json({ month, legs: out.map((x, i) => x || { from: legs[i][0], to: legs[i][1], price: null }) });
+      res.status(200).json({ flex, legs: out });
     } catch (e) {
       if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }
       res.status(502).json({ error: "구간 가격 조회 실패: " + e.message });
