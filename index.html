@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-12a  ·  feat: 항공권 시세(인천·김포·청주 출발, 1~4h / 5~9h)
+     build: 2026-10-13b  ·  feat: 하단 탭 4개(항공권 예매·가계부·일정·운동)로 정리
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -263,10 +263,10 @@
 
   nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;z-index:40;
     background:rgba(16,18,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    display:grid;grid-template-columns:repeat(8,1fr);padding:7px 0 calc(7px + env(safe-area-inset-bottom))}
-  nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--ink-faint);font-size:8.5px;font-weight:700}
+    display:grid;grid-template-columns:repeat(4,1fr);padding:7px 0 calc(7px + env(safe-area-inset-bottom))}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink-faint);font-size:11px;font-weight:700}
   nav button.on{color:var(--accent)}
-  nav button svg{width:18px;height:18px}
+  nav button svg{width:20px;height:20px}
   .trip-top{display:flex;gap:8px;margin-bottom:14px}
   .trip-sel{flex:1;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none;font-weight:700}
   .trip-new{background:var(--accent);color:#1a1206;font-weight:800;border-radius:11px;padding:0 15px;white-space:nowrap}
@@ -300,7 +300,6 @@
   .pl-res b{font-size:13px;font-weight:700}
   .pl-res span{display:block;font-size:11px;color:var(--ink-faint);margin-top:1px}
   .tp-fl{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:13px;line-height:1.6;color:var(--ink-soft)}
-  .fare-open{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin:-6px 0 12px;font-size:13px;font-weight:700;color:var(--ink-soft);text-align:left}
   .fare-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--ink-soft);text-decoration:none}
   .fare-row .fr-main{flex:1;min-width:0;line-height:1.5}
   .fare-row .fr-main b{color:var(--ink)}
@@ -439,6 +438,15 @@
     <div class="brand"><span class="dot"></span> 매직카펫 라이드</div>
     <div class="who"><span id="userEmail"></span><button onclick="signOut()">로그아웃</button></div>
   </header>
+  <div class="pad" id="workSegWrap" style="display:none;padding-bottom:0">
+    <div class="seg" id="workSeg" style="margin-bottom:0">
+      <button id="wsub-log" onclick="switchTab('log')">기록하기</button>
+      <button id="wsub-list" onclick="switchTab('list')">기록</button>
+      <button id="wsub-cal" onclick="switchTab('cal')">칼로리</button>
+      <button id="wsub-timer" onclick="switchTab('timer')">타이머</button>
+      <button id="wsub-stat" onclick="switchTab('stat')">분석</button>
+    </div>
+  </div>
 
   <!-- 기록하기 -->
   <section class="tab pad" id="tab-log">
@@ -571,15 +579,40 @@
 
   <!-- 여행 -->
   <section class="tab pad" id="tab-trip">
-    <div class="trip-top">
-      <select id="tripSel" class="trip-sel" onchange="onTripSel()"></select>
-      <button class="trip-new" onclick="newTrip()">＋</button>
-      <button class="trip-new" style="background:var(--blue);color:#03121f" onclick="document.getElementById('tripPlanImg').click()">🎫 티켓/이동수단</button>
+    <div class="seg" id="tripSeg">
+      <button class="on" id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
+      <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
     </div>
-    <button class="fare-open" onclick="openFare()">💸 어디로 갈까? 항공권 시세 (인천·김포·청주 출발)</button>
-    <input id="tripPlanImg" type="file" accept="image/*" multiple style="display:none" onchange="onTripFromTicket(this)" />
-    <div style="font-size:11px;color:var(--ink-faint);margin:-8px 2px 12px">📋 캡처 이미지를 복사해 <b>붙여넣기(Ctrl+V)</b> 해도 티켓이 자동 인식돼요.</div>
-    <div id="tripBody"></div>
+    <div id="tripFare">
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">인천·김포·청주 출발 최저가예요. 최근 이틀 안에 실제 검색된 가격이라 예매 시점엔 달라질 수 있어요.</p>
+      <div class="seg" id="fareSeg">
+        <button class="on" onclick="fareGroup('short',this)">✈️ 1~4시간</button>
+        <button onclick="fareGroup('mid',this)">🌏 5~9시간</button>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>출발 공항</label><select id="fareOrigin" onchange="loadFare()"><option value="ALL">전체(최저가)</option><option value="ICN">인천 ICN</option><option value="GMP">김포 GMP</option><option value="CJJ">청주 CJJ</option></select></div>
+        <div class="mfield"><label>출발 월</label><input id="fareMonth" type="month" onchange="loadFare()" /></div>
+      </div>
+      <div class="m2">
+        <div class="mfield"><label>여정</label><select id="fareOneway" onchange="loadFare()"><option value="0">왕복</option><option value="1">편도</option></select></div>
+        <div class="mfield"><label>경유</label><select id="fareDirect" onchange="loadFare()"><option value="0">경유 포함</option><option value="1">직항만</option></select></div>
+      </div>
+      <div class="seg" id="fareView" style="margin-top:4px">
+        <button class="on" onclick="fareViewSet('country',this)">국가별 최저가</button>
+        <button onclick="fareViewSet('city',this)">도시 전체</button>
+      </div>
+      <div id="fareBody"></div>
+    </div>
+    <div id="tripMine" style="display:none">
+      <div class="trip-top">
+        <select id="tripSel" class="trip-sel" onchange="onTripSel()"></select>
+        <button class="trip-new" onclick="newTrip()">＋</button>
+        <button class="trip-new" style="background:var(--blue);color:#03121f" onclick="document.getElementById('tripPlanImg').click()">🎫 티켓/이동수단</button>
+      </div>
+      <input id="tripPlanImg" type="file" accept="image/*" multiple style="display:none" onchange="onTripFromTicket(this)" />
+      <div style="font-size:11px;color:var(--ink-faint);margin:-8px 2px 12px">📋 캡처 이미지를 복사해 <b>붙여넣기(Ctrl+V)</b> 해도 티켓이 자동 인식돼요.</div>
+      <div id="tripBody"></div>
+    </div>
   </section>
 
   <!-- 타이머 -->
@@ -624,21 +657,13 @@
 
   <nav>
     <button class="on" id="nav-trip" onclick="switchTab('trip')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5"/></svg>여행</button>
-    <button id="nav-log" onclick="switchTab('log')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>기록하기</button>
-    <button id="nav-list" onclick="switchTab('list')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>기록</button>
-    <button id="nav-cal" onclick="switchTab('cal')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v15H4zM4 9h16M8 3v4M16 3v4" stroke-linecap="round" stroke-linejoin="round"/></svg>칼로리</button>
-    <button id="nav-sched" onclick="switchTab('sched')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16l20-7-3-2-6 2-6-4-2 1 4 5-4 1-2-1-1 1 3 3z" stroke-linejoin="round"/><path d="M3 21h18" stroke-linecap="round"/></svg>항공권 예매</button>
     <button id="nav-expense" onclick="switchTab('expense')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v12H3zM3 10h18M7 15h4" stroke-linecap="round" stroke-linejoin="round"/></svg>가계부</button>
-    <button id="nav-timer" onclick="switchTab('timer')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6" stroke-linecap="round"/></svg>타이머</button>
-    <button id="nav-stat" onclick="switchTab('stat')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 15l5-5 4 4 7-8" stroke-linecap="round" stroke-linejoin="round"/></svg>분석</button>
+    <button id="nav-sched" onclick="switchTab('sched')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" stroke-linecap="round" stroke-linejoin="round"/></svg>일정</button>
+    <button id="nav-work" onclick="switchTab(LAST_WORK)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" stroke-linecap="round"/></svg>운동</button>
   </nav>
 </div>
 
@@ -777,31 +802,6 @@
   </div>
 </div>
 
-<!-- 항공권 시세 MODAL -->
-<div class="modal-bg" id="fareModal">
-  <div class="modal" style="max-height:88vh;overflow-y:auto">
-    <h2>💸 항공권 시세</h2>
-    <p class="msub">인천·김포·청주 출발 최저가예요. 최근 이틀 안에 실제 검색된 가격이라 예매 시점엔 달라질 수 있어요.</p>
-    <div class="seg" id="fareSeg">
-      <button class="on" onclick="fareGroup('short',this)">✈️ 1~4시간</button>
-      <button onclick="fareGroup('mid',this)">🌏 5~9시간</button>
-    </div>
-    <div class="m2">
-      <div class="mfield"><label>출발 공항</label><select id="fareOrigin" onchange="loadFare()"><option value="ALL">전체(최저가)</option><option value="ICN">인천 ICN</option><option value="GMP">김포 GMP</option><option value="CJJ">청주 CJJ</option></select></div>
-      <div class="mfield"><label>출발 월</label><input id="fareMonth" type="month" onchange="loadFare()" /></div>
-    </div>
-    <div class="m2">
-      <div class="mfield"><label>여정</label><select id="fareOneway" onchange="loadFare()"><option value="0">왕복</option><option value="1">편도</option></select></div>
-      <div class="mfield"><label>경유</label><select id="fareDirect" onchange="loadFare()"><option value="0">경유 포함</option><option value="1">직항만</option></select></div>
-    </div>
-    <div class="seg" id="fareView" style="margin-top:4px">
-      <button class="on" onclick="fareViewSet('country',this)">국가별 최저가</button>
-      <button onclick="fareViewSet('city',this)">도시 전체</button>
-    </div>
-    <div id="fareBody"></div>
-    <button class="btn-ghost" onclick="closeFare()">닫기</button>
-  </div>
-</div>
 
 <script>
 /* ===== CONFIG (workout 프로젝트) ===== */
@@ -2004,7 +2004,7 @@ async function createTripFromPlan(){
     }
   }
   CUR_TRIP=tripId;
-  await refreshData();closeTripPlan();switchTab('trip');renderTrip();
+  await refreshData();closeTripPlan();TRIP_SUB='mine';switchTab('trip');
   toast(target==='new'?"여행 생성 완료 🎫":"기존 여행에 추가 완료 🎫");
 }
 
@@ -2062,11 +2062,16 @@ async function computeRouteSuggestions(){
 
 /* --- 항공권 시세 (인천·김포·청주 출발, 1~4시간 / 5~9시간) --- */
 let FARE_GROUP='short', FARE_VIEW='country', FARE_CACHE={}, FARE_SEQ=0;
+let TRIP_SUB='fare';
+function tripSub(v){ // 여행 탭: 항공권 예매(시세) / 내 여행(타임라인)
+  TRIP_SUB=v;$("#tsub-fare").classList.toggle("on",v==='fare');$("#tsub-mine").classList.toggle("on",v==='mine');
+  $("#tripFare").style.display=v==='fare'?'block':'none';$("#tripMine").style.display=v==='mine'?'block':'none';
+  if(v==='mine')renderTrip(); else openFare();
+}
 function openFare(){
   if(!$("#fareMonth").value){const d=new Date();d.setMonth(d.getMonth()+1);$("#fareMonth").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-  $("#fareModal").classList.add("show");loadFare();
+  loadFare();
 }
-function closeFare(){$("#fareModal").classList.remove("show");}
 function fareGroup(g,btn){FARE_GROUP=g;$$("#fareSeg button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");loadFare();}
 function fareViewSet(v,btn){FARE_VIEW=v;$$("#fareView button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");const k=fareKey();if(FARE_CACHE[k])renderFare(FARE_CACHE[k]);}
 function fareKey(){return [FARE_GROUP,$("#fareOrigin").value,$("#fareMonth").value,$("#fareOneway").value,$("#fareDirect").value].join("|");}
@@ -2200,11 +2205,15 @@ function restReset(){clearInterval(restInt);restRun=false;restLeft=restTotal;ren
 function restDone(){toast("휴식 끝! 다음 세트 🔥");try{const ac=new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.frequency.value=880;g.gain.setValueAtTime(.001,ac.currentTime);g.gain.exponentialRampToValueAtTime(.3,ac.currentTime+.02);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.5);o.start();o.stop(ac.currentTime+.5);}catch(e){}if(navigator.vibrate)navigator.vibrate([200,100,200]);}
 
 /* ===== 탭 전환 ===== */
+const WORK_TABS=["log","list","cal","timer","stat"]; let LAST_WORK="log";
 function switchTab(name){
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
-  $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${name}`).classList.add("on");
+  const isWork=WORK_TABS.includes(name); if(isWork)LAST_WORK=name;
+  $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${isWork?'work':name}`).classList.add("on");
+  $("#workSegWrap").style.display=isWork?"block":"none";
+  $$("#workSeg button").forEach(b=>b.classList.toggle("on",b.id===`wsub-${name}`));
   window.scrollTo(0,0);
-  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")renderTrip();if(name==="stat")loadStat();
+  if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")tripSub(TRIP_SUB);if(name==="stat")loadStat();
 }
 $("#tab-trip").classList.add("active");
 
@@ -2218,9 +2227,9 @@ window.addEventListener("paste",async(e)=>{
   e.preventDefault();
   const active=document.querySelector(".tab.active");
   const tab=active?active.id.replace("tab-",""):"";
-  if(tab==="trip"){ toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
+  if(tab==="trip"){ tripSub('mine'); toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
   else if(tab==="expense"){ toast("붙여넣은 카드알림 인식 중…"); await processExpenseFiles(files); }
-  else { switchTab("trip"); toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
+  else { TRIP_SUB='mine'; switchTab("trip"); toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
 });
 // 자동로그인: 저장된 이메일·설정 프리필
 try{const em=localStorage.getItem('wlog_email');if(em)$("#email").value=em;const rm=localStorage.getItem('wlog_remember');if(rm!==null)$("#rememberMe").checked=(rm==='1');}catch(e){}
