@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-14c  ·  feat: 꿀조합 기준 + 앞뒤 연차 더 붙여 최저가
+     build: 2026-10-14d  ·  feat: 경유 여행 탭도 꿀조합 휴가 기간 기준 + 전체 코스 한 번에 찾기
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -636,15 +636,20 @@
       <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
     </div>
     <div id="tripStop" style="display:none">
-      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">가는 길에 환승 도시에서 며칠 놀다 가는 코스예요. <b>최저가 일정 찾기</b>를 누르면 출발 가능한 날짜를 전부 따져서 귀국까지 합친 총액이 가장 싼 일정 TOP 3를 추천해요.</p>
-      <div class="m2">
-        <div class="mfield"><label>출발 가능 시작일</label><input id="stopDate" type="date" onchange="renderStop()" /></div>
-        <div class="mfield"><label>출발일 범위</label><select id="stopRange" onchange="renderStop()"><option value="0">이 날짜만</option><option value="3">앞뒤 3일</option><option value="14">이후 2주</option><option value="30" selected>이후 한 달</option></select></div>
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">가는 길에 환승 도시에서 며칠 놀다 가는 코스예요. <b>꿀조합 휴가 기간</b>을 고르면 코스마다 체류일을 그 휴가에 맞추고, 귀국까지 합친 총액이 가장 싼 일정을 찾아요.</p>
+      <div class="mfield"><label>휴가 기간 (연차 꿀조합)</label><select id="stopVac" onchange="renderStop()"></select></div>
+      <div id="stopCustom" style="display:none">
+        <div class="m2">
+          <div class="mfield"><label>출발 가능 시작일</label><input id="stopDate" type="date" onchange="renderStop()" /></div>
+          <div class="mfield"><label>출발일 범위</label><select id="stopRange" onchange="renderStop()"><option value="0">이 날짜만</option><option value="3">앞뒤 3일</option><option value="14">이후 2주</option><option value="30" selected>이후 한 달</option></select></div>
+        </div>
+        <div class="mfield"><label>체류 늘리기 (더 쌀 때)</label><select id="stopExtra" onchange="renderStop()"><option value="0">계획대로</option><option value="1">도시마다 +1박까지</option><option value="2" selected>도시마다 +2박까지</option></select></div>
       </div>
       <div class="m2">
-        <div class="mfield"><label>체류 늘리기 (더 쌀 때)</label><select id="stopExtra" onchange="renderStop()"><option value="0">계획대로</option><option value="1">도시마다 +1박까지</option><option value="2" selected>도시마다 +2박까지</option></select></div>
+        <div class="mfield" id="stopFlexWrap"><label>더 싸면 앞뒤 연차 붙이기</label><select id="stopFlex" onchange="setVacFlex(this.value)"><option value="0">안 함</option><option value="1">최대 1일</option><option value="2">최대 2일</option><option value="3">최대 3일</option></select></div>
         <div class="mfield"><label>인원 (성인)</label><select id="stopPax" onchange="renderStop()"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option><option value="4">4명</option></select></div>
       </div>
+      <button class="stop-multi" style="border:0;width:100%;margin:0 0 12px" onclick="loadAllStops()">🔎 전체 코스 한 번에 찾기 (싼 순으로 정렬)</button>
       <div class="seg" id="stopSeg"></div>
       <div id="stopBody"></div>
     </div>
@@ -2217,15 +2222,16 @@ function useVac(s,e){
   $("#fareMonth").value=s.slice(0,7);$("#stopDate").value=s;$("#stopRange").value="0";
   const n=Math.round((new Date(e)-new Date(s))/86400000);const opt=[...$("#fareNights").options].find(o=>{const [a,b]=o.value.split('-').map(Number);return o.value&&n>=a&&n<=b;});if(opt)$("#fareNights").value=opt.value;
   $("#vacBox").open=false;
+  stopVacOptions(`${s}|${e}`);
   loadVacRec(s,e);
 }
 /* --- 꿀조합 휴가 기간에 맞춘 최저가 여행지 추천 --- */
 let VREC=null, VREC_SEQ=0, VAC_FLEX=2;
 try{const f=localStorage.getItem('wlog_vacflex');if(f!==null)VAC_FLEX=+f;}catch(e){}
 // 꿀조합 기간 밖으로 나간 날 중 근무일 수 = 더 써야 하는 연차
-function extraLeave(dep,back){if(!VREC||!dep||!back)return 0;let n=0;for(let d=dep.slice(0,10);d<=back.slice(0,10);d=addDays(d,1)){if((d<VREC.s||d>VREC.e)&&!vacOff(d))n++;}return n;}
+function extraLeave(dep,back,s,e){s=s||(VREC&&VREC.s);e=e||(VREC&&VREC.e);if(!s||!dep||!back)return 0;let n=0;for(let d=dep.slice(0,10);d<=back.slice(0,10);d=addDays(d,1)){if((d<s||d>e)&&!vacOff(d))n++;}return n;}
 function leaveTag(n){return n?` · <b style="color:var(--accent)">연차 +${n}일</b>`:' · 연차 추가 없음';}
-function setVacFlex(v){VAC_FLEX=+v;try{localStorage.setItem('wlog_vacflex',v);}catch(e){}if(VREC)loadVacRec(VREC.s,VREC.e);}
+function setVacFlex(v){VAC_FLEX=+v;try{localStorage.setItem('wlog_vacflex',v);}catch(e){}if(VREC)loadVacRec(VREC.s,VREC.e);if(TRIP_SUB==='stop')renderStop();}
 const PREF_REGIONS=["중앙아시아","코카서스·튀르키예","그리스·발칸","국가 내 일주","유럽"];
 const EE_COUNTRIES=["체코","헝가리","폴란드","크로아티아","그리스","알바니아","세르비아","몬테네그로","보스니아","북마케도니아","불가리아","루마니아","슬로베니아","슬로바키아","리투아니아","라트비아","에스토니아","오스트리아","튀르키예","조지아"];
 // 체류일 배분: 오가는 날 빼고 len-2박을 계획 비율대로(도시마다 최소 2박). 안 되면 null
@@ -2430,34 +2436,55 @@ function multiLink(segs,pax){
   let out='';segs.forEach((g,i)=>{const dm=g.date.slice(8,10)+g.date.slice(5,7);if(i>0&&segs[i-1].b===g.a)out+=dm+g.b;else out+=(i>0?'-':'')+g.a+dm+g.b;});
   return `https://www.aviasales.com/search/${out}${pax}`;
 }
+// 경유 여행 탭 '휴가 기간' 선택지: 앞으로 올 꿀조합 전부 + 직접 입력
+function stopVacOptions(sel){
+  const opts=[];for(let y=Math.max(2027,new Date().getFullYear());y<=2030;y++)vacDeals(y).forEach(g=>g.opts.forEach(o=>{if(o.s>todayStr()&&o.len>=5)opts.push({v:`${o.s}|${o.e}`,t:`${o.s.slice(0,4)} ${g.name} · ${o.leave?'연차 '+o.leave+'일':'연차 없이'} → ${o.len}일 (${mdw(o.s)}~${mdw(o.e)})`});}));
+  opts.sort((a,b)=>a.v<b.v?-1:1);
+  const cur=sel||$("#stopVac").value||(opts[0]&&opts[0].v)||'custom';
+  if(cur!=='custom'&&!opts.some(o=>o.v===cur)){const [cs,ce]=cur.split('|');opts.unshift({v:cur,t:`${mdw(cs)}~${mdw(ce)} 휴가`});}
+  $("#stopVac").innerHTML=opts.map(o=>`<option value="${o.v}"${o.v===cur?' selected':''}>${escapeHtml(o.t)}</option>`).join('')+`<option value="custom"${cur==='custom'?' selected':''}>직접 날짜 입력</option>`;
+}
 function openStop(){
+  if(!$("#stopVac").innerHTML)stopVacOptions();
   if(!$("#stopDate").value){const fm=$("#fareMonth").value;$("#stopDate").value=fm?fm+"-10":addDays(todayStr(),30);}
-  $("#stopPax").value=$("#farePax").value||"2";
+  $("#stopPax").value=$("#farePax").value||"2";$("#stopFlex").value=String(VAC_FLEX);
   const pri=["그리스·발칸","국가 내 일주","코카서스·튀르키예","중앙아시아"];const regs=["전체",...pri,...new Set(STOPOVERS.map(x=>x.r).filter(r=>!pri.includes(r)))];
   $("#stopSeg").innerHTML=regs.map(r=>`<button class="${r===STOP_REGION?'on':''}" onclick="STOP_REGION='${r}';openStop()">${r}</button>`).join("");
   renderStop();
 }
-function stopQuery(){const d=$("#stopDate").value,r=+$("#stopRange").value,ex=$("#stopExtra").value;if(!d)return null;const from=r===3?addDays(d,-3):d,to=r===3?addDays(d,3):addDays(d,r);return {from:from<todayStr()?todayStr():from,to,ex};}
-function rangeText(q){return q?(q.from===q.to?`${mdw(q.from)} 출발`:`${mdw(q.from)}~${mdw(q.to)} 출발`):'출발일 선택';}
+function stopQuery(){
+  const v=$("#stopVac").value;
+  if(v&&v!=='custom'){const [s,e]=v.split('|');return {mode:'vac',s,e,len:Math.round((new Date(e)-new Date(s))/86400000)+1,F:VAC_FLEX};}
+  const d=$("#stopDate").value,r=+$("#stopRange").value,ex=$("#stopExtra").value;if(!d)return null;const from=r===3?addDays(d,-3):d,to=r===3?addDays(d,3):addDays(d,r);return {mode:'date',from:from<todayStr()?todayStr():from,to,ex};
+}
+function stopKey(q,i){return q.mode==='vac'?`v|${q.s}|${q.e}|${q.F}|${i}`:`${q.from}|${q.to}|${q.ex}|${i}`;}
+// 휴가 기간에 맞춘 도시별 박수 (페리 구간 코스·너무 짧은 휴가는 null)
+function stopNights(x,q){return q&&q.mode==='vac'?(x.legs.includes('@')?null:splitNights(x.stops.map(s=>s[1]),q.len)):x.stops.map(s=>s[1]);}
+function rangeText(q){return !q?'출발일 선택':q.mode==='vac'?`${mdw(q.s)}~${mdw(q.e)}${q.F?` · 앞뒤 연차 ${q.F}일까지`:''}`:(q.from===q.to?`${mdw(q.from)} 출발`:`${mdw(q.from)}~${mdw(q.to)} 출발`);}
 function renderStop(){
-  const pax=+$("#stopPax").value||2, start=$("#stopDate").value, q=stopQuery();
-  const list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x));
+  const pax=+$("#stopPax").value||2, q=stopQuery(), vac=q&&q.mode==='vac';
+  $("#stopCustom").style.display=vac?'none':'block';$("#stopFlexWrap").style.visibility=vac?'visible':'hidden';
+  let short=0,hid=0;
+  let list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x));
+  list=list.filter(x=>{const ns=stopNights(x,q);if(!ns){short++;return false;}x.ns=ns;const P=q?STOP_PRICES[stopKey(q,x.i)]:null;if(P&&P.trips&&!P.trips.length){hid++;return false;}return true;});
+  // 가격 나온 코스는 싼 순으로 위에
+  const price=x=>{const P=q?STOP_PRICES[stopKey(q,x.i)]:null;return P&&P.trips&&P.trips[0]?P.trips[0].total:9e15;};
+  list.sort((a,b)=>price(a)-price(b));
   $("#stopBody").innerHTML=list.map(x=>{
-    const days=x.stops.reduce((a,s)=>a+s[1],0);
-    const chips=x.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}일</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>')+`<span style="border:0;background:none;padding:3px 0">→</span><span>🇰🇷 ${escapeHtml(AP_KO[x.legs.split(',').pop().split('@')[0].split('-')[1]]||'한국')} 귀국</span>`;
-    const dayWhy=`<div class="stop-days">${x.stops.map(s=>`<div>📍 <b>${escapeHtml(s[0])} ${s[1]}일</b> — ${escapeHtml(s[3]||'')}</div>`).join('')}</div>`;
-    const P=q?STOP_PRICES[`${q.from}|${q.to}|${q.ex}|${x.i}`]:null;
-    let body=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 최저가 일정 찾기 (${rangeText(q)} · ${q&&q.ex!=='0'?'체류 +'+q.ex+'박까지':'계획대로'} · 성인 ${pax}명)</button>`;
-    if(P==='loading')body=`<div class="stop-legs"><div class="wk-empty">출발 가능한 날짜를 전부 따져 보는 중… (10~20초)</div></div>`;
+    const xs=vac?{...x,stops:x.stops.map((st,j)=>[st[0],x.ns[j],st[2],st[3]])}:x;
+    const days=xs.stops.reduce((a,s)=>a+s[1],0);
+    const chips=xs.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}${vac?'박':'일'}</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>')+`<span style="border:0;background:none;padding:3px 0">→</span><span>🇰🇷 ${escapeHtml(AP_KO[x.legs.split(',').pop().split('@')[0].split('-')[1]]||'한국')} 귀국</span>`;
+    const dayWhy=`<div class="stop-days">${x.stops.map(s=>`<div>📍 <b>${escapeHtml(s[0])}</b> — ${escapeHtml(s[3]||'')}</div>`).join('')}</div>`;
+    const P=q?STOP_PRICES[stopKey(q,x.i)]:null;
+    let body=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 최저가 일정 찾기 (${rangeText(q)} · 성인 ${pax}명)</button>`;
+    if(P==='loading')body=`<div class="stop-legs"><div class="wk-empty">휴가 기간에 맞는 날짜를 따져 보는 중… (10~20초)</div></div>`;
     else if(P&&P.error)body=`<div class="stop-legs"><div class="wk-empty">${escapeHtml(P.error)}</div></div>`;
-    else if(P&&!P.trips.length)return ''; // 조합이 안 나오는 코스는 숨김
-    else if(P)body=P.trips.map((t,ti)=>tripHtml(x,t,ti,pax)).join('')+`<div class="stop-meta">출발 가능 ${P.checked}개 날짜를 비교했어요. 편도 최저가를 더한 추정치라 다구간 검색으로 실제 가격을 꼭 확인하세요.</div>`;
-    else if(q){const L=stopLegs(x,q.from);body=`<div class="stop-plan">📅 계획 예시: ${L.map(l=>`${mdw(l.date)} ${escapeHtml(l.a)}→${escapeHtml(l.b)}`).join(' · ')}</div>`+body;}
-    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${escapeHtml(x.why)}${dayWhy}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 현지 ${days}일 + 이동<br>💡 ${escapeHtml(x.tip)}</div>${body}</div>`;
-  }).join("")+(()=>{const hid=list.filter(x=>{const P=q?STOP_PRICES[`${q.from}|${q.to}|${q.ex}|${x.i}`]:null;return P&&P.trips&&!P.trips.length;}).length;return hid?`<div class="wk-empty" style="margin:4px 0 6px">이 날짜 범위에서 이어지는 항공편이 없는 코스 ${hid}개는 숨겼어요.</div>`:'';})()+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
+    else if(P)body=P.trips.map((t,ti)=>tripHtml(xs,t,ti,pax,vac?q:null)).join('')+`<div class="stop-meta">출발 가능 ${P.checked}개 날짜를 비교했어요. 편도 최저가를 더한 추정치라 다구간 검색으로 실제 가격을 꼭 확인하세요.</div>`;
+    return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${vac?`<div class="stop-plan" style="margin:0 0 6px">📅 ${q.len}일 휴가에 맞춘 일정: ${xs.stops.map(s=>escapeHtml(s[0])+' '+s[1]+'박').join(' + ')}</div>`:''}${escapeHtml(x.why)}${dayWhy}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 현지 ${days}${vac?'박':'일'} + 이동<br>💡 ${escapeHtml(x.tip)}</div>${body}</div>`;
+  }).join("")+(hid?`<div class="wk-empty" style="margin:4px 0 6px">이 기간에 이어지는 항공편이 없는 코스 ${hid}개는 숨겼어요.</div>`:'')+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 // 추천 일정 1개: 요약 · 실제 체류 · 구간 · 다구간 검색
-function tripHtml(x,t,ti,pax){
+function tripHtml(x,t,ti,pax,vq){
   const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
   const first=t.legs[0], last=t.legs[t.legs.length-1], endD=last.arrDate||last.departAt.slice(0,10);
   const nts=Math.round((new Date(endD)-new Date(first.departAt.slice(0,10)))/86400000);
@@ -2467,7 +2494,7 @@ function tripHtml(x,t,ti,pax){
     const inner=`<span>${j===t.legs.length-1?'🇰🇷':'✈️'} ${route} · ${mdw(l.departAt)} · ${l.transfers===0?'직항':'경유 '+l.transfers+'회'}${l.airline?' · '+escapeHtml(l.airline):''}${viaNote}</span><b>${won(l.price*pax)}</b>`;
     return l.link&&!l.via?`<a class="stop-leg" href="${escapeHtml(paxLink(l.link,pax))}" target="_blank" rel="noopener">${inner}</a>`:`<div class="stop-leg">${inner}</div>`;}).join('');
   return `<div class="stop-legs"${ti?' style="opacity:.92"':''}>
-    <div class="stop-sum" style="border:0;margin:0 0 4px;padding:0"><span>${['🥇','🥈','🥉'][ti]} ${mdw(first.departAt)} 출발 · ${nts}박${nts+1}일</span><span style="text-align:right">${won(t.total*pax)}${pax>1?`<span class="fr-pp">1인 ${won(t.total)}</span>`:''}</span></div>
+    <div class="stop-sum" style="border:0;margin:0 0 4px;padding:0"><span>${['🥇','🥈','🥉'][ti]} ${mdw(first.departAt)} 출발 · ${nts}박${nts+1}일${vq?`<span style="font-size:11px;font-weight:600">${leaveTag(extraLeave(first.departAt,endD,vq.s,vq.e))}</span>`:''}</span><span style="text-align:right">${won(t.total*pax)}${pax>1?`<span class="fr-pp">1인 ${won(t.total)}</span>`:''}</span></div>
     ${stays(x,t)}${rows}
     <a class="stop-multi" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener">🔎 이 날짜로 다구간 검색 (아비아세일즈)</a></div>`;
 }
@@ -2480,15 +2507,31 @@ function stays(x,P){
   if(last.arrDate)rows.push(`<div>🇰🇷 <b>${mdw(last.arrDate)} 한국 도착</b> <span style="color:var(--ink-faint)">(비행시간 기준 추정)</span></div>`);
   return rows.length?`<div class="stop-days" style="margin:2px 0 4px">${rows.join('')}</div>`:'';
 }
-async function loadStop(i){
-  const q=stopQuery();if(!q){toast("출발 가능 시작일을 먼저 골라주세요");return;}
-  const k=`${q.from}|${q.to}|${q.ex}|${i}`, L=stopLegs(STOPOVERS[i],q.from), legs=L.map(l=>`${l.a}-${l.b}@${l.date}`).join(",");
-  STOP_PRICES[k]='loading';renderStop();
-  try{
-    const r=await fetch(`/api/flights?legs=${encodeURIComponent(legs)}&from=${q.from}&to=${q.to}&extra=${q.ex}&hub=${L[0].b}&hubs=${BACK_HUBS[STOPOVERS[i].r]||''}`);const d=await r.json();
-    STOP_PRICES[k]=(!r.ok||d.error)?{error:d.error||"조회 실패"}:d;
-  }catch(e){STOP_PRICES[k]={error:"조회 실패: "+e.message};}
+async function loadStop(i,noRender){
+  const q=stopQuery();if(!q){toast("휴가 기간이나 출발일을 먼저 골라주세요");return;}
+  const x=STOPOVERS[i], k=stopKey(q,i);let url;
+  if(q.mode==='vac'){
+    const ns=stopNights(x,q);if(!ns)return;
+    const {legs,extra}=vacLegs(x.legs.split(',').map(l=>l.split('-')),ns,q.s);
+    const from=addDays(q.s,-q.F)<addDays(todayStr(),1)?addDays(todayStr(),1):addDays(q.s,-q.F);
+    url=`/api/flights?legs=${encodeURIComponent(legs)}&from=${from}&to=${addDays(q.s,1)}&extra=${Math.min(3,extra+q.F)}&end=${addDays(q.e,q.F)}`;
+  }else{
+    const L=stopLegs(x,q.from);url=`/api/flights?legs=${encodeURIComponent(L.map(l=>`${l.a}-${l.b}@${l.date}`).join(","))}&from=${q.from}&to=${q.to}&extra=${q.ex}`;
+  }
+  url+=`&hub=${x.legs.split(',')[0].split('-')[1].split('@')[0]}&hubs=${BACK_HUBS[x.r]||''}`;
+  STOP_PRICES[k]='loading';if(!noRender)renderStop();
+  try{const r=await fetch(url);const d=await r.json();STOP_PRICES[k]=(!r.ok||d.error)?{error:d.error||"조회 실패"}:d;}
+  catch(e){STOP_PRICES[k]={error:"조회 실패: "+e.message};}
   if(TRIP_SUB==='stop')renderStop();
+}
+// 보이는 코스 전부 조회 (동시에 3개씩) → 끝나는 대로 싼 순 정렬
+async function loadAllStops(){
+  const q=stopQuery();if(!q){toast("휴가 기간이나 출발일을 먼저 골라주세요");return;}
+  const todo=STOPOVERS.map((x,i)=>({x,i})).filter(({x,i})=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x)&&stopNights(x,q)&&!STOP_PRICES[stopKey(q,i)]);
+  if(!todo.length){toast("이미 다 찾았어요");return;}
+  todo.forEach(({i})=>STOP_PRICES[stopKey(q,i)]='loading');renderStop();toast(`${todo.length}개 코스 찾는 중…`);
+  let k=0;const worker=async()=>{while(k<todo.length){const {i}=todo[k++];delete STOP_PRICES[stopKey(q,i)];await loadStop(i,true);}};
+  await Promise.all([worker(),worker(),worker()]);
 }
 /* ===== 분석 ===== */
 let STAT_DATA=[], CUR_VIEW="overview";
