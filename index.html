@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-14a  ·  feat: 다녀온 나라 제외(우즈벡·카자흐) + 조지아·아르메니아 코스 위주
+     build: 2026-10-14b  ·  feat: 경유 최대 2회 + 그리스·발칸 코스 우선
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2175,7 +2175,7 @@ let VAC_YEAR=null;
 // 다녀온 나라: 추천·경유 여행·항공권 목록에서 뺌 (기기에 저장)
 let VISITED=["우즈베키스탄","카자흐스탄","키르기스스탄"];
 try{const v=JSON.parse(localStorage.getItem('wlog_visited')||'null');if(Array.isArray(v))VISITED=v;}catch(e){}
-const AP_COUNTRY={TAS:"우즈베키스탄",SKD:"우즈베키스탄",BHK:"우즈베키스탄",ALA:"카자흐스탄",NQZ:"카자흐스탄",TSE:"카자흐스탄",FRU:"키르기스스탄",TBS:"조지아",BUS:"조지아",KUT:"조지아",EVN:"아르메니아",GYD:"아제르바이잔",IST:"튀르키예",NAV:"튀르키예",IZM:"튀르키예",AYT:"튀르키예",ATH:"그리스",JTR:"그리스",HER:"그리스",SKG:"그리스",TIA:"알바니아",TGD:"몬테네그로",DBV:"크로아티아",ZAG:"크로아티아",SPU:"크로아티아",SJJ:"보스니아",BEG:"세르비아",SOF:"불가리아",WAW:"폴란드",KRK:"폴란드",BUD:"헝가리",PRG:"체코",HEL:"핀란드",RIX:"라트비아",TLL:"에스토니아",FRA:"독일",BJS:"중국",XIY:"중국",CTU:"중국",CKG:"중국",DYG:"중국",SHA:"중국"};
+const AP_COUNTRY={TAS:"우즈베키스탄",SKD:"우즈베키스탄",BHK:"우즈베키스탄",ALA:"카자흐스탄",NQZ:"카자흐스탄",TSE:"카자흐스탄",FRU:"키르기스스탄",TBS:"조지아",BUS:"조지아",KUT:"조지아",EVN:"아르메니아",GYD:"아제르바이잔",IST:"튀르키예",NAV:"튀르키예",IZM:"튀르키예",AYT:"튀르키예",ATH:"그리스",JTR:"그리스",HER:"그리스",SKG:"그리스",TIA:"알바니아",SKP:"북마케도니아",OHD:"북마케도니아",TGD:"몬테네그로",DBV:"크로아티아",ZAG:"크로아티아",SPU:"크로아티아",SJJ:"보스니아",BEG:"세르비아",SOF:"불가리아",WAW:"폴란드",KRK:"폴란드",BUD:"헝가리",PRG:"체코",HEL:"핀란드",RIX:"라트비아",TLL:"에스토니아",FRA:"독일",BJS:"중국",XIY:"중국",CTU:"중국",CKG:"중국",DYG:"중국",SHA:"중국"};
 function isVisited(text){return VISITED.some(c=>(text||'').includes(c));}
 function courseVisited(x){return isVisited(x.t+' '+x.stops.map(s=>s[0]).join(' '))||x.legs.split(',').some(l=>l.split('@')[0].split('-').some(c=>VISITED.includes(AP_COUNTRY[c])));}
 function saveVisited(){try{localStorage.setItem('wlog_visited',JSON.stringify(VISITED));}catch(e){}renderVisited();FARE_CACHE={};if(VREC)loadVacRec(VREC.s,VREC.e);if(TRIP_SUB==='stop')renderStop();}
@@ -2221,7 +2221,7 @@ function useVac(s,e){
 }
 /* --- 꿀조합 휴가 기간에 맞춘 최저가 여행지 추천 --- */
 let VREC=null, VREC_SEQ=0;
-const PREF_REGIONS=["중앙아시아","코카서스·튀르키예","동유럽·발칸","국가 내 일주","유럽"];
+const PREF_REGIONS=["중앙아시아","코카서스·튀르키예","그리스·발칸","국가 내 일주","유럽"];
 const EE_COUNTRIES=["체코","헝가리","폴란드","크로아티아","그리스","알바니아","세르비아","몬테네그로","보스니아","북마케도니아","불가리아","루마니아","슬로베니아","슬로바키아","리투아니아","라트비아","에스토니아","오스트리아","튀르키예","조지아"];
 // 체류일 배분: 오가는 날 빼고 len-2박을 계획 비율대로(도시마다 최소 2박). 안 되면 null
 function splitNights(plan,len){
@@ -2232,12 +2232,12 @@ function splitNights(plan,len){
   return d;
 }
 // 귀국편 대체 경로에 쓸 지역별 환승지 (그 지역에서 실제로 한국행이 많은 곳만)
-const BACK_HUBS={"동유럽·발칸":"IST,FRA,HEL,WAW,VIE","유럽":"IST,FRA,HEL,PAR","코카서스·튀르키예":"IST,DXB,DOH","중앙아시아":"IST,ALA,TAS","국가 내 일주":"IST,BJS,SHA,ATH","중동·아프리카":"DXB,DOH,AUH,IST","아시아":"BKK,SIN,KUL,HKG","미주·태평양":"TYO,LAX,SFO,HNL"};
+const BACK_HUBS={"그리스·발칸":"IST,FRA,HEL,WAW,VIE","유럽":"IST,FRA,HEL,PAR","코카서스·튀르키예":"IST,DXB,DOH","중앙아시아":"IST,ALA,TAS","국가 내 일주":"IST,BJS,SHA,ATH","중동·아프리카":"DXB,DOH,AUH,IST","아시아":"BKK,SIN,KUL,HKG","미주·태평양":"TYO,LAX,SFO,HNL"};
 function fitStops(x,len){
   if(x.legs.includes('@'))return null; // 페리 구간 코스는 제외
   if((x.hopH||9)>3)return null; // 나라 간 이동은 비행 3시간 이내만
   if(!PREF_REGIONS.includes(x.r)||courseVisited(x))return null; // 휴가 추천은 선호 지역만(동남아·리조트·다녀온 나라 제외)
-  if(len<({"중앙아시아":5,"국가 내 일주":5,"코카서스·튀르키예":6,"동유럽·발칸":7,"유럽":7}[x.r]||7))return null; // 멀수록 최소 휴가일수
+  if(len<({"중앙아시아":5,"국가 내 일주":5,"코카서스·튀르키예":6,"그리스·발칸":6,"유럽":7}[x.r]||7))return null; // 멀수록 최소 휴가일수
   return splitNights(x.stops.map(s=>s[1]),len);
 }
 // 구간 문자열: 체류일에서 여유(slack)를 빼고, 그만큼 서버가 늘려 가며(extra) 휴가 안에 맞는 최저가를 찾게
@@ -2261,7 +2261,7 @@ async function loadVacRec(s,e){
     VREC.rt=d;
     // 준비된 경유·일주 코스(나라 간 비행 3시간 이내)를 휴가 길이에 맞춰
     if(len>=5)STOPOVERS.forEach(x=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
-      add({key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,region:x.r,ee:x.r==="동유럽·발칸"});});
+      add({key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,region:x.r,ee:x.r==="그리스·발칸"});});
     renderVacRec();runQueue();
   }).catch(err=>{if(seq!==VREC_SEQ)return;VREC.err='조회 실패: '+err.message;renderVacRec();});
   renderVacRec();
@@ -2276,7 +2276,7 @@ function renderVacRec(){
     return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${names.map((n,k)=>escapeHtml(n)+' '+(real[k]??nights[k])+'박').join(' + ')}</b>${region?` <span style="color:var(--ink-faint);font-size:11px">${escapeHtml(region)}</span>`:''}<br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}${live?`<br><span style="color:var(--ink-faint)">💡 ${escapeHtml(live)}</span>`:''}</span><span class="p">${tot(t.total)}${pp(t.total)}</span></a>`;};
   let h=`<div class="vrec"><div style="display:flex;justify-content:space-between;gap:8px"><h3>🏝️ ${mdw(V.s)}~${mdw(V.e)} · ${V.len}일 휴가 추천</h3><button onclick="VREC=null;VREC_SEQ++;renderVacRec()" style="color:var(--ink-faint);font-size:12px">닫기 ✕</button></div>
     <div class="wk-empty">휴가 첫날 출발 → 마지막 날까지 한국 도착 · 성인 ${pax}명 총액 · ${V.len>=5?'5일 이상은 여러 나라·도시 코스로만 · 나라 간 이동은 비행 3시간 이내':'왕복 직항·경유 포함'}</div>
-    ${V.s>addDays(todayStr(),240)?`<div class="stop-plan" style="margin-top:8px">ℹ️ 출발이 ${Math.round((new Date(V.s)-new Date(todayStr()))/2592000000)}개월 넘게 남은 날짜예요. 항공권은 보통 출발 약 11개월 전부터 팔리고, 여기 가격은 실제로 누가 검색한 표만 잡혀서 아직 비어 있을 수 있어요. 출발이 가까워질수록 채워져요.</div>`:''}`;
+    ${V.s>addDays(todayStr(),240)?`<div class="stop-plan" style="margin-top:8px">ℹ️ 출발이 ${Math.floor((new Date(V.s)-new Date(todayStr()))/2592000000)}개월 넘게 남은 날짜예요. 항공권은 보통 출발 약 11개월 전부터 팔리고, 여기 가격은 실제로 누가 검색한 표만 잡혀서 아직 비어 있을 수 있어요. 출발이 가까워질수록 채워져요.</div>`:''}`;
   const busy=V.stopDone<V.stopTotal?` <span style="color:var(--ink-faint);font-weight:600">· ${V.stopDone}/${V.stopTotal} 확인 중…</span>`:'';
   if(V.err)h+=`<div class="wk-empty" style="margin-top:8px">${escapeHtml(V.err)}</div>`;
   else if(!V.rt)h+=`<div class="spin" style="margin:16px auto"></div><div class="wk-empty" style="text-align:center">휴가 기간에 맞는 최저가 찾는 중… (10~20초)</div>`;
@@ -2285,11 +2285,12 @@ function renderVacRec(){
     h+=`<h4>✈️ 왕복 최저가 TOP ${Math.min(8,rt.length)}</h4>`+(rt.slice(0,8).map(rtRow).join('')||'<div class="wk-empty">이 기간에 맞는 왕복 가격 데이터가 없어요.</div>');
   }else{
     // 5일 이상: 여러 나라·도시 코스만 (중앙아시아·코카서스·튀르키예·동유럽·그리스·국가 내 일주)
-    const all=V.stops.slice().sort((a,b)=>a.t.total-b.t.total), cau=all.filter(x=>x.region==="코카서스·튀르키예"), st=all.filter(x=>x.region!=="코카서스·튀르키예");
-    h+=`<h4>🍷 조지아·아르메니아·코카서스 (싼 순)${busy}</h4>`+(cau.slice(0,5).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코카서스 코스 가격이 아직 없어요.</div>'));
-    h+=`<h4>🧭 그 밖의 경유·일주 코스</h4>`+(st.slice(0,4).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코스 가격이 아직 없어요.</div>'));
-    const regs=[...new Set(st.slice(4).map(x=>x.region))];
-    regs.forEach(r=>{const more=st.slice(4).filter(x=>x.region===r).slice(0,3);if(more.length)h+=`<h4>${({"중앙아시아":"🏔️","코카서스·튀르키예":"🍷","동유럽·발칸":"🇪🇺","국가 내 일주":"🗺️"}[r]||'🧭')} ${escapeHtml(r)} 더 보기</h4>`+more.map(stRow).join('');});
+    const all=V.stops.slice().sort((a,b)=>a.t.total-b.t.total), gb=all.filter(x=>x.region==="그리스·발칸"), cau=all.filter(x=>x.region==="코카서스·튀르키예"), st=all.filter(x=>x.region!=="그리스·발칸"&&x.region!=="코카서스·튀르키예");
+    h+=`<h4>🇬🇷 그리스·발칸 (싼 순)${busy}</h4>`+(gb.slice(0,6).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 그리스·발칸 코스 가격이 아직 없어요.</div>'));
+    h+=`<h4>🧭 그 밖의 경유·일주 코스</h4>`+(st.slice(0,3).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코스 가격이 아직 없어요.</div>'));
+    if(cau.length)h+=`<h4>🍷 조지아·아르메니아·코카서스</h4>`+cau.slice(0,3).map(stRow).join('');
+    const regs=[...new Set(st.slice(3).map(x=>x.region))];
+    regs.forEach(r=>{const more=st.slice(3).filter(x=>x.region===r).slice(0,3);if(more.length)h+=`<h4>${({"중앙아시아":"🏔️","코카서스·튀르키예":"🍷","그리스·발칸":"🇬🇷","국가 내 일주":"🗺️"}[r]||'🧭')} ${escapeHtml(r)} 더 보기</h4>`+more.map(stRow).join('');});
   }
   if(V.rt){const oj=V.rt.openjaw.slice(0,6);
     h+=`<h4>🚆 육로·국내 이동 (들어가는 도시 ≠ 나오는 도시)</h4>`+(oj.map(x=>`<a class="vr" href="${escapeHtml(multiLink([{a:'ICN',b:x.inCode,date:x.go.departAt.slice(0,10)},{a:x.outCode,b:'ICN',date:x.back.departAt.slice(0,10)}],pax))}" target="_blank" rel="noopener"><span><b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>인천→${escapeHtml(x.inCode)} ${mdw(x.go.departAt)} · 현지 ${escapeHtml(x.move)} · ${escapeHtml(x.outCode)}→인천 ${mdw(x.back.departAt)}</span><span class="p">${tot(x.price)}${pp(x.price)}<span class="fr-pp">항공만</span></span></a>`).join('')||`<div class="wk-empty">${V.len<4?'휴가가 짧아 이동 코스는 빼고 찾았어요.':'이 기간에 맞는 조합 가격 데이터가 없어요.'}</div>`);}
@@ -2358,6 +2359,13 @@ function renderFare(d){
 /* --- 경유 여행 추천 (스톱오버 코스) --- */
 // stops: [도시, 일수, 허브여부, 그 일수인 이유] / hopH: 나라 간 이동 최대 비행시간(h) — 휴가 추천은 3시간 이내만 / legs: 가격 조회 구간(편도). 구간 출발일은 앞 도시 일수를 누적(@n 이면 출발일+n일로 직접 지정)
 const STOPOVERS=[
+  {t:"테살로니키 → 오흐리드 → 티라나 (육로)",r:"그리스·발칸",stops:[["테살로니키 → 오흐리드 → 티라나·베라트",7,0,"테살로니키 2일(화이트타워·해변) → 버스 → 오흐리드 호수(북마케도니아) 2일 → 버스 → 티라나·베라트(알바니아) 3일"]],legs:"ICN-SKG,TIA-ICN",hopH:0,air:"경유편",why:"그리스로 들어가 발칸 호수 마을 거쳐 알바니아로 나오는 3국 육로 코스. 갈수록 물가가 내려가요.",tip:"오흐리드는 유네스코 호수 마을. 국경 버스는 하루 1~2편이라 미리 확인."},
+  {t:"이스탄불 2일 + 테살로니키·할키디키 4일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["테살로니키·할키디키",4,0,"테살로니키 2일 + 할키디키 해변 2일"]],legs:"ICN-IST,IST-SKG,SKG-ICN",hopH:1.3,air:"터키항공(TK)",why:"아테네보다 덜 붐비고 저렴한 그리스 북부. 해변·먹거리 최고.",tip:"할키디키는 렌터카·버스 1시간 30분."},
+  {t:"아테네 2일 + 크레타 4일",r:"그리스·발칸",stops:[["아테네",2,1,"아크로폴리스·플라카 1일 + 수니온 곶 1일"],["크레타",4,0,"하니아 구시가지 1일, 엘라포니시·발로스 해변 2일, 크노소스 궁전 1일"]],legs:"ICN-ATH,ATH-HER,HER-ICN",hopH:1,air:"경유편 + 국내선 50분",why:"그리스에서 가장 큰 섬. 산토리니보다 넓고 저렴, 해변·음식 최고.",tip:"크레타는 렌터카 추천. 하니아 공항(CHQ)으로 나와도 돼요."},
+  {t:"이스탄불 2일 + 두브로브니크·스플리트 5일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["두브로브니크 → 스플리트",5,0,"두브로브니크 성벽·구시가지 2일 → 해안 버스 4시간 → 스플리트·흐바르섬 3일"]],legs:"ICN-IST,IST-DBV,SPU-ICN",hopH:2,air:"터키항공(TK)",why:"아드리아해 대표 두 도시를 해안도로로.",tip:"6~9월 성수기엔 숙소를 일찍."},
+  {t:"베오그라드 → 사라예보 → 두브로브니크 (육로)",r:"그리스·발칸",stops:[["베오그라드 → 사라예보·모스타르 → 두브로브니크",8,0,"베오그라드 2일 → 버스 → 사라예보 2일 → 모스타르 1일 → 버스 → 두브로브니크 3일"]],legs:"ICN-BEG,DBV-ICN",hopH:0,air:"경유편",why:"세르비아·보스니아·크로아티아 3국. 앞의 두 나라는 물가가 매우 저렴.",tip:"사라예보↔모스타르는 기차가 풍경 최고."},
+  {t:"두브로브니크 → 코토르 → 티라나 (육로)",r:"그리스·발칸",stops:[["두브로브니크 → 코토르·부드바 → 티라나",7,0,"두브로브니크 2일 → 버스 2시간 → 코토르·부드바(몬테네그로) 2일 → 버스 4시간 → 티라나·베라트 3일"]],legs:"ICN-DBV,TIA-ICN",hopH:0,air:"경유편",why:"아드리아해 해안을 따라 남하하며 물가가 점점 착해지는 코스.",tip:"두브로브니크 들어가는 표는 이스탄불·프랑크푸르트 경유가 많아요."},
+  {t:"소피아 → 테살로니키 → 아테네 (육로)",r:"그리스·발칸",stops:[["소피아 → 테살로니키 → 메테오라 → 아테네",8,0,"소피아·릴라 수도원 2일 → 버스 4시간 → 테살로니키 2일 → 메테오라 1일 → 기차 → 아테네 3일"]],legs:"ICN-SOF,ATH-ICN",hopH:0,air:"경유편",why:"불가리아에서 그리스까지 남하. 메테오라 절벽 수도원이 하이라이트.",tip:"메테오라는 칼람바카 1박 추천."},
   {t:"조지아 일주: 트빌리시 → 카즈베기 → 바투미",r:"코카서스·튀르키예",stops:[["트빌리시 → 카즈베기 → 쿠타이시 → 바투미",8,0,"트빌리시 2일(구시가지·유황온천) → 카즈베기 1박(게르게티 성당) → 시그나기 와인 1일 → 쿠타이시 1일 → 기차 → 바투미 흑해 2일"]],legs:"ICN-TBS,BUS-ICN",hopH:0,air:"경유편(이스탄불·두바이·도하 등)",why:"조지아 하나만 제대로: 산·와인·흑해까지. 물가 저렴하고 한국인 무비자 1년.",tip:"트빌리시↔바투미 기차 5시간(2층 열차). 카즈베기는 마슈룻카·투어로."},
   {t:"예레반 3일 → 트빌리시 4일 (육로)",r:"코카서스·튀르키예",stops:[["예레반 → 트빌리시",7,0,"예레반 2일(캐스케이드·아라라트 전망) → 가르니·게하르트·세반 호수 1일 → 국경 버스 5~6시간 → 트빌리시 2일 → 카즈베기 1박"]],legs:"ICN-EVN,TBS-ICN",hopH:0,air:"경유편",why:"아르메니아로 들어가 조지아로 나오는 정석 코카서스 2국 코스.",tip:"두 나라 모두 한국인 무비자. 예레반↔트빌리시 미니버스·야간열차."},
   {t:"트빌리시·예레반 6일 + 이스탄불 2일",r:"코카서스·튀르키예",stops:[["트빌리시 → 예레반",6,0,"트빌리시 2일 → 카즈베기 1박 → 국경 버스 → 예레반·세반 호수 2일"],["이스탄불",2,0,"귀국길 구시가지 1일 + 보스포루스 1일"]],legs:"ICN-TBS,EVN-IST,IST-ICN",hopH:2.5,air:"경유편 + 터키항공(TK) 귀국",why:"코카서스 2국 + 귀국길 이스탄불. 이스탄불-인천 직항으로 편하게 귀국.",tip:"예레반→이스탄불 2시간 30분."},
@@ -2372,17 +2380,17 @@ const STOPOVERS=[
   {t:"튀르키예 일주: 이스탄불 3일 + 카파도키아·파묵칼레·에페소 5일",r:"국가 내 일주",stops:[["이스탄불",3,1,"구시가지 1일, 보스포루스 크루즈 1일, 카디쾨이 1일"],["카파도키아 → 파묵칼레 → 에페소",5,0,"카파도키아 2일(열기구) → 야간버스 → 파묵칼레 1일 → 에페소·이즈미르 2일"]],legs:"ICN-IST,IST-NAV,IZM-ICN",hopH:1.5,air:"터키항공(TK)·페가수스",why:"튀르키예 핵심을 한 번에. 국내선 + 야간버스로 이동.",tip:"이즈미르에서 인천은 이스탄불 경유."},
   {t:"중국 일주: 베이징 3일 + 시안 2일 + 청두 2일",r:"국가 내 일주",stops:[["베이징",3,1,"자금성·천안문 1일, 만리장성 1일, 798·후퉁 1일"],["시안",2,0,"병마용 1일 + 성벽 자전거·회족거리 1일"],["청두",2,0,"판다기지 1일 + 관우·훠궈 1일"]],legs:"ICN-BJS,BJS-XIY,XIY-CTU,CTU-ICN",hopH:2.5,air:"중국국제항공(CA)·국내선",why:"수도·고도·판다를 국내선(또는 고속철)으로.",tip:"중국 무비자 입국 가능(기간은 출발 전 확인). 시안↔청두는 고속철 3시간 30분도 좋아요."},
   {t:"중국: 충칭 2일 + 장자제 3일",r:"국가 내 일주",stops:[["충칭",2,1,"훙야둥 야경·훠궈 1일 + 우룽 카르스트 당일 1일"],["장자제",3,0,"천문산 1일, 국가삼림공원(아바타산) 2일"]],legs:"ICN-CKG,CKG-DYG,DYG-ICN",hopH:1.5,air:"국내선 + 장자제-인천 직항",why:"중국 대자연 두 곳. 장자제는 인천 직항이 있어 귀국이 편해요.",tip:"장자제 공원은 이틀권 추천."},
-  {t:"그리스 일주: 아테네 2일 + 산토리니·크레타 5일",r:"국가 내 일주",stops:[["아테네",2,1,"아크로폴리스·플라카 1일 + 수니온 곶 1일"],["산토리니 → 크레타",5,0,"산토리니 2일 → 페리 2시간 → 크레타 3일"]],legs:"ICN-ATH,ATH-JTR,HER-ICN",hopH:1,air:"경유편 + 국내선",why:"섬 두 곳을 페리로. 크레타는 산토리니보다 저렴.",tip:"섬 페리는 성수기(6~9월) 예약 필수."},
-  {t:"아테네 2일 + 알바니아·몬테네그로 5일",r:"동유럽·발칸",stops:[["아테네",2,1,"아크로폴리스 1일 + 플라카·리카비토스 1일"],["알바니아 → 몬테네그로",5,0,"티라나 1일 → 베라트 1일 → 버스 → 코토르 2일 → 포드고리차 1일"]],legs:"ICN-ATH,ATH-TIA,TGD-ICN",hopH:1,air:"경유편 + 단거리",why:"그리스에서 1시간이면 발칸. 물가는 그리스의 절반.",tip:"티라나→코토르는 버스 5~6시간."},
-  {t:"이스탄불 2일 + 그리스 4일",r:"동유럽·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스·갈라타 1일"],["아테네·산토리니",4,0,"아테네 아크로폴리스 1일 + 산토리니(국내선 45분) 3일"]],legs:"ICN-IST,IST-ATH,ATH-ICN",hopH:1.5,air:"터키항공(TK)",why:"서유럽보다 물가 착한 그리스를 이스탄불에서 1시간 30분.",tip:"산토리니는 4~10월이 제철 — 겨울엔 아테네·메테오라 위주로."},
-  {t:"이스탄불 2일 + 몬테네그로·두브로브니크 5일",r:"동유럽·발칸",stops:[["이스탄불",2,1,"핵심만 2일"],["코토르 → 두브로브니크",5,0,"포드고리차 도착 → 코토르만 2일 → 버스 2시간 → 두브로브니크 성벽·구시가지 3일"]],legs:"ICN-IST,IST-TGD,DBV-ICN",hopH:2,air:"터키항공(TK)",why:"아드리아해 절경 두 곳을 버스로 잇는 발칸 코스. 몬테네그로는 크로아티아보다 훨씬 저렴.",tip:"들어가는 공항(포드고리차)과 나오는 공항(두브로브니크)이 달라요 — 다구간으로 발권."},
-  {t:"이스탄불 2일 + 보스니아 3일",r:"동유럽·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["사라예보·모스타르",3,0,"사라예보 구시가지 1일 + 모스타르 다리 당일치기 1일 + 여유 1일"]],legs:"ICN-IST,IST-SJJ,SJJ-ICN",hopH:2,air:"터키항공(TK)",why:"유럽 최저 물가권. 오스만과 유럽이 섞인 독특한 분위기.",tip:"사라예보↔모스타르는 기차 2시간(풍경 최고)."},
-  {t:"이스탄불 2일 + 세르비아 3일",r:"동유럽·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["베오그라드·노비사드",3,0,"베오그라드 요새·강변 1일, 노비사드 당일치기 1일, 나이트라이프 1일"]],legs:"ICN-IST,IST-BEG,BEG-ICN",hopH:1.5,air:"터키항공(TK)·에어세르비아",why:"물가 싸고 먹거리 푸짐한 발칸의 중심.",tip:"세르비아는 무비자 90일."},
-  {t:"이스탄불 2일 + 불가리아 3일",r:"동유럽·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["소피아·릴라",3,0,"소피아 시내 1일 + 릴라 수도원 당일치기 1일 + 플로브디프 1일"]],legs:"ICN-IST,IST-SOF,SOF-ICN",hopH:1.3,air:"터키항공(TK)",why:"EU 안에서 가장 저렴한 나라 중 하나. 이스탄불에서 1시간 20분.",tip:"요구르트·장미 제품이 유명."},
-  {t:"바르샤바 2일 + 부다페스트 4일",r:"동유럽·발칸",stops:[["바르샤바",2,1,"구시가지(재건된 세계유산) 1일 + 쇼팽·와지엔키 1일"],["부다페스트",4,0,"국회의사당·어부의요새 1일, 온천 1일, 야경 크루즈 1일, 센텐드레 1일"]],legs:"ICN-WAW,WAW-BUD,BUD-ICN",hopH:1.5,air:"LOT 폴란드항공(LO)",why:"인천-바르샤바 직항 + 1시간 30분. 동유럽 대표 두 도시를 물가 걱정 없이.",tip:"LOT은 바르샤바 환승 체류를 다구간으로 넣기 쉬워요."},
-  {t:"헬싱키 2일 + 발트 3국 5일",r:"동유럽·발칸",stops:[["헬싱키",2,1,"시내 1일 + 수오멘린나·사우나 1일"],["리가 → 탈린",5,0,"리가 아르누보 거리 2일 → 버스 4시간 → 탈린 중세 구시가지 3일"]],legs:"ICN-HEL,HEL-RIX,TLL-ICN",hopH:1,air:"핀에어(AY)",why:"북유럽 감성인데 물가는 동유럽. 겨울엔 크리스마스 마켓.",tip:"리가로 들어가서 탈린에서 나와요 — 탈린→헬싱키는 페리 2시간으로 이어도 돼요."},
-  {t:"프랑크푸르트 2일 + 크로아티아 6일",r:"동유럽·발칸",stops:[["프랑크푸르트",2,1,"뢰머 광장·마인강 1일 + 하이델베르크 당일치기 1일"],["자그레브 → 두브로브니크",6,0,"자그레브 1일 → 플리트비체 1일 → 스플리트 2일 → 두브로브니크 2일 (버스)"]],legs:"ICN-FRA,FRA-ZAG,DBV-ICN",hopH:1.5,air:"루프트한자(LH)·대한항공",why:"플리트비체 호수 + 아드리아해 해안도로. 직항 많은 프랑크푸르트로 들어가요.",tip:"크로아티아 해안 버스는 성수기 예약 필수."},
-  {t:"이스탄불 3일 + 알바니아 4일",r:"동유럽·발칸",stops:[["이스탄불",3,1,"구시가지(아야소피아·블루모스크·톱카프) 1일, 그랜드바자르·보스포루스 크루즈 1일, 아시아 쪽 카디쾨이 1일"],["알바니아",4,0,"티라나 1일, 베라트(천 개의 창) 1일, 남부 해변 사란다·크사밀 2일"]],legs:"ICN-IST,IST-TIA,TIA-ICN",hopH:2,air:"터키항공(TK)",why:"유럽 최저가권 알바니아를 이스탄불 경유로. 지중해 물가 중 가장 저렴한 편이에요.",tip:"터키항공 환승객 무료 시내투어(Touristanbul)도 있어요 — 환승 시간·조건 확인."},
+  {t:"그리스 일주: 아테네 2일 + 산토리니·크레타 5일",r:"그리스·발칸",stops:[["아테네",2,1,"아크로폴리스·플라카 1일 + 수니온 곶 1일"],["산토리니 → 크레타",5,0,"산토리니 2일 → 페리 2시간 → 크레타 3일"]],legs:"ICN-ATH,ATH-JTR,HER-ICN",hopH:1,air:"경유편 + 국내선",why:"섬 두 곳을 페리로. 크레타는 산토리니보다 저렴.",tip:"섬 페리는 성수기(6~9월) 예약 필수."},
+  {t:"아테네 2일 + 알바니아·몬테네그로 5일",r:"그리스·발칸",stops:[["아테네",2,1,"아크로폴리스 1일 + 플라카·리카비토스 1일"],["알바니아 → 몬테네그로",5,0,"티라나 1일 → 베라트 1일 → 버스 → 코토르 2일 → 포드고리차 1일"]],legs:"ICN-ATH,ATH-TIA,TGD-ICN",hopH:1,air:"경유편 + 단거리",why:"그리스에서 1시간이면 발칸. 물가는 그리스의 절반.",tip:"티라나→코토르는 버스 5~6시간."},
+  {t:"이스탄불 2일 + 그리스 4일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스·갈라타 1일"],["아테네·산토리니",4,0,"아테네 아크로폴리스 1일 + 산토리니(국내선 45분) 3일"]],legs:"ICN-IST,IST-ATH,ATH-ICN",hopH:1.5,air:"터키항공(TK)",why:"서유럽보다 물가 착한 그리스를 이스탄불에서 1시간 30분.",tip:"산토리니는 4~10월이 제철 — 겨울엔 아테네·메테오라 위주로."},
+  {t:"이스탄불 2일 + 몬테네그로·두브로브니크 5일",r:"그리스·발칸",stops:[["이스탄불",2,1,"핵심만 2일"],["코토르 → 두브로브니크",5,0,"포드고리차 도착 → 코토르만 2일 → 버스 2시간 → 두브로브니크 성벽·구시가지 3일"]],legs:"ICN-IST,IST-TGD,DBV-ICN",hopH:2,air:"터키항공(TK)",why:"아드리아해 절경 두 곳을 버스로 잇는 발칸 코스. 몬테네그로는 크로아티아보다 훨씬 저렴.",tip:"들어가는 공항(포드고리차)과 나오는 공항(두브로브니크)이 달라요 — 다구간으로 발권."},
+  {t:"이스탄불 2일 + 보스니아 3일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["사라예보·모스타르",3,0,"사라예보 구시가지 1일 + 모스타르 다리 당일치기 1일 + 여유 1일"]],legs:"ICN-IST,IST-SJJ,SJJ-ICN",hopH:2,air:"터키항공(TK)",why:"유럽 최저 물가권. 오스만과 유럽이 섞인 독특한 분위기.",tip:"사라예보↔모스타르는 기차 2시간(풍경 최고)."},
+  {t:"이스탄불 2일 + 세르비아 3일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["베오그라드·노비사드",3,0,"베오그라드 요새·강변 1일, 노비사드 당일치기 1일, 나이트라이프 1일"]],legs:"ICN-IST,IST-BEG,BEG-ICN",hopH:1.5,air:"터키항공(TK)·에어세르비아",why:"물가 싸고 먹거리 푸짐한 발칸의 중심.",tip:"세르비아는 무비자 90일."},
+  {t:"이스탄불 2일 + 불가리아 3일",r:"그리스·발칸",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["소피아·릴라",3,0,"소피아 시내 1일 + 릴라 수도원 당일치기 1일 + 플로브디프 1일"]],legs:"ICN-IST,IST-SOF,SOF-ICN",hopH:1.3,air:"터키항공(TK)",why:"EU 안에서 가장 저렴한 나라 중 하나. 이스탄불에서 1시간 20분.",tip:"요구르트·장미 제품이 유명."},
+  {t:"바르샤바 2일 + 부다페스트 4일",r:"그리스·발칸",stops:[["바르샤바",2,1,"구시가지(재건된 세계유산) 1일 + 쇼팽·와지엔키 1일"],["부다페스트",4,0,"국회의사당·어부의요새 1일, 온천 1일, 야경 크루즈 1일, 센텐드레 1일"]],legs:"ICN-WAW,WAW-BUD,BUD-ICN",hopH:1.5,air:"LOT 폴란드항공(LO)",why:"인천-바르샤바 직항 + 1시간 30분. 동유럽 대표 두 도시를 물가 걱정 없이.",tip:"LOT은 바르샤바 환승 체류를 다구간으로 넣기 쉬워요."},
+  {t:"헬싱키 2일 + 발트 3국 5일",r:"그리스·발칸",stops:[["헬싱키",2,1,"시내 1일 + 수오멘린나·사우나 1일"],["리가 → 탈린",5,0,"리가 아르누보 거리 2일 → 버스 4시간 → 탈린 중세 구시가지 3일"]],legs:"ICN-HEL,HEL-RIX,TLL-ICN",hopH:1,air:"핀에어(AY)",why:"북유럽 감성인데 물가는 동유럽. 겨울엔 크리스마스 마켓.",tip:"리가로 들어가서 탈린에서 나와요 — 탈린→헬싱키는 페리 2시간으로 이어도 돼요."},
+  {t:"프랑크푸르트 2일 + 크로아티아 6일",r:"그리스·발칸",stops:[["프랑크푸르트",2,1,"뢰머 광장·마인강 1일 + 하이델베르크 당일치기 1일"],["자그레브 → 두브로브니크",6,0,"자그레브 1일 → 플리트비체 1일 → 스플리트 2일 → 두브로브니크 2일 (버스)"]],legs:"ICN-FRA,FRA-ZAG,DBV-ICN",hopH:1.5,air:"루프트한자(LH)·대한항공",why:"플리트비체 호수 + 아드리아해 해안도로. 직항 많은 프랑크푸르트로 들어가요.",tip:"크로아티아 해안 버스는 성수기 예약 필수."},
+  {t:"이스탄불 3일 + 알바니아 4일",r:"그리스·발칸",stops:[["이스탄불",3,1,"구시가지(아야소피아·블루모스크·톱카프) 1일, 그랜드바자르·보스포루스 크루즈 1일, 아시아 쪽 카디쾨이 1일"],["알바니아",4,0,"티라나 1일, 베라트(천 개의 창) 1일, 남부 해변 사란다·크사밀 2일"]],legs:"ICN-IST,IST-TIA,TIA-ICN",hopH:2,air:"터키항공(TK)",why:"유럽 최저가권 알바니아를 이스탄불 경유로. 지중해 물가 중 가장 저렴한 편이에요.",tip:"터키항공 환승객 무료 시내투어(Touristanbul)도 있어요 — 환승 시간·조건 확인."},
   {t:"이스탄불 2일 + 카파도키아 2일 + 조지아 4일",r:"코카서스·튀르키예",stops:[["이스탄불",2,1,"뒤에 일정이 길어 핵심만: 구시가지 1일 + 보스포루스 1일"],["카파도키아",2,0,"열기구는 바람 때문에 자주 취소돼서 이틀 아침을 확보"],["조지아",4,0,"트빌리시 2일, 카즈베기 산악 1일, 와인 마을 시그나기 1일"]],legs:"ICN-IST,IST-NAV,NAV-TBS,TBS-ICN",hopH:2.5,air:"터키항공(TK)·페가수스",why:"열기구 + 와인·코카서스 산맥. 조지아는 물가가 낮아 길게 있어도 부담이 적어요.",tip:"카파도키아는 네브셰히르(NAV)·카이세리(ASR) 공항 이용."},
   {t:"이스탄불 2일 + 모로코 5일",r:"중동·아프리카",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스·갈라타 1일"],["모로코",5,0,"마라케시 메디나 2일 + 사하라 사막 2박3일 투어"]],legs:"ICN-IST,IST-RAK,RAK-ICN",hopH:4.5,air:"터키항공(TK)",why:"유럽과 아프리카를 한 번에. 사막 1박이 하이라이트.",tip:"사하라 투어는 마라케시 출발 2박3일이 일반적."},
   {t:"도하 2일 + 몰디브 4일",r:"중동·아프리카",stops:[["도하",2,1,"이슬람 예술 박물관·수크 와키프 1일 + 사막 사파리 1일"],["몰디브",4,0,"리조트 이동(수상비행기·스피드보트)에 반나절씩 들어서 최소 3박"]],legs:"ICN-DOH,DOH-MLE,MLE-ICN",hopH:4.5,air:"카타르항공(QR)",why:"신혼여행 단골 루트. 도시 하루 + 리조트 휴양.",tip:"카타르항공 스톱오버 호텔 패키지(Discover Qatar)로 도하 숙박을 싸게 묶을 수 있어요."},
@@ -2390,7 +2398,7 @@ const STOPOVERS=[
   {t:"두바이 2일 + 이집트 6일",r:"중동·아프리카",stops:[["두바이",2,1,"부르즈 할리파·두바이몰 1일 + 사막 사파리·올드두바이 1일"],["이집트",6,0,"카이로·기자 피라미드 2일, 룩소르 신전 2일, 이동(국내선·야간열차) 2일"]],legs:"ICN-DXB,DXB-CAI,CAI-ICN",hopH:3.5,air:"에미레이트(EK)",why:"초고층 도시 + 피라미드. 두바이-카이로 약 3.5시간.",tip:"에미레이트 환승 호텔(Dubai Connect)은 운임·대기시간 조건이 있어요."},
   {t:"아부다비 2일 + 요르단 4일",r:"중동·아프리카",stops:[["아부다비",2,1,"그랜드 모스크·루브르 아부다비 1일 + 야스섬·사막 1일"],["요르단",4,0,"암만 1일, 페트라 1.5일, 와디럼 사막 캠프 1박, 사해 반나절"]],legs:"ICN-AUH,AUH-AMM,AMM-ICN",hopH:3.3,air:"에티하드(EY)",why:"도시 하루 + 페트라·와디럼 사막.",tip:"에티하드는 스톱오버 무료 호텔 프로모션을 자주 해요. 요르단은 요르단 패스로 입장료+비자 해결."},
   {t:"헬싱키 2일 + 라플란드 3일",r:"유럽",stops:[["헬싱키",2,1,"대성당·마켓광장 1일 + 수오멘린나 요새·사우나 1일"],["라플란드",3,0,"오로라는 날씨 운이라 최소 3박 — 산타마을·허스키 썰매 포함"]],legs:"ICN-HEL,HEL-RVN,RVN-ICN",hopH:1.3,air:"핀에어(AY)",why:"12~3월 오로라 + 산타마을.",tip:"핀에어 스톱오버 프로그램으로 헬싱키 체류 추가가 쉬워요."},
-  {t:"헬싱키 2일 + 탈린 2일 + 프라하 3일",r:"동유럽·발칸",stops:[["헬싱키",2,1,"시내 1일 + 수오멘린나·사우나 1일"],["탈린",2,0,"중세 구시가지 1일 + 카드리오르그·텔리스키비 1일 (헬싱키에서 페리 2시간)"],["프라하",3,0,"구시가지·카를교 1일, 프라하성 1일, 체스키크룸로프 당일치기 1일"]],legs:"ICN-HEL@0,TLL-PRG@4,PRG-ICN@7",hopH:2,air:"핀에어(AY)",why:"중세 구시가지 세 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
+  {t:"헬싱키 2일 + 탈린 2일 + 프라하 3일",r:"그리스·발칸",stops:[["헬싱키",2,1,"시내 1일 + 수오멘린나·사우나 1일"],["탈린",2,0,"중세 구시가지 1일 + 카드리오르그·텔리스키비 1일 (헬싱키에서 페리 2시간)"],["프라하",3,0,"구시가지·카를교 1일, 프라하성 1일, 체스키크룸로프 당일치기 1일"]],legs:"ICN-HEL@0,TLL-PRG@4,PRG-ICN@7",hopH:2,air:"핀에어(AY)",why:"중세 구시가지 세 곳을 연달아.",tip:"헬싱키↔탈린 구간은 페리라 가격에 포함 안 돼요."},
   {t:"파리 3일 + 아이슬란드 5일",r:"유럽",stops:[["파리",3,1,"직항 도착 시차 적응 겸: 루브르·에펠 1일, 몽마르트·마레 1일, 베르사유 1일"],["아이슬란드",5,0,"렌터카로 골든서클 1일 + 남부 해안(빅·요쿨살론) 3일 + 블루라군 1일"]],legs:"ICN-PAR,PAR-REK,REK-ICN",hopH:3.3,air:"에어프랑스(AF)·대한항공",why:"직항 있는 파리를 거점으로 아이슬란드 렌터카 여행. 겨울엔 오로라.",tip:"아이슬란드는 렌터카가 사실상 필수."},
   {t:"싱가포르 2일 + 발리 5일",r:"아시아",stops:[["싱가포르",2,1,"마리나베이·가든스바이더베이 1일 + 센토사 또는 차이나타운·리틀인디아 1일"],["발리",5,0,"우붓(논·사원) 2일 + 해변(스미냑·울루와뚜) 3일"]],legs:"ICN-SIN,SIN-DPS,DPS-ICN",hopH:2.5,air:"싱가포르항공(SQ)",why:"도시 야경 + 리조트 휴양. 싱가포르-발리 2.5시간.",tip:"싱가포르항공 스톱오버 홀리데이로 호텔·관광 패키지 할인."},
   {t:"방콕 2일 + 루앙프라방 3일",r:"아시아",stops:[["방콕",2,1,"왕궁·왓포 1일 + 짜뚜짝·야시장 먹방 1일"],["루앙프라방",3,0,"새벽 탁발·푸시산 1일, 꽝시폭포 1일, 메콩강 보트 1일"]],legs:"ICN-BKK,BKK-LPQ,LPQ-ICN",hopH:1.5,air:"타이항공(TG)·라오항공",why:"방콕 먹방 + 라오스 조용한 휴식.",tip:"루앙프라방→인천은 비엔티안·방콕 경유가 일반적."},
@@ -2416,7 +2424,7 @@ function multiLink(segs,pax){
 function openStop(){
   if(!$("#stopDate").value){const fm=$("#fareMonth").value;$("#stopDate").value=fm?fm+"-10":addDays(todayStr(),30);}
   $("#stopPax").value=$("#farePax").value||"2";
-  const pri=["코카서스·튀르키예","동유럽·발칸","국가 내 일주","중앙아시아"];const regs=["전체",...pri,...new Set(STOPOVERS.map(x=>x.r).filter(r=>!pri.includes(r)))];
+  const pri=["그리스·발칸","국가 내 일주","코카서스·튀르키예","중앙아시아"];const regs=["전체",...pri,...new Set(STOPOVERS.map(x=>x.r).filter(r=>!pri.includes(r)))];
   $("#stopSeg").innerHTML=regs.map(r=>`<button class="${r===STOP_REGION?'on':''}" onclick="STOP_REGION='${r}';openStop()">${r}</button>`).join("");
   renderStop();
 }

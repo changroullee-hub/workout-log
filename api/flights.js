@@ -80,6 +80,10 @@ const OPENJAW = [
   ["그리스","아테네 → 산토리니","ATH","JTR","페리 5~8시간·국내선 45분",8],
   ["세르비아·보스니아","베오그라드 → 사라예보","BEG","SJJ","버스 7시간·국내선 1시간",9],
   ["불가리아·루마니아","소피아 → 부쿠레슈티","SOF","BUH","버스 6시간",9],
+  ["그리스·북마케도니아·알바니아","테살로니키 → 오흐리드 → 티라나","SKG","TIA","버스 5시간 + 3시간",7],
+  ["세르비아·보스니아·크로아티아","베오그라드 → 사라예보 → 두브로브니크","BEG","DBV","버스 7시간 + 5시간",8],
+  ["몬테네그로·알바니아","포드고리차(코토르) → 티라나","TGD","TIA","버스 4시간",6],
+  ["그리스","아테네 → 크레타","ATH","HER","페리·국내선 50분",6],
   // 중앙아시아·코카서스·튀르키예·중국 국가 내/육로 일주
   ["우즈베키스탄","타슈켄트 → 사마르칸트 → 부하라 → 타슈켄트","TAS","TAS","고속열차 아프로시욥(타슈켄트↔사마르칸트 2시간, ↔부하라 1시간 30분)",5],
   ["카자흐스탄","알마티 → 아스타나","ALA","NQZ","국내선 1시간 40분·야간열차",6],
@@ -113,7 +117,8 @@ async function cheapest(token, origin, dest, q) {
   if (!r.ok) return null;
   const d = await r.json();
   const rows = d && d.success && Array.isArray(d.data) ? d.data : [];
-  return rows.filter((t) => t && t.price).map((t) => ({
+  // 경유는 최대 2회까지만 (가는 편·오는 편 각각)
+  return rows.filter((t) => t && t.price && (t.transfers || 0) <= 2 && (t.return_transfers || 0) <= 2).map((t) => ({
     origin: t.origin_airport || origin, destAp: t.destination_airport || dest,
     price: t.price, airline: t.airline || "", flightNo: t.flight_number || "",
     departAt: t.departure_at || "", returnAt: t.return_at || "",
@@ -217,6 +222,7 @@ export default async function handler(req, res) {
         const [p1, p2] = await Promise.all([fetchAll(last.a, hub, from, hi), fetchAll(hub, last.b, from, hi)]);
         p1.forEach((x) => { let best = null; const arr = arrAbs(x);
           p2.forEach((y) => { if (Date.parse(y.departAt) < arr + 60 * 60000 || y.departAt.slice(0, 10) > addDay(x.departAt.slice(0, 10), 1)) return; if (!best || y.price < best.price) best = y; });
+          if (best && (x.transfers || 0) + (best.transfers || 0) + 1 > 2) best = null; // 이어 붙여도 경유 2회까지
           if (best) opts[li].push({ ...x, price: x.price + best.price, durationMin: best.durationMin ? Math.round((arrAbs(best) - Date.parse(x.departAt)) / 60000) : null,
             transfers: (x.transfers || 0) + (best.transfers || 0) + 1, airline: [x.airline, best.airline].filter(Boolean).join("+"), via: hub, link: "",
             parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...best }] }); });
