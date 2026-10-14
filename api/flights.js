@@ -1,6 +1,6 @@
 // Vercel Serverless Function: /api/flights
 //  ?group=short|mid|long short = 비행 1~4시간대, mid = 5~9시간대, long = 10시간 이상(대부분 경유)
-//  ?win=2028-09-30..2028-10-09 → 그 휴가 기간 안에 다녀오는 왕복 최저가 + 국가 안 이동(IN≠OUT) 추천
+//  ?win=2028-09-30..2028-10-09&flex=2 → 그 휴가 기간(앞뒤 연차 flex일까지 더 붙여도 됨)에 다녀오는 왕복 최저가 + 국가 안 이동(IN≠OUT) 추천
 //  ?legs=ICN-IST@2026-11-20,IST-TIA@2026-11-23,TIA-ICN@2026-11-27&from=2026-11-10&to=2026-12-10&extra=2&hub=IST
 //     → 경유 여행 최저가 일정 TOP3 (경유 여행 추천 탭용). @날짜 간격이 계획 체류일.
 //       출발일 from~to 전부를 따져, 다음 비행은 '앞 비행 현지 도착일 + 체류일' ~ +extra 일 사이만 허용.
@@ -152,8 +152,11 @@ export default async function handler(req, res) {
     const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
     const len = Math.round((new Date(we) - new Date(ws)) / 86400000) + 1;
     const arrKST = (x) => x.durationMin ? new Date(Date.parse(x.departAt) + x.durationMin * 60000 + 540 * 60000).toISOString().slice(0, 10) : null;
-    const backOk = (x) => { const d = x.departAt.slice(0, 10); const a = arrKST(x); return d >= addDay(we, -1) && (a ? a <= we : d < we); };
-    const goOk = (x) => { const d = x.departAt.slice(0, 10); return d >= ws && d <= addDay(ws, 1); };
+    // flex: 앞뒤로 연차를 최대 며칠 더 붙여도 되는지 (더 일찍 출발 / 더 늦게 귀국)
+    const F = Math.min(3, Math.max(0, parseInt(req.query.flex, 10) || 0)), wsF = addDay(ws, -F), weF = addDay(we, F);
+    const backOk = (x) => { const d = x.departAt.slice(0, 10); const a = arrKST(x); return d >= addDay(we, -1 - F) && (a ? a <= weF : d < weF); };
+    const goOk = (x) => { const d = x.departAt.slice(0, 10); return d >= wsF && d <= addDay(ws, 1); };
+    const depMonths = [...new Set([wsF.slice(0, 7), addDay(ws, 1).slice(0, 7)])];
     const groups = len <= 4 ? ["short"] : len <= 8 ? ["short", "mid"] : ["short", "mid", "long"];
     const skip = (req.query.skip || "").toString().split(",").map((x) => x.trim()).filter(Boolean);
     const skipped = (country) => skip.some((c) => country.includes(c));
@@ -161,14 +164,15 @@ export default async function handler(req, res) {
       // 왕복: 단거리는 인천·김포·청주, 나머지는 인천
       const jobs = [];
       if (req.query.rt !== "0") groups.forEach((g) => DESTS[g].filter((d) => !skipped(d[0])).forEach((d) => (g === "short" ? ORIGINS : ["ICN"]).forEach((og) => jobs.push(async () => {
-        const r = (await cheapest(token, og, d[2], { month: ws.slice(0, 7), ret: we.slice(0, 7), oneway: false, direct: false, limit: 100 })) || [];
-        const ok = r.filter((x) => goOk(x) && x.returnAt && x.returnAt.slice(0, 10) <= we && x.returnAt.slice(0, 10) >= addDay(we, -1)).sort((a, b) => a.price - b.price)[0];
+        const r = (await Promise.all(depMonths.map((m) => cheapest(token, og, d[2], F ? { month: m, oneway: false, direct: false, limit: 200 } : { month: m, ret: we.slice(0, 7), oneway: false, direct: false, limit: 100 })))).flat().filter(Boolean);
+        const days = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+        const ok = r.filter((x) => goOk(x) && x.returnAt && x.returnAt.slice(0, 10) <= weF && x.returnAt.slice(0, 10) >= addDay(we, -1 - F) && days(x.departAt.slice(0, 10), x.returnAt.slice(0, 10)) >= len - 2).sort((a, b) => a.price - b.price)[0];
         return ok ? { country: d[0], city: d[1], code: d[2], hours: d[3], ...ok } : null;
       }))));
       // 국가 안 이동: 들어가는 도시와 나오는 도시가 다른 편도 2장
       OPENJAW.filter((o) => len >= o[5] && (!o[6] || req.query.sea !== "0") && !skipped(o[0])).forEach((o) => jobs.push(async () => {
         const [go, back] = await Promise.all([[`ICN`, o[2], ws], [o[3], `ICN`, we]].map(([a, b, d]) =>
-          Promise.all([...new Set([addDay(d, -1).slice(0, 7), addDay(d, 1).slice(0, 7)])].map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 }))).then((x) => x.flat().filter(Boolean))));
+          Promise.all([...new Set([addDay(d, -1 - F).slice(0, 7), addDay(d, 1 + F).slice(0, 7)])].map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 }))).then((x) => x.flat().filter(Boolean))));
         const g = go.filter(goOk).sort((a, b) => a.price - b.price)[0], b = back.filter(backOk).sort((a, b) => a.price - b.price)[0];
         return g && b ? { openjaw: true, country: o[0], city: o[1], inCode: o[2], outCode: o[3], move: o[4], price: g.price + b.price, go: g, back: b } : null;
       }));
@@ -176,7 +180,7 @@ export default async function handler(req, res) {
       // 도시별 최저가 하나만(출발공항 중복 제거)
       const rt = {}; out.filter((x) => !x.openjaw).forEach((x) => { if (!rt[x.code] || x.price < rt[x.code].price) rt[x.code] = x; });
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
-      res.status(200).json({ win: [ws, we], len, roundtrip: Object.values(rt).sort((a, b) => a.price - b.price), openjaw: out.filter((x) => x.openjaw).sort((a, b) => a.price - b.price) });
+      res.status(200).json({ win: [ws, we], len, flex: F, roundtrip: Object.values(rt).sort((a, b) => a.price - b.price), openjaw: out.filter((x) => x.openjaw).sort((a, b) => a.price - b.price) });
     } catch (e) {
       if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }
       res.status(502).json({ error: "휴가 맞춤 추천 실패: " + e.message });
