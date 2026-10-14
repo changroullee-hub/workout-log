@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-14e  ·  fix: 경유 여행 못 찾은 코스는 숨기지 말고 이유 표시
+     build: 2026-10-14f  ·  feat: 경유 여행 먼저 찾고 찾은 코스만 추천
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -636,7 +636,7 @@
       <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
     </div>
     <div id="tripStop" style="display:none">
-      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">가는 길에 환승 도시에서 며칠 놀다 가는 코스예요. <b>꿀조합 휴가 기간</b>을 고르면 코스마다 체류일을 그 휴가에 맞추고, 귀국까지 합친 총액이 가장 싼 일정을 찾아요.</p>
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">여러 나라·도시를 도는 코스예요. <b>꿀조합 휴가 기간</b>을 고르면 지역별 코스를 그 휴가에 맞춰 <b>먼저 다 찾아보고</b>, 이어지는 코스만 귀국까지 합친 총액이 싼 순으로 추천해요.</p>
       <div class="mfield"><label>휴가 기간 (연차 꿀조합)</label><select id="stopVac" onchange="renderStop()"></select></div>
       <div id="stopCustom" style="display:none">
         <div class="m2">
@@ -649,7 +649,7 @@
         <div class="mfield" id="stopFlexWrap"><label>더 싸면 앞뒤 연차 붙이기</label><select id="stopFlex" onchange="setVacFlex(this.value)"><option value="0">안 함</option><option value="1">최대 1일</option><option value="2">최대 2일</option><option value="3">최대 3일</option></select></div>
         <div class="mfield"><label>인원 (성인)</label><select id="stopPax" onchange="renderStop()"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option><option value="4">4명</option></select></div>
       </div>
-      <button class="stop-multi" style="border:0;width:100%;margin:0 0 12px" onclick="loadAllStops()">🔎 전체 코스 한 번에 찾기 (싼 순으로 정렬)</button>
+
       <div class="seg" id="stopSeg"></div>
       <div id="stopBody"></div>
     </div>
@@ -2422,7 +2422,7 @@ const STOPOVERS=[
   {t:"타이베이 2일 + 로스앤젤레스 5일",r:"미주·태평양",stops:[["타이베이",2,1,"시내·야시장 1일 + 지우펀·스펀 1일"],["로스앤젤레스",5,0,"할리우드·그리피스 1일, 산타모니카 1일, 유니버설·디즈니 1일, 라스베이거스·그랜드캐니언 2일"]],legs:"ICN-TPE,TPE-LAX,LAX-ICN",hopH:12,air:"에바항공(BR)·중화항공(CI)",why:"대만 항공사 미주 노선이 저렴한 편.",tip:"미국은 ESTA 사전 신청 필요."},
   {t:"밴쿠버 2일 + 칸쿤 5일",r:"미주·태평양",stops:[["밴쿠버",2,1,"스탠리파크·개스타운 1일 + 휘슬러 또는 그라우스산 1일"],["칸쿤",5,0,"올인클루시브 리조트 3일 + 세노테·치첸이트사 1일 + 이슬라 무헤레스 1일"]],legs:"ICN-YVR,YVR-CUN,CUN-ICN",hopH:6,air:"에어캐나다(AC)",why:"캐나다 도시 + 카리브해 리조트.",tip:"캐나다 환승·체류는 eTA 필요."},
 ];
-let STOP_REGION="전체", STOP_PRICES={};
+let STOP_REGION="그리스·발칸", STOP_PRICES={}, STOP_AUTO=new Set();
 const AP_KO={ICN:"인천",GMP:"김포",CJJ:"청주"};
 const AP_NAME_KO={IST:"이스탄불",NAV:"카파도키아",IZM:"이즈미르",AYT:"안탈리아",ATH:"아테네",JTR:"산토리니",HER:"크레타",SKG:"테살로니키",TIA:"티라나",TGD:"포드고리차",DBV:"두브로브니크",SPU:"스플리트",ZAG:"자그레브",SJJ:"사라예보",BEG:"베오그라드",SOF:"소피아",WAW:"바르샤바",BUD:"부다페스트",PRG:"프라하",HEL:"헬싱키",RIX:"리가",TLL:"탈린",FRA:"프랑크푸르트",TBS:"트빌리시",BUS:"바투미",EVN:"예레반",GYD:"바쿠",BJS:"베이징",XIY:"시안",CTU:"청두",CKG:"충칭",DYG:"장자제",TAS:"타슈켄트",ALA:"알마티",FRU:"비슈케크",DOH:"도하",DXB:"두바이",AUH:"아부다비",SIN:"싱가포르",BKK:"방콕",KUL:"쿠알라룸푸르",TYO:"도쿄",TPE:"타이베이",YVR:"밴쿠버",PAR:"파리",RVN:"로바니에미",MLE:"몰디브",ZNZ:"잔지바르",CAI:"카이로",AMM:"암만",RAK:"마라케시",REK:"레이캬비크",DPS:"발리",LPQ:"루앙프라방",KTM:"카트만두",HNL:"호놀룰루",LAX:"로스앤젤레스",CUN:"칸쿤"};
 const WD="일월화수목금토";
@@ -2471,7 +2471,17 @@ function renderStop(){
   // 가격 나온 코스는 싼 순으로 위에
   const price=x=>{const P=q?STOP_PRICES[stopKey(q,x.i)]:null;return P&&P.trips&&P.trips[0]?P.trips[0].total:P&&P.trips?9e16:9e15;}; // 못 찾은 코스는 맨 아래
   list.sort((a,b)=>price(a)-price(b));
-  $("#stopBody").innerHTML=list.map(x=>{
+  // 휴가 기간·지역이 정해지면 먼저 전부 찾아보고 → 찾은 코스만 추천
+  if(q){const ak=(q.mode==='vac'?stopKey(q,'*'):`${q.from}|${q.to}|${q.ex}`)+'|'+STOP_REGION+'|'+VISITED.join(',');if(!STOP_AUTO.has(ak)){STOP_AUTO.add(ak);setTimeout(()=>loadAllStops(true),0);}}
+  const st=x=>q?STOP_PRICES[stopKey(q,x.i)]:null;
+  const found=list.filter(x=>{const P=st(x);return P&&P.trips&&P.trips.length;}), failed=list.filter(x=>{const P=st(x);return P&&(P.error||(P.trips&&!P.trips.length));}), pending=list.length-found.length-failed.length;
+  const head=pending?`<div class="stop-plan" style="margin-bottom:10px">🔎 ${escapeHtml(STOP_REGION)} 코스 ${list.length}개를 휴가 기간에 맞춰 찾는 중… <b>${list.length-pending}/${list.length}</b> · 찾은 것부터 싼 순으로 보여줘요</div>`
+    :`<div class="stop-plan" style="margin-bottom:10px">✅ ${escapeHtml(STOP_REGION)} 코스 ${list.length}개 중 <b>${found.length}개</b> 찾았어요 (싼 순)</div>`;
+  const failHtml=failed.length?`<details class="vac" style="margin-top:6px"><summary style="font-size:12.5px">❌ 이 기간엔 못 찾은 코스 ${failed.length}개 (이유 보기)</summary>${failed.map(x=>{const P=st(x);const AP=c=>AP_KO[c]||AP_NAME_KO[c]||c, nm=l=>l.split('→').map(AP).join('→');
+      const none=(P.counts||[]).filter(c=>!c.n).map(c=>nm(c.leg));const why=P.error?P.error:none.length?`${none.join(' · ')} 구간 가격 데이터 없음`:'휴가 날짜·체류일에 맞게 이어지는 조합 없음';
+      return `<div class="vac-o" style="display:block;margin-top:5px"><b style="color:var(--ink)">${escapeHtml(x.t)}</b><br>${escapeHtml(why)} <button onclick="delete STOP_PRICES['${stopKey(q,x.i)}'];loadStop(${x.i})" style="color:var(--accent);font-size:12px">↻</button></div>`;}).join('')}</details>`:'';
+  if(!pending&&q&&!found.length)list=[];
+  $("#stopBody").innerHTML=head+(q&&!pending&&!found.length?`<div class="wk-empty" style="margin-bottom:8px">이 휴가 기간엔 이어지는 코스를 못 찾았어요. 앞뒤 연차를 늘리거나, 다른 지역·다른 꿀조합을 골라 보세요.</div>`:'')+found.map(x=>{
     const xs=vac?{...x,stops:x.stops.map((st,j)=>[st[0],x.ns[j],st[2],st[3]])}:x;
     const days=xs.stops.reduce((a,s)=>a+s[1],0);
     const chips=xs.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}${vac?'박':'일'}</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>')+`<span style="border:0;background:none;padding:3px 0">→</span><span>🇰🇷 ${escapeHtml(AP_KO[x.legs.split(',').pop().split('@')[0].split('-')[1]]||'한국')} 귀국</span>`;
@@ -2490,7 +2500,7 @@ function renderStop(){
     }
     else if(P)body=P.trips.map((t,ti)=>tripHtml(xs,t,ti,pax,vac?q:null)).join('')+`<div class="stop-meta">출발 가능 ${P.checked}개 날짜를 비교했어요. 편도 최저가를 더한 추정치라 다구간 검색으로 실제 가격을 꼭 확인하세요.</div>`;
     return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${vac?`<div class="stop-plan" style="margin:0 0 6px">📅 ${q.len}일 휴가에 맞춘 일정: ${xs.stops.map(s=>escapeHtml(s[0])+' '+s[1]+'박').join(' + ')}</div>`:''}${escapeHtml(x.why)}${dayWhy}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 현지 ${days}${vac?'박':'일'} + 이동<br>💡 ${escapeHtml(x.tip)}</div>${body}</div>`;
-  }).join("")+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
+  }).join("")+failHtml+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 // 추천 일정 1개: 요약 · 실제 체류 · 구간 · 다구간 검색
 function tripHtml(x,t,ti,pax,vq){
@@ -2534,11 +2544,11 @@ async function loadStop(i,noRender){
   if(TRIP_SUB==='stop')renderStop();
 }
 // 보이는 코스 전부 조회 (동시에 3개씩) → 끝나는 대로 싼 순 정렬
-async function loadAllStops(){
-  const q=stopQuery();if(!q){toast("휴가 기간이나 출발일을 먼저 골라주세요");return;}
+async function loadAllStops(auto){
+  const q=stopQuery();if(!q){if(!auto)toast("휴가 기간이나 출발일을 먼저 골라주세요");return;}
   const todo=STOPOVERS.map((x,i)=>({x,i})).filter(({x,i})=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x)&&stopNights(x,q)&&!STOP_PRICES[stopKey(q,i)]);
-  if(!todo.length){toast("이미 다 찾았어요");return;}
-  todo.forEach(({i})=>STOP_PRICES[stopKey(q,i)]='loading');renderStop();toast(`${todo.length}개 코스 찾는 중…`);
+  if(!todo.length){if(!auto)toast("이미 다 찾았어요");return;}
+  todo.forEach(({i})=>STOP_PRICES[stopKey(q,i)]='loading');renderStop();if(!auto)toast(`${todo.length}개 코스 찾는 중…`);
   let k=0;const worker=async()=>{while(k<todo.length){const {i}=todo[k++];delete STOP_PRICES[stopKey(q,i)];await loadStop(i,true);}};
   await Promise.all([worker(),worker(),worker()]);
 }
