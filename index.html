@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-13q  ·  feat: 경유지 짐작 제거 + 5일 이상은 선호 지역 코스만 + 도시당 최소 2박 + 불가능 코스 숨김
+     build: 2026-10-14a  ·  feat: 다녀온 나라 제외(우즈벡·카자흐) + 조지아·아르메니아 코스 위주
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -326,6 +326,9 @@
   .vac summary{cursor:pointer;list-style:none;color:var(--ink)}
   .vac summary::-webkit-details-marker{display:none}
   .vac-ctl{display:flex;flex-direction:column;gap:6px;align-items:stretch;margin:10px 0 8px}
+  .vac-visited{font-size:12px;color:var(--ink-soft);margin:0 0 6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .vac-visited span{background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:2px 8px}
+  .vac-visited button{color:var(--ink-faint);font-size:12px}
   .vac-g{border-top:1px dashed var(--line);padding:7px 0 3px}
   .vac-g h4{margin:0 0 4px;font-size:12.5px;color:var(--ink)}
   .vac-o{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:5px 8px;border-radius:8px;font-size:12.5px;color:var(--ink-soft);background:var(--bg2);margin-bottom:4px}
@@ -622,6 +625,7 @@
       <summary>🗓️ <b>연차 꿀조합</b> <span id="vacHead" style="color:var(--ink-faint);font-weight:600"></span></summary>
       <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
         <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap"><input type="checkbox" id="vacLabor" checked onchange="renderVac()" /> 근로자의날(5/1) 쉼</label></div>
+      <div class="vac-visited" id="vacVisited"></div>
       <div id="vacBody"></div>
       <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 휴가 기간에 다녀올 수 있는 최저가 여행지(왕복·국가 내 이동·경유 여행)를 찾아줘요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
     </details>
@@ -2168,6 +2172,14 @@ const KR_HOL={"2027-01-01":"신정","2027-02-06":"설날 연휴","2027-02-07":"�
   "2029-01-01":"신정","2029-02-12":"설날 연휴","2029-02-13":"설날","2029-02-14":"설날 연휴","2029-03-01":"삼일절","2029-05-05":"어린이날","2029-05-07":"어린이날 대체공휴일","2029-05-20":"부처님오신날","2029-05-21":"부처님오신날 대체공휴일","2029-06-06":"현충일","2029-08-15":"광복절","2029-09-21":"추석 연휴","2029-09-22":"추석","2029-09-23":"추석 연휴","2029-09-24":"추석 대체공휴일","2029-10-03":"개천절","2029-10-09":"한글날","2029-12-25":"성탄절",
   "2030-01-01":"신정","2030-02-02":"설날 연휴","2030-02-03":"설날","2030-02-04":"설날 연휴","2030-02-05":"설날 대체공휴일","2030-03-01":"삼일절","2030-05-05":"어린이날","2030-05-06":"어린이날 대체공휴일","2030-05-09":"부처님오신날","2030-06-05":"지방선거","2030-06-06":"현충일","2030-08-15":"광복절","2030-09-11":"추석 연휴","2030-09-12":"추석","2030-09-13":"추석 연휴","2030-10-03":"개천절","2030-10-09":"한글날","2030-12-25":"성탄절"};
 let VAC_YEAR=null;
+// 다녀온 나라: 추천·경유 여행·항공권 목록에서 뺌 (기기에 저장)
+let VISITED=["우즈베키스탄","카자흐스탄","키르기스스탄"];
+try{const v=JSON.parse(localStorage.getItem('wlog_visited')||'null');if(Array.isArray(v))VISITED=v;}catch(e){}
+const AP_COUNTRY={TAS:"우즈베키스탄",SKD:"우즈베키스탄",BHK:"우즈베키스탄",ALA:"카자흐스탄",NQZ:"카자흐스탄",TSE:"카자흐스탄",FRU:"키르기스스탄",TBS:"조지아",BUS:"조지아",KUT:"조지아",EVN:"아르메니아",GYD:"아제르바이잔",IST:"튀르키예",NAV:"튀르키예",IZM:"튀르키예",AYT:"튀르키예",ATH:"그리스",JTR:"그리스",HER:"그리스",SKG:"그리스",TIA:"알바니아",TGD:"몬테네그로",DBV:"크로아티아",ZAG:"크로아티아",SPU:"크로아티아",SJJ:"보스니아",BEG:"세르비아",SOF:"불가리아",WAW:"폴란드",KRK:"폴란드",BUD:"헝가리",PRG:"체코",HEL:"핀란드",RIX:"라트비아",TLL:"에스토니아",FRA:"독일",BJS:"중국",XIY:"중국",CTU:"중국",CKG:"중국",DYG:"중국",SHA:"중국"};
+function isVisited(text){return VISITED.some(c=>(text||'').includes(c));}
+function courseVisited(x){return isVisited(x.t+' '+x.stops.map(s=>s[0]).join(' '))||x.legs.split(',').some(l=>l.split('@')[0].split('-').some(c=>VISITED.includes(AP_COUNTRY[c])));}
+function saveVisited(){try{localStorage.setItem('wlog_visited',JSON.stringify(VISITED));}catch(e){}renderVisited();FARE_CACHE={};if(VREC)loadVacRec(VREC.s,VREC.e);if(TRIP_SUB==='stop')renderStop();}
+function renderVisited(){$("#vacVisited").innerHTML=`🚫 다녀온 나라 제외: ${VISITED.map((c,i)=>`<span>${escapeHtml(c)} <button onclick="VISITED.splice(${i},1);saveVisited()">✕</button></span>`).join('')}<button onclick="const c=prompt('다녀온 나라 이름 (예: 베트남)');if(c&&c.trim()){VISITED.push(c.trim());saveVisited();}" style="color:var(--accent)">＋ 추가</button>`;}
 function vacOff(d){const w=new Date(d+"T00:00:00").getDay();return w===0||w===6||!!KR_HOL[d]||($("#vacLabor").checked&&d.slice(5)==="05-01");}
 function vacHolName(d){return KR_HOL[d]||(d.slice(5)==="05-01"&&$("#vacLabor").checked?"근로자의날":"");}
 // 한 해의 꿀조합: 앞뒤가 근무일이고 양 끝이 쉬는 날인 최대 구간 중 연차 1~5일
@@ -2193,6 +2205,7 @@ function vacDeals(y){
   }).filter(g=>g.first.slice(0,4)==String(y)||g.opts.some(o=>o.e.slice(0,4)==String(y)&&o.s.slice(0,4)==String(y))).sort((a,b)=>a.first<b.first?-1:1);
 }
 function renderVac(){
+  renderVisited();
   const ys=[2027,2028,2029,2030];if(!VAC_YEAR)VAC_YEAR=Math.max(2027,Math.min(2030,new Date().getFullYear()+1));
   $("#vacYears").innerHTML=ys.map(y=>`<button class="${y===VAC_YEAR?'on':''}" onclick="VAC_YEAR=${y};renderVac()">${y}</button>`).join("");
   const G=vacDeals(VAC_YEAR);let best=null;
@@ -2219,11 +2232,11 @@ function splitNights(plan,len){
   return d;
 }
 // 귀국편 대체 경로에 쓸 지역별 환승지 (그 지역에서 실제로 한국행이 많은 곳만)
-const BACK_HUBS={"동유럽·발칸":"IST,FRA,HEL,WAW,VIE","유럽":"IST,FRA,HEL,PAR","코카서스·튀르키예":"IST,ALA,TAS,DXB","중앙아시아":"IST,ALA,TAS","국가 내 일주":"IST,BJS,SHA,ATH","중동·아프리카":"DXB,DOH,AUH,IST","아시아":"BKK,SIN,KUL,HKG","미주·태평양":"TYO,LAX,SFO,HNL"};
+const BACK_HUBS={"동유럽·발칸":"IST,FRA,HEL,WAW,VIE","유럽":"IST,FRA,HEL,PAR","코카서스·튀르키예":"IST,DXB,DOH","중앙아시아":"IST,ALA,TAS","국가 내 일주":"IST,BJS,SHA,ATH","중동·아프리카":"DXB,DOH,AUH,IST","아시아":"BKK,SIN,KUL,HKG","미주·태평양":"TYO,LAX,SFO,HNL"};
 function fitStops(x,len){
   if(x.legs.includes('@'))return null; // 페리 구간 코스는 제외
   if((x.hopH||9)>3)return null; // 나라 간 이동은 비행 3시간 이내만
-  if(!PREF_REGIONS.includes(x.r))return null; // 휴가 추천은 선호 지역만(동남아·리조트 제외)
+  if(!PREF_REGIONS.includes(x.r)||courseVisited(x))return null; // 휴가 추천은 선호 지역만(동남아·리조트·다녀온 나라 제외)
   if(len<({"중앙아시아":5,"국가 내 일주":5,"코카서스·튀르키예":6,"동유럽·발칸":7,"유럽":7}[x.r]||7))return null; // 멀수록 최소 휴가일수
   return splitNights(x.stops.map(s=>s[1]),len);
 }
@@ -2244,7 +2257,7 @@ async function loadVacRec(s,e){
       if(seq!==VREC_SEQ)return;if(ok&&d.trips&&d.trips[0])VREC.stops.push({...c,t:d.trips[0]});}).catch(()=>{}).finally(()=>{if(seq!==VREC_SEQ)return;running--;VREC.stopDone++;renderVacRec();runQueue();});}};
   const add=c=>{if(VREC.stops.concat(queue).some(q=>q.key===c.key))return;queue.push(c);VREC.stopTotal++;};
   // 1) 왕복 + 국가 안 이동 → 결과의 실제 경유지로 경유 여행 후보 추가
-  fetch(`/api/flights?win=${s}..${e}${len>=5?'&rt=0&sea=0':''}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error){VREC.err=d.error||'조회 실패';renderVacRec();return;}
+  fetch(`/api/flights?win=${s}..${e}${len>=5?'&rt=0&sea=0':''}&skip=${encodeURIComponent(VISITED.join(','))}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error){VREC.err=d.error||'조회 실패';renderVacRec();return;}
     VREC.rt=d;
     // 준비된 경유·일주 코스(나라 간 비행 3시간 이내)를 휴가 길이에 맞춰
     if(len>=5)STOPOVERS.forEach(x=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
@@ -2260,7 +2273,7 @@ function renderVacRec(){
   const stRow=({names,nights,t,live,ee,region})=>{
     const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
     const real=t.legs.slice(0,-1).map((l,k)=>{const nx=t.legs[k+1];return l.arrDate?Math.round((new Date(nx.departAt.slice(0,10))-new Date(l.arrDate))/86400000):nights[k];});
-    return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${names.map((n,k)=>escapeHtml(n)+' '+real[k]+'박').join(' + ')}</b>${region?` <span style="color:var(--ink-faint);font-size:11px">${escapeHtml(region)}</span>`:''}<br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}${live?`<br><span style="color:var(--ink-faint)">💡 ${escapeHtml(live)}</span>`:''}</span><span class="p">${tot(t.total)}${pp(t.total)}</span></a>`;};
+    return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${names.map((n,k)=>escapeHtml(n)+' '+(real[k]??nights[k])+'박').join(' + ')}</b>${region?` <span style="color:var(--ink-faint);font-size:11px">${escapeHtml(region)}</span>`:''}<br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}${live?`<br><span style="color:var(--ink-faint)">💡 ${escapeHtml(live)}</span>`:''}</span><span class="p">${tot(t.total)}${pp(t.total)}</span></a>`;};
   let h=`<div class="vrec"><div style="display:flex;justify-content:space-between;gap:8px"><h3>🏝️ ${mdw(V.s)}~${mdw(V.e)} · ${V.len}일 휴가 추천</h3><button onclick="VREC=null;VREC_SEQ++;renderVacRec()" style="color:var(--ink-faint);font-size:12px">닫기 ✕</button></div>
     <div class="wk-empty">휴가 첫날 출발 → 마지막 날까지 한국 도착 · 성인 ${pax}명 총액 · ${V.len>=5?'5일 이상은 여러 나라·도시 코스로만 · 나라 간 이동은 비행 3시간 이내':'왕복 직항·경유 포함'}</div>
     ${V.s>addDays(todayStr(),240)?`<div class="stop-plan" style="margin-top:8px">ℹ️ 출발이 ${Math.round((new Date(V.s)-new Date(todayStr()))/2592000000)}개월 넘게 남은 날짜예요. 항공권은 보통 출발 약 11개월 전부터 팔리고, 여기 가격은 실제로 누가 검색한 표만 잡혀서 아직 비어 있을 수 있어요. 출발이 가까워질수록 채워져요.</div>`:''}`;
@@ -2272,10 +2285,11 @@ function renderVacRec(){
     h+=`<h4>✈️ 왕복 최저가 TOP ${Math.min(8,rt.length)}</h4>`+(rt.slice(0,8).map(rtRow).join('')||'<div class="wk-empty">이 기간에 맞는 왕복 가격 데이터가 없어요.</div>');
   }else{
     // 5일 이상: 여러 나라·도시 코스만 (중앙아시아·코카서스·튀르키예·동유럽·그리스·국가 내 일주)
-    const st=V.stops.slice().sort((a,b)=>a.t.total-b.t.total);
-    h+=`<h4>🧭 경유·일주 코스 (싼 순)${busy}</h4>`+(st.slice(0,6).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코스 가격이 아직 없어요.</div>'));
-    const regs=[...new Set(st.slice(6).map(x=>x.region))];
-    regs.forEach(r=>{const more=st.slice(6).filter(x=>x.region===r).slice(0,3);if(more.length)h+=`<h4>${({"중앙아시아":"🏔️","코카서스·튀르키예":"🍷","동유럽·발칸":"🇪🇺","국가 내 일주":"🗺️"}[r]||'🧭')} ${escapeHtml(r)} 더 보기</h4>`+more.map(stRow).join('');});
+    const all=V.stops.slice().sort((a,b)=>a.t.total-b.t.total), cau=all.filter(x=>x.region==="코카서스·튀르키예"), st=all.filter(x=>x.region!=="코카서스·튀르키예");
+    h+=`<h4>🍷 조지아·아르메니아·코카서스 (싼 순)${busy}</h4>`+(cau.slice(0,5).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코카서스 코스 가격이 아직 없어요.</div>'));
+    h+=`<h4>🧭 그 밖의 경유·일주 코스</h4>`+(st.slice(0,4).map(stRow).join('')||(busy?'':'<div class="wk-empty">이 기간에 맞는 코스 가격이 아직 없어요.</div>'));
+    const regs=[...new Set(st.slice(4).map(x=>x.region))];
+    regs.forEach(r=>{const more=st.slice(4).filter(x=>x.region===r).slice(0,3);if(more.length)h+=`<h4>${({"중앙아시아":"🏔️","코카서스·튀르키예":"🍷","동유럽·발칸":"🇪🇺","국가 내 일주":"🗺️"}[r]||'🧭')} ${escapeHtml(r)} 더 보기</h4>`+more.map(stRow).join('');});
   }
   if(V.rt){const oj=V.rt.openjaw.slice(0,6);
     h+=`<h4>🚆 육로·국내 이동 (들어가는 도시 ≠ 나오는 도시)</h4>`+(oj.map(x=>`<a class="vr" href="${escapeHtml(multiLink([{a:'ICN',b:x.inCode,date:x.go.departAt.slice(0,10)},{a:x.outCode,b:'ICN',date:x.back.departAt.slice(0,10)}],pax))}" target="_blank" rel="noopener"><span><b>${escapeHtml(x.country)} ${escapeHtml(x.city)}</b><br>인천→${escapeHtml(x.inCode)} ${mdw(x.go.departAt)} · 현지 ${escapeHtml(x.move)} · ${escapeHtml(x.outCode)}→인천 ${mdw(x.back.departAt)}</span><span class="p">${tot(x.price)}${pp(x.price)}<span class="fr-pp">항공만</span></span></a>`).join('')||`<div class="wk-empty">${V.len<4?'휴가가 짧아 이동 코스는 빼고 찾았어요.':'이 기간에 맞는 조합 가격 데이터가 없어요.'}</div>`);}
@@ -2308,7 +2322,7 @@ async function loadFare(){
   }catch(e){if(seq===FARE_SEQ)$("#fareBody").innerHTML=`<div class="wk-empty">조회 실패: ${escapeHtml(e.message)}</div>`;}
 }
 function renderFare(d){
-  let rows=(d.results||[]).slice();
+  let rows=(d.results||[]).filter(x=>!isVisited(x.country));
   if(FARE_VIEW==='country'){ // 국가마다 가장 싼 도시 하나
     const by={};rows.forEach(x=>{const c=by[x.country];if(!c||(x.price&&(!c.price||x.price<c.price)))by[x.country]=x;});
     rows=Object.values(by);
@@ -2344,6 +2358,12 @@ function renderFare(d){
 /* --- 경유 여행 추천 (스톱오버 코스) --- */
 // stops: [도시, 일수, 허브여부, 그 일수인 이유] / hopH: 나라 간 이동 최대 비행시간(h) — 휴가 추천은 3시간 이내만 / legs: 가격 조회 구간(편도). 구간 출발일은 앞 도시 일수를 누적(@n 이면 출발일+n일로 직접 지정)
 const STOPOVERS=[
+  {t:"조지아 일주: 트빌리시 → 카즈베기 → 바투미",r:"코카서스·튀르키예",stops:[["트빌리시 → 카즈베기 → 쿠타이시 → 바투미",8,0,"트빌리시 2일(구시가지·유황온천) → 카즈베기 1박(게르게티 성당) → 시그나기 와인 1일 → 쿠타이시 1일 → 기차 → 바투미 흑해 2일"]],legs:"ICN-TBS,BUS-ICN",hopH:0,air:"경유편(이스탄불·두바이·도하 등)",why:"조지아 하나만 제대로: 산·와인·흑해까지. 물가 저렴하고 한국인 무비자 1년.",tip:"트빌리시↔바투미 기차 5시간(2층 열차). 카즈베기는 마슈룻카·투어로."},
+  {t:"예레반 3일 → 트빌리시 4일 (육로)",r:"코카서스·튀르키예",stops:[["예레반 → 트빌리시",7,0,"예레반 2일(캐스케이드·아라라트 전망) → 가르니·게하르트·세반 호수 1일 → 국경 버스 5~6시간 → 트빌리시 2일 → 카즈베기 1박"]],legs:"ICN-EVN,TBS-ICN",hopH:0,air:"경유편",why:"아르메니아로 들어가 조지아로 나오는 정석 코카서스 2국 코스.",tip:"두 나라 모두 한국인 무비자. 예레반↔트빌리시 미니버스·야간열차."},
+  {t:"트빌리시·예레반 6일 + 이스탄불 2일",r:"코카서스·튀르키예",stops:[["트빌리시 → 예레반",6,0,"트빌리시 2일 → 카즈베기 1박 → 국경 버스 → 예레반·세반 호수 2일"],["이스탄불",2,0,"귀국길 구시가지 1일 + 보스포루스 1일"]],legs:"ICN-TBS,EVN-IST,IST-ICN",hopH:2.5,air:"경유편 + 터키항공(TK) 귀국",why:"코카서스 2국 + 귀국길 이스탄불. 이스탄불-인천 직항으로 편하게 귀국.",tip:"예레반→이스탄불 2시간 30분."},
+  {t:"이스탄불 2일 + 바투미·트빌리시 5일",r:"코카서스·튀르키예",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["바투미 → 쿠타이시 → 트빌리시",5,0,"바투미 흑해 2일 → 기차 → 쿠타이시 1일 → 트빌리시 2일"]],legs:"ICN-IST,IST-BUS,TBS-ICN",hopH:2,air:"터키항공(TK)",why:"흑해 바투미로 들어가 수도 트빌리시로 나오는 조지아 횡단.",tip:"이스탄불→바투미 2시간."},
+  {t:"이스탄불 2일 + 아르메니아 4일",r:"코카서스·튀르키예",stops:[["이스탄불",2,1,"구시가지 1일 + 보스포루스 1일"],["예레반·세반·디리잔",4,0,"예레반 2일 → 세반 호수·디리잔 1일 → 가르니·게하르트 1일"]],legs:"ICN-IST,IST-EVN,EVN-ICN",hopH:2.5,air:"터키항공(TK)",why:"덜 알려진 아르메니아를 여유롭게. 물가 저렴, 브랜디·수도원.",tip:"예레반→인천은 이스탄불·두바이 경유가 일반적."},
+  {t:"바쿠 2일 + 트빌리시 4일",r:"코카서스·튀르키예",stops:[["바쿠(아제르바이잔)",2,1,"올드시티·불꽃타워 1일 + 고부스탄·진흙화산 1일"],["트빌리시·카즈베기",4,0,"트빌리시 2일 + 카즈베기 1박 + 시그나기 1일"]],legs:"ICN-GYD,GYD-TBS,TBS-ICN",hopH:1,air:"경유편 + 국제선 1시간",why:"현대적인 바쿠와 정겨운 조지아를 1시간 비행으로.",tip:"아제르바이잔은 전자비자(ASAN) 필요."},
   {t:"우즈베키스탄 4일 + 알마티 3일",r:"중앙아시아",stops:[["우즈베키스탄(타슈켄트·사마르칸트·부하라)",4,1,"타슈켄트 1일 → 고속열차로 사마르칸트 2일 → 부하라 1일 → 타슈켄트 복귀"],["알마티",3,0,"콕토베·시내 1일, 차른 캐니언 당일 1일, 빅 알마티 호수 1일"]],legs:"ICN-TAS,TAS-ALA,ALA-ICN",hopH:1.5,air:"우즈베키스탄항공(HY)·에어아스타나(KC)",why:"인천 직항 있는 두 도시로 실크로드 유적 + 천산산맥. 물가 저렴.",tip:"우즈베키스탄·카자흐스탄 모두 한국인 무비자(기간은 출발 전 확인)."},
   {t:"알마티 → 비슈케크·이식쿨 (육로)",r:"중앙아시아",stops:[["알마티 → 비슈케크·이식쿨",6,0,"알마티 2일 → 국경 버스 4시간 → 비슈케크 1일 → 이식쿨 호수·카라콜 3일"]],legs:"ICN-ALA,FRU-ICN",hopH:0,air:"에어아스타나(KC)·경유편",why:"카자흐로 들어가 키르기스로 나오는 천산 대자연 코스.",tip:"알마티→비슈케크는 버스·택시 4시간, 국경 통과 쉬움."},
   {t:"코카서스 3국: 바쿠 2일 + 트빌리시 3일 + 예레반 2일",r:"코카서스·튀르키예",stops:[["바쿠(아제르바이잔)",2,1,"올드시티·불꽃타워 1일 + 고부스탄·진흙화산 1일"],["트빌리시(조지아)",3,0,"구시가지·유황온천 1일, 카즈베기 당일 1일, 시그나기 와인 1일"],["예레반(아르메니아)",2,0,"시내·캐스케이드 1일 + 가르니·게하르트 1일"]],legs:"ICN-GYD,GYD-TBS,TBS-EVN,EVN-ICN",hopH:1,air:"경유편(이스탄불·알마티·두바이 등)",why:"세 나라를 1시간 비행으로 잇는 코카서스 일주. 와인·산·온천, 물가 저렴.",tip:"아제르바이잔은 전자비자(ASAN) 필요. 조지아↔아르메니아는 버스 5~6시간으로도 가능."},
@@ -2396,7 +2416,7 @@ function multiLink(segs,pax){
 function openStop(){
   if(!$("#stopDate").value){const fm=$("#fareMonth").value;$("#stopDate").value=fm?fm+"-10":addDays(todayStr(),30);}
   $("#stopPax").value=$("#farePax").value||"2";
-  const pri=["중앙아시아","코카서스·튀르키예","동유럽·발칸","국가 내 일주"];const regs=["전체",...pri,...new Set(STOPOVERS.map(x=>x.r).filter(r=>!pri.includes(r)))];
+  const pri=["코카서스·튀르키예","동유럽·발칸","국가 내 일주","중앙아시아"];const regs=["전체",...pri,...new Set(STOPOVERS.map(x=>x.r).filter(r=>!pri.includes(r)))];
   $("#stopSeg").innerHTML=regs.map(r=>`<button class="${r===STOP_REGION?'on':''}" onclick="STOP_REGION='${r}';openStop()">${r}</button>`).join("");
   renderStop();
 }
@@ -2404,7 +2424,7 @@ function stopQuery(){const d=$("#stopDate").value,r=+$("#stopRange").value,ex=$(
 function rangeText(q){return q?(q.from===q.to?`${mdw(q.from)} 출발`:`${mdw(q.from)}~${mdw(q.to)} 출발`):'출발일 선택';}
 function renderStop(){
   const pax=+$("#stopPax").value||2, start=$("#stopDate").value, q=stopQuery();
-  const list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>STOP_REGION==="전체"||x.r===STOP_REGION);
+  const list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x));
   $("#stopBody").innerHTML=list.map(x=>{
     const days=x.stops.reduce((a,s)=>a+s[1],0);
     const chips=x.stops.map(s=>`<span class="${s[2]?'hub':''}">${escapeHtml(s[0])} ${s[1]}일</span>`).join('<span style="border:0;background:none;padding:3px 0">→</span>')+`<span style="border:0;background:none;padding:3px 0">→</span><span>🇰🇷 ${escapeHtml(AP_KO[x.legs.split(',').pop().split('@')[0].split('-')[1]]||'한국')} 귀국</span>`;

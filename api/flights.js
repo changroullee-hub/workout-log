@@ -85,6 +85,9 @@ const OPENJAW = [
   ["카자흐스탄","알마티 → 아스타나","ALA","NQZ","국내선 1시간 40분·야간열차",6],
   ["카자흐스탄·키르기스스탄","알마티 → 비슈케크(이식쿨)","ALA","FRU","국경 버스 4시간",6],
   ["조지아·아르메니아","트빌리시(카즈베기) → 예레반","TBS","EVN","국경 버스 5~6시간",6],
+  ["아르메니아·조지아","예레반(세반 호수) → 트빌리시","EVN","TBS","국경 버스 5~6시간",6],
+  ["조지아","트빌리시 → 카즈베기 → 쿠타이시 → 바투미","TBS","BUS","기차 5시간(트빌리시↔바투미)",6],
+  ["조지아","바투미(흑해) → 트빌리시","BUS","TBS","기차 5시간",5],
   ["아제르바이잔·조지아","바쿠 → 트빌리시","GYD","TBS","야간열차·국제선 1시간",6],
   ["튀르키예","이스탄불 → 카파도키아 → 파묵칼레 → 이즈미르(에페소)","IST","IZM","국내선 1시간 20분 + 야간버스",7],
   ["튀르키예","이스탄불 → 안탈리아","IST","AYT","국내선 1시간 20분",6],
@@ -147,16 +150,18 @@ export default async function handler(req, res) {
     const backOk = (x) => { const d = x.departAt.slice(0, 10); const a = arrKST(x); return d >= addDay(we, -1) && (a ? a <= we : d < we); };
     const goOk = (x) => { const d = x.departAt.slice(0, 10); return d >= ws && d <= addDay(ws, 1); };
     const groups = len <= 4 ? ["short"] : len <= 8 ? ["short", "mid"] : ["short", "mid", "long"];
+    const skip = (req.query.skip || "").toString().split(",").map((x) => x.trim()).filter(Boolean);
+    const skipped = (country) => skip.some((c) => country.includes(c));
     try {
       // 왕복: 단거리는 인천·김포·청주, 나머지는 인천
       const jobs = [];
-      if (req.query.rt !== "0") groups.forEach((g) => DESTS[g].forEach((d) => (g === "short" ? ORIGINS : ["ICN"]).forEach((og) => jobs.push(async () => {
+      if (req.query.rt !== "0") groups.forEach((g) => DESTS[g].filter((d) => !skipped(d[0])).forEach((d) => (g === "short" ? ORIGINS : ["ICN"]).forEach((og) => jobs.push(async () => {
         const r = (await cheapest(token, og, d[2], { month: ws.slice(0, 7), ret: we.slice(0, 7), oneway: false, direct: false, limit: 100 })) || [];
         const ok = r.filter((x) => goOk(x) && x.returnAt && x.returnAt.slice(0, 10) <= we && x.returnAt.slice(0, 10) >= addDay(we, -1)).sort((a, b) => a.price - b.price)[0];
         return ok ? { country: d[0], city: d[1], code: d[2], hours: d[3], ...ok } : null;
       }))));
       // 국가 안 이동: 들어가는 도시와 나오는 도시가 다른 편도 2장
-      OPENJAW.filter((o) => len >= o[5] && (!o[6] || req.query.sea !== "0")).forEach((o) => jobs.push(async () => {
+      OPENJAW.filter((o) => len >= o[5] && (!o[6] || req.query.sea !== "0") && !skipped(o[0])).forEach((o) => jobs.push(async () => {
         const [go, back] = await Promise.all([[`ICN`, o[2], ws], [o[3], `ICN`, we]].map(([a, b, d]) =>
           Promise.all([...new Set([addDay(d, -1).slice(0, 7), addDay(d, 1).slice(0, 7)])].map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 100 }))).then((x) => x.flat().filter(Boolean))));
         const g = go.filter(goOk).sort((a, b) => a.price - b.price)[0], b = back.filter(backOk).sort((a, b) => a.price - b.price)[0];
