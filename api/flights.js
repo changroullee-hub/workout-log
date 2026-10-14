@@ -231,6 +231,19 @@ export default async function handler(req, res) {
             transfers: (x.transfers || 0) + (best.transfers || 0) + 1, airline: [x.airline, best.airline].filter(Boolean).join("+"), via: hub, link: "",
             parts: [{ from: last.a, to: hub, ...x }, { from: hub, to: last.b, ...best }] }); });
       }
+      // 첫 구간(한국 → 첫 도시)도 표가 드물면 '한국→허브→첫 도시' 2장 조합을 후보로 (환승 1시간 이상, 다음날까지)
+      const first = legs[0], directGo = opts[0].filter((x) => x.departAt.slice(0, 10) >= from && x.departAt.slice(0, 10) <= to).length;
+      if (ORIGINS.includes(first.a) && directGo < 3) {
+        const pairs = await Promise.all(hubs.filter((h) => h !== first.a && h !== first.b).map(async (hub) => [hub, ...(await Promise.all([fetchAll(first.a, hub, from, addDay(to, 1)), fetchAll(hub, first.b, from, addDay(to, 2))]))]));
+        for (const [hub, p1, p2] of pairs) {
+          p1.filter((x) => x.departAt.slice(0, 10) >= from && x.departAt.slice(0, 10) <= to).forEach((x) => { let best = null; const arr = arrAbs(x);
+            p2.forEach((y) => { if (Date.parse(y.departAt) < arr + 60 * 60000 || y.departAt.slice(0, 10) > addDay(x.departAt.slice(0, 10), 1)) return; if (!best || y.price < best.price) best = y; });
+            if (best && (x.transfers || 0) + (best.transfers || 0) + 1 > 2) best = null;
+            if (best) opts[0].push({ ...x, price: x.price + best.price, durationMin: best.durationMin ? Math.round((arrAbs(best) - Date.parse(x.departAt)) / 60000) : null,
+              transfers: (x.transfers || 0) + (best.transfers || 0) + 1, airline: [x.airline, best.airline].filter(Boolean).join("+"), via: hub, link: "",
+              parts: [{ from: first.a, to: hub, ...x }, { from: hub, to: first.b, ...best }] }); });
+        }
+      }
       // 출발일마다: 앞 비행 현지 도착일 + 체류일 ~ +extra 일 사이 다음 비행 중 누적 최저가 (구간별 DP)
       const starts = [...new Set(opts[0].map((x) => x.departAt.slice(0, 10)).filter((d) => d >= from && d <= to))].sort();
       const trips = [];
