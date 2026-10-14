@@ -260,7 +260,9 @@ export default async function handler(req, res) {
       // 출발 시점에 그 구간에 가격 자체가 없는 경우 알려주기
       const empty = legs.map((l, i) => (opts[i].length ? null : `${l.a}→${l.b}`)).filter(Boolean);
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
-      res.status(200).json({ from, to, extra, trips: trips.slice(0, 3).map(fmt), checked: starts.length, empty });
+      // 왜 안 나왔는지: 구간별로 찾은 가격 개수(+ 첫 비행이 출발 가능일에 있는지)
+      const counts = legs.map((l, i) => ({ leg: `${l.a}→${l.b}`, n: opts[i].length, viaHub: opts[i].some((x) => x.via) }));
+      res.status(200).json({ from, to, extra, trips: trips.slice(0, 3).map(fmt), checked: starts.length, empty, counts, startsInRange: starts.length });
     } catch (e) {
       if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }
       res.status(502).json({ error: "경유 여행 가격 조회 실패: " + e.message });

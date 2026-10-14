@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-14d  ·  feat: 경유 여행 탭도 꿀조합 휴가 기간 기준 + 전체 코스 한 번에 찾기
+     build: 2026-10-14e  ·  fix: 경유 여행 못 찾은 코스는 숨기지 말고 이유 표시
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2424,6 +2424,7 @@ const STOPOVERS=[
 ];
 let STOP_REGION="전체", STOP_PRICES={};
 const AP_KO={ICN:"인천",GMP:"김포",CJJ:"청주"};
+const AP_NAME_KO={IST:"이스탄불",NAV:"카파도키아",IZM:"이즈미르",AYT:"안탈리아",ATH:"아테네",JTR:"산토리니",HER:"크레타",SKG:"테살로니키",TIA:"티라나",TGD:"포드고리차",DBV:"두브로브니크",SPU:"스플리트",ZAG:"자그레브",SJJ:"사라예보",BEG:"베오그라드",SOF:"소피아",WAW:"바르샤바",BUD:"부다페스트",PRG:"프라하",HEL:"헬싱키",RIX:"리가",TLL:"탈린",FRA:"프랑크푸르트",TBS:"트빌리시",BUS:"바투미",EVN:"예레반",GYD:"바쿠",BJS:"베이징",XIY:"시안",CTU:"청두",CKG:"충칭",DYG:"장자제",TAS:"타슈켄트",ALA:"알마티",FRU:"비슈케크",DOH:"도하",DXB:"두바이",AUH:"아부다비",SIN:"싱가포르",BKK:"방콕",KUL:"쿠알라룸푸르",TYO:"도쿄",TPE:"타이베이",YVR:"밴쿠버",PAR:"파리",RVN:"로바니에미",MLE:"몰디브",ZNZ:"잔지바르",CAI:"카이로",AMM:"암만",RAK:"마라케시",REK:"레이캬비크",DPS:"발리",LPQ:"루앙프라방",KTM:"카트만두",HNL:"호놀룰루",LAX:"로스앤젤레스",CUN:"칸쿤"};
 const WD="일월화수목금토";
 function addDays(d,n){const t=new Date(d+"T00:00:00");t.setDate(t.getDate()+n);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;}
 function mdw(d){if(!d)return '';const t=new Date(d.slice(0,10)+"T00:00:00");return `${t.getMonth()+1}/${t.getDate()}(${WD[t.getDay()]})`;}
@@ -2466,9 +2467,9 @@ function renderStop(){
   $("#stopCustom").style.display=vac?'none':'block';$("#stopFlexWrap").style.visibility=vac?'visible':'hidden';
   let short=0,hid=0;
   let list=STOPOVERS.map((x,i)=>({...x,i})).filter(x=>(STOP_REGION==="전체"||x.r===STOP_REGION)&&!courseVisited(x));
-  list=list.filter(x=>{const ns=stopNights(x,q);if(!ns){short++;return false;}x.ns=ns;const P=q?STOP_PRICES[stopKey(q,x.i)]:null;if(P&&P.trips&&!P.trips.length){hid++;return false;}return true;});
+  list=list.filter(x=>{const ns=stopNights(x,q);if(!ns){short++;return false;}x.ns=ns;return true;});
   // 가격 나온 코스는 싼 순으로 위에
-  const price=x=>{const P=q?STOP_PRICES[stopKey(q,x.i)]:null;return P&&P.trips&&P.trips[0]?P.trips[0].total:9e15;};
+  const price=x=>{const P=q?STOP_PRICES[stopKey(q,x.i)]:null;return P&&P.trips&&P.trips[0]?P.trips[0].total:P&&P.trips?9e16:9e15;}; // 못 찾은 코스는 맨 아래
   list.sort((a,b)=>price(a)-price(b));
   $("#stopBody").innerHTML=list.map(x=>{
     const xs=vac?{...x,stops:x.stops.map((st,j)=>[st[0],x.ns[j],st[2],st[3]])}:x;
@@ -2479,9 +2480,17 @@ function renderStop(){
     let body=`<button class="stop-btn" onclick="loadStop(${x.i})">💸 최저가 일정 찾기 (${rangeText(q)} · 성인 ${pax}명)</button>`;
     if(P==='loading')body=`<div class="stop-legs"><div class="wk-empty">휴가 기간에 맞는 날짜를 따져 보는 중… (10~20초)</div></div>`;
     else if(P&&P.error)body=`<div class="stop-legs"><div class="wk-empty">${escapeHtml(P.error)}</div></div>`;
+    else if(P&&!P.trips.length){
+      const AP=c=>AP_KO[c]||AP_NAME_KO[c]||c, nm=l=>l.split('→').map(AP).join('→');
+      const none=(P.counts||[]).filter(c=>!c.n).map(c=>nm(c.leg)), noStart=P.counts&&P.counts[0]&&P.counts[0].n&&!P.startsInRange;
+      const why=none.length?`이 기간에 <b>${none.map(escapeHtml).join(' · ')}</b> 구간 가격 데이터가 아직 없어요. 비수기 노선이거나, 아직 그 날짜로 검색한 사람이 없어서예요(출발이 가까워질수록 채워져요).`
+        :noStart?`${escapeHtml(nm(P.counts[0].leg))} 가격은 있는데 휴가 시작 무렵 출발편이 없어요. 앞뒤 연차를 늘려 보세요.`
+        :`구간별 가격은 있는데 휴가 날짜·체류일(도시마다 2박 이상)에 맞게 이어지는 조합이 없어요. 앞뒤 연차를 늘리거나 다른 휴가를 골라 보세요.`;
+      return `<div class="stop-card" style="opacity:.65"><h3>${escapeHtml(x.t)}</h3><div class="wk-empty">❌ ${why}</div><button class="stop-btn" onclick="delete STOP_PRICES['${stopKey(q,x.i)}'];loadStop(${x.i})">↻ 다시 찾기</button></div>`;
+    }
     else if(P)body=P.trips.map((t,ti)=>tripHtml(xs,t,ti,pax,vac?q:null)).join('')+`<div class="stop-meta">출발 가능 ${P.checked}개 날짜를 비교했어요. 편도 최저가를 더한 추정치라 다구간 검색으로 실제 가격을 꼭 확인하세요.</div>`;
     return `<div class="stop-card"><h3>${escapeHtml(x.t)}</h3><div class="stop-chips">${chips}</div>${vac?`<div class="stop-plan" style="margin:0 0 6px">📅 ${q.len}일 휴가에 맞춘 일정: ${xs.stops.map(s=>escapeHtml(s[0])+' '+s[1]+'박').join(' + ')}</div>`:''}${escapeHtml(x.why)}${dayWhy}<div class="stop-meta">🛫 ${escapeHtml(x.air)} · 현지 ${days}${vac?'박':'일'} + 이동<br>💡 ${escapeHtml(x.tip)}</div>${body}</div>`;
-  }).join("")+(hid?`<div class="wk-empty" style="margin:4px 0 6px">이 기간에 이어지는 항공편이 없는 코스 ${hid}개는 숨겼어요.</div>`:'')+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
+  }).join("")+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 // 추천 일정 1개: 요약 · 실제 체류 · 구간 · 다구간 검색
 function tripHtml(x,t,ti,pax,vq){
