@@ -199,7 +199,7 @@ export default async function handler(req, res) {
     const from = isDate(req.query.from) ? req.query.from : legs[0].date;
     let to = isDate(req.query.to) && req.query.to >= from ? req.query.to : from;
     if (to > addDay(from, 45)) to = addDay(from, 45);
-    const extra = Math.min(3, Math.max(0, parseInt(req.query.extra, 10) || 0));
+    const extra = Math.min(8, Math.max(0, parseInt(req.query.extra, 10) || 0)); // 체류를 최대 몇 박까지 늘려도 되는지 (end 로 전체 길이 제한)
     const end = isDate(req.query.end) ? req.query.end : ""; // 이 날까지 한국 도착(휴가 끝)
     const hop = parseInt(req.query.hop, 10) || 0; // 중간 구간(나라 간 이동) 최대 비행 분
     const stays = legs.map((l, i) => (i ? Math.round((new Date(l.date) - new Date(legs[i - 1].date)) / 86400000) : 0));
