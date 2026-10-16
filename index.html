@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-14g  ·  feat: 중부·동유럽 육로 코스 + 첫 구간 허브 대체 + ⭐추천 필터
+     build: 2026-10-16a  ·  꿀조합 기본 펼침 + 탭 이름 '다구간 항공권 예매'
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -621,18 +621,18 @@
 
   <!-- 여행 -->
   <section class="tab pad" id="tab-trip">
-    <details class="vac" id="vacBox">
+    <details class="vac" id="vacBox" open>
       <summary>🗓️ <b>연차 꿀조합</b> <span id="vacHead" style="color:var(--ink-faint);font-weight:600"></span></summary>
       <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
         <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap"><input type="checkbox" id="vacLabor" checked onchange="renderVac()" /> 근로자의날(5/1) 쉼</label></div>
       <div class="vac-visited" id="vacVisited"></div>
       <div id="vacBody"></div>
-      <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 휴가 기간에 다녀올 수 있는 최저가 여행지(왕복·국가 내 이동·경유 여행)를 찾아줘요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
+      <div class="wk-empty" style="margin:6px 2px 2px">주말+공휴일+대체공휴일 기준. 항목을 누르면 그 휴가 기간에 다녀올 수 있는 최저가 여행지(왕복·국가 내 이동·다구간 코스)를 찾아줘요. 선거일은 예정일(2028 총선, 2030 지방선거)이고 임시공휴일은 반영 안 됐어요.</div>
     </details>
     <div id="vacRec"></div>
     <div class="seg" id="tripSeg">
       <button class="on" id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
-      <button id="tsub-stop" onclick="tripSub('stop')">🧭 경유 여행</button>
+      <button id="tsub-stop" onclick="tripSub('stop')">🧭 다구간 항공권 예매</button>
       <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
     </div>
     <div id="tripStop" style="display:none">
@@ -2221,7 +2221,6 @@ function renderVac(){
 function useVac(s,e){
   $("#fareMonth").value=s.slice(0,7);$("#stopDate").value=s;$("#stopRange").value="0";
   const n=Math.round((new Date(e)-new Date(s))/86400000);const opt=[...$("#fareNights").options].find(o=>{const [a,b]=o.value.split('-').map(Number);return o.value&&n>=a&&n<=b;});if(opt)$("#fareNights").value=opt.value;
-  $("#vacBox").open=false;
   stopVacOptions(`${s}|${e}`);
   loadVacRec(s,e);
 }
