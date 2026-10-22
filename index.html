@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-22a  ·  다구간 탭 맨 앞 + 연차 꿀조합 추천 버튼
+     build: 2026-10-22b  ·  꿀조합에 연차 쓸 날짜 표시
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2218,6 +2218,14 @@ function toggleVac(force){
   if(show){renderVac();box.scrollIntoView({behavior:'smooth',block:'start'});}
   $("#vacBtn").firstChild.textContent=show?'🗓️ 연차 꿀조합 접기 ':'🗓️ 연차 꿀조합 추천 ';
 }
+// 기간 안의 근무일 = 연차 쓸 날. 이어진 날은 "10/5(화)~10/8(금)"으로 묶음
+function leaveDays(s,e){
+  const ds=[];for(let d=s;d<=e;d=addDays(d,1))if(!vacOff(d))ds.push(d);
+  const out=[];let a=null,b=null;
+  ds.forEach(d=>{if(b&&addDays(b,1)===d)b=d;else{if(a)out.push(a===b?mdw(a):`${mdw(a)}~${mdw(b)}`);a=b=d;}});
+  if(a)out.push(a===b?mdw(a):`${mdw(a)}~${mdw(b)}`);
+  return out.join('·');
+}
 function renderVac(){
   renderVisited();
   const ys=[2027,2028,2029,2030];if(!VAC_YEAR)VAC_YEAR=Math.max(2027,Math.min(2030,new Date().getFullYear()+1));
@@ -2226,7 +2234,7 @@ function renderVac(){
   G.forEach(g=>g.opts.forEach(o=>{if(o.leave&&(!best||o.len/o.leave>best.len/best.leave||(o.len/o.leave===best.len/best.leave&&o.len>best.len)))best={...o,name:g.name};}));
   $("#vacHead").textContent=best?` · ${VAC_YEAR} 최고: 연차 ${best.leave}일 → ${best.len}일 (${best.name})`:'';
   $("#vacBtnSub").textContent=best?`${VAC_YEAR} 최고: 연차 ${best.leave}일로 ${best.len}일 쉬기 (${best.name}) · 누르면 전체 보기`:'누르면 연차 적게 쓰고 길게 쉬는 날짜를 보여줘요';
-  $("#vacBody").innerHTML=G.map(g=>`<div class="vac-g"><h4>${escapeHtml(g.name)}</h4>${g.opts.map(o=>`<button class="vac-o" onclick="useVac('${o.s}','${o.e}')"><span>${o.leave?`연차 <b>${o.leave}일</b>`:'연차 없이'} → 최대 <b>${o.len}일</b> 휴가${best&&o.s===best.s&&o.e===best.e?' ⭐':''}</span><span>${mdw(o.s)}~${mdw(o.e)}</span></button>`).join('')}</div>`).join('')||'<div class="wk-empty">조합이 없어요.</div>';
+  $("#vacBody").innerHTML=G.map(g=>`<div class="vac-g"><h4>${escapeHtml(g.name)}</h4>${g.opts.map(o=>`<button class="vac-o" style="display:block" onclick="useVac('${o.s}','${o.e}')"><div>${o.leave?`<b>${leaveDays(o.s,o.e)}</b> 연차 쓰면`:'연차 없이'}${best&&o.s===best.s&&o.e===best.e?' ⭐':''}</div><div style="margin-top:2px">→ <span style="color:var(--ink)">${mdw(o.s)}~${mdw(o.e)}</span> <b>${o.len}일 휴가</b> <span style="color:var(--ink-faint)">(연차 ${o.leave}일)</span></div></button>`).join('')}</div>`).join('')||'<div class="wk-empty">조합이 없어요.</div>';
 }
 function useVac(s,e){
   $("#fareMonth").value=s.slice(0,7);$("#stopDate").value=s;$("#stopRange").value="0";
