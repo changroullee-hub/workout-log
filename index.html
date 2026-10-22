@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-16b  ·  다구간: 휴가 안에서 출발·귀국·체류를 자유롭게(도시당 2박 이상) 최저가 탐색
+     build: 2026-10-22a  ·  다구간 탭 맨 앞 + 연차 꿀조합 추천 버튼
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -322,6 +322,8 @@
   .stop-leg b,.stop-sum>span:last-child{white-space:nowrap;flex-shrink:0}
   .stop-days{margin-top:7px;font-size:12px;line-height:1.55;color:var(--ink-soft)}
   .stop-days b{color:var(--ink)}
+  .vac-btn{display:block;width:100%;margin:0 0 12px;padding:14px 14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ffb347);color:#1a1206;font-size:15px;font-weight:800;text-align:left;box-shadow:0 4px 14px rgba(255,140,40,.25)}
+  .vac-btn span{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:2px}
   .vac{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:13px}
   .vac summary{cursor:pointer;list-style:none;color:var(--ink)}
   .vac summary::-webkit-details-marker{display:none}
@@ -621,7 +623,8 @@
 
   <!-- 여행 -->
   <section class="tab pad" id="tab-trip">
-    <details class="vac" id="vacBox" open>
+    <button class="vac-btn" id="vacBtn" onclick="toggleVac()">🗓️ 연차 꿀조합 추천 <span id="vacBtnSub"></span></button>
+    <details class="vac" id="vacBox" open style="display:none">
       <summary>🗓️ <b>연차 꿀조합</b> <span id="vacHead" style="color:var(--ink-faint);font-weight:600"></span></summary>
       <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
         <label style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap"><input type="checkbox" id="vacLabor" checked onchange="renderVac()" /> 근로자의날(5/1) 쉼</label></div>
@@ -631,11 +634,11 @@
     </details>
     <div id="vacRec"></div>
     <div class="seg" id="tripSeg">
-      <button class="on" id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
-      <button id="tsub-stop" onclick="tripSub('stop')">🧭 다구간 항공권 예매</button>
+      <button class="on" id="tsub-stop" onclick="tripSub('stop')">🧭 다구간 항공권 예매</button>
+      <button id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
       <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
     </div>
-    <div id="tripStop" style="display:none">
+    <div id="tripStop">
       <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">여러 나라·도시를 도는 코스예요. <b>꿀조합 휴가 기간</b>을 고르면 지역별 코스를 그 휴가에 맞춰 <b>먼저 다 찾아보고</b>, 이어지는 코스만 귀국까지 합친 총액이 싼 순으로 추천해요.</p>
       <div class="mfield"><label>휴가 기간 (연차 꿀조합)</label><select id="stopVac" onchange="renderStop()"></select></div>
       <div id="stopCustom" style="display:none">
@@ -653,7 +656,7 @@
       <div class="seg" id="stopSeg"></div>
       <div id="stopBody"></div>
     </div>
-    <div id="tripFare">
+    <div id="tripFare" style="display:none">
       <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">인천·김포·청주 출발 최저가예요. 최근 이틀 안에 실제 검색된 가격이라 예매 시점엔 달라질 수 있어요.</p>
       <div class="seg" id="fareSeg">
         <button class="on" onclick="fareGroup('short',this)">✈️ 1~4시간</button>
@@ -2170,7 +2173,7 @@ function onFarePax(){try{localStorage.setItem('wlog_farepax',$("#farePax").value
 // 아비아세일즈 검색 링크의 승객 수 자리(/search/ICN1103TYO1211[1]...)를 인원수로
 function paxLink(url,n){return (url||'').replace(/(\/search\/[A-Z]{3}\d{4}[A-Z]{3}(?:\d{4})?)\d/,`$1${n}`);}
 try{const fp=localStorage.getItem('wlog_farepax');if(fp)$("#farePax").value=fp;}catch(e){}
-let TRIP_SUB='fare';
+let TRIP_SUB='stop'; // 항공권 예매 탭을 열면 다구간이 먼저
 /* --- 연차 꿀조합: 2027~2030 공휴일(대체공휴일 포함)로 '연차 n일 → 최대 N일' 계산 --- */
 const KR_HOL={"2027-01-01":"신정","2027-02-06":"설날 연휴","2027-02-07":"설날","2027-02-08":"설날 연휴","2027-02-09":"설날 대체공휴일","2027-03-01":"삼일절","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일","2027-08-15":"광복절","2027-08-16":"광복절 대체공휴일","2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴","2027-10-03":"개천절","2027-10-04":"개천절 대체공휴일","2027-10-09":"한글날","2027-10-11":"한글날 대체공휴일","2027-12-25":"성탄절","2027-12-27":"성탄절 대체공휴일",
   "2028-01-01":"신정","2028-01-26":"설날 연휴","2028-01-27":"설날","2028-01-28":"설날 연휴","2028-03-01":"삼일절","2028-04-12":"국회의원선거","2028-05-02":"부처님오신날","2028-05-05":"어린이날","2028-06-06":"현충일","2028-08-15":"광복절","2028-10-02":"추석 연휴","2028-10-03":"개천절·추석","2028-10-04":"추석 연휴","2028-10-05":"대체공휴일","2028-10-09":"한글날","2028-12-25":"성탄절",
@@ -2209,6 +2212,12 @@ function vacDeals(y){
     return {name:k,opts:Object.values(byLeave).sort((a,b)=>a.leave-b.leave),first:arr.map(r=>r.s).sort()[0]};
   }).filter(g=>g.first.slice(0,4)==String(y)||g.opts.some(o=>o.e.slice(0,4)==String(y)&&o.s.slice(0,4)==String(y))).sort((a,b)=>a.first<b.first?-1:1);
 }
+function toggleVac(force){
+  const box=$("#vacBox"),show=force!=null?force:box.style.display==='none';
+  box.style.display=show?'block':'none';box.open=true;
+  if(show){renderVac();box.scrollIntoView({behavior:'smooth',block:'start'});}
+  $("#vacBtn").firstChild.textContent=show?'🗓️ 연차 꿀조합 접기 ':'🗓️ 연차 꿀조합 추천 ';
+}
 function renderVac(){
   renderVisited();
   const ys=[2027,2028,2029,2030];if(!VAC_YEAR)VAC_YEAR=Math.max(2027,Math.min(2030,new Date().getFullYear()+1));
@@ -2216,6 +2225,7 @@ function renderVac(){
   const G=vacDeals(VAC_YEAR);let best=null;
   G.forEach(g=>g.opts.forEach(o=>{if(o.leave&&(!best||o.len/o.leave>best.len/best.leave||(o.len/o.leave===best.len/best.leave&&o.len>best.len)))best={...o,name:g.name};}));
   $("#vacHead").textContent=best?` · ${VAC_YEAR} 최고: 연차 ${best.leave}일 → ${best.len}일 (${best.name})`:'';
+  $("#vacBtnSub").textContent=best?`${VAC_YEAR} 최고: 연차 ${best.leave}일로 ${best.len}일 쉬기 (${best.name}) · 누르면 전체 보기`:'누르면 연차 적게 쓰고 길게 쉬는 날짜를 보여줘요';
   $("#vacBody").innerHTML=G.map(g=>`<div class="vac-g"><h4>${escapeHtml(g.name)}</h4>${g.opts.map(o=>`<button class="vac-o" onclick="useVac('${o.s}','${o.e}')"><span>${o.leave?`연차 <b>${o.leave}일</b>`:'연차 없이'} → 최대 <b>${o.len}일</b> 휴가${best&&o.s===best.s&&o.e===best.e?' ⭐':''}</span><span>${mdw(o.s)}~${mdw(o.e)}</span></button>`).join('')}</div>`).join('')||'<div class="wk-empty">조합이 없어요.</div>';
 }
 function useVac(s,e){
