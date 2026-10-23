@@ -61,7 +61,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `trip-plan.js` | 티켓 이미지 여러 장 → 전체 여정 | `ANTHROPIC_API_KEY` |
 | `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=…&from=&to=&extra=` 는 경유 여행 탭의 최저가 일정 TOP3 탐색(출발일 범위 × 체류 +extra박, 귀국편 대체는 `hubs`로 넘긴 지역 환승지만, `end`=귀국 기한, `hop`=나라 간 최대 비행분). `?win=시작..끝&flex=` 은 꿀조합 휴가 맞춤(앞뒤 연차 flex일까지) 왕복 최저가 + 국가 안·육로 이동(`OPENJAW`, 동유럽·발칸 포함). 요청 제한(429)은 재시도, 장거리는 인천만 조회. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
 | `itinerary.js` | 다구간 추천 일정 → 날짜별 동선 + 도시별 숙박(체크인/아웃·추천 동네) JSON (Claude, `claude-opus-5-5`, json_schema 구조화 출력). `vercel.json` maxDuration 60초 | `ANTHROPIC_API_KEY` |
-| `hotels.js` | 도시·날짜별 호텔 실제 가격(구글 호텔, SerpApi) 중 평점 4.0+ 싼 순 3곳. Hotellook은 2025-10 종료돼서 대체 | `SERPAPI_KEY` |
+| `hotels.js` | 도시·날짜별 3성급+ 호텔 실제 가격(구글 호텔, SerpApi, 호스텔 제외) 중 평점 4.0+ 싼 순 3곳. Hotellook은 2025-10 종료돼서 대체 | `SERPAPI_KEY` |
 
 환경변수는 Vercel 프로젝트 설정에 있습니다. 키가 없으면 500 + 한국어 안내 메시지를 반환하는 기존 방식을 유지하세요.
 

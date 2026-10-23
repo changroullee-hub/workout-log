@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-23b  ·  SERPAPI_KEY 적용 재배포 (동선 + 호텔 가격)
+     build: 2026-10-23c  ·  호텔: 3성급 이상만, 호스텔 제외
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2559,7 +2559,7 @@ function planBlock(x,t,pax){
   const sum=hotelOk&&done&&hotelOk===it.stays.length?`<div class="stop-sum"><span>✈️ 항공 + 🏨 호텔(가장 싼 곳) 합계</span><span>${won(t.total*pax+hotelSum)}${pax>1?`<span class="fr-pp">1인 ${won((t.total*pax+hotelSum)/pax)}</span>`:''}</span></div>`:'';
   return `<div class="stop-legs" style="margin-top:10px"><div style="font-weight:800;color:var(--ink);margin-bottom:4px">🗺️ 날짜별 동선</div>${days}
     ${it.tips&&it.tips.length?`<div class="stop-meta">💡 ${it.tips.map(escapeHtml).join(' · ')}</div>`:''}
-    <div style="font-weight:800;color:var(--ink);margin-top:12px">🏨 도시별 숙소 (구글 호텔 실제 가격 · 평점 4.0+ 싼 순 · 객실 1개 성인 ${pax}명)</div>${stays}
+    <div style="font-weight:800;color:var(--ink);margin-top:12px">🏨 도시별 숙소 (구글 호텔 실제 가격 · 3성급+ · 평점 4.0+ 싼 순 · 객실 1개 성인 ${pax}명)</div>${stays}
     ${hotelErr?`<div class="wk-empty" style="margin-top:6px">⚠️ ${escapeHtml(hotelErr)}</div>`:''}${sum}
     <div class="stop-meta">동선은 AI가 실제 항공 날짜에 맞춰 짠 초안이에요. 운영 시간·기차 시간표는 출발 전에 확인하세요.</div></div>`;
 }
