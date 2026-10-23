@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-22b  ·  꿀조합에 연차 쓸 날짜 표시
+     build: 2026-10-23a  ·  다구간 추천에 날짜별 동선(AI) + 도시별 호텔 실제 가격
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -2538,6 +2538,48 @@ function renderStop(){
   }).join("")+failHtml+(short?`<div class="wk-empty" style="margin:4px 0 6px">휴가가 짧아 도시마다 2박이 안 되는 코스 ${short}개는 숨겼어요.</div>`:'')+`<div class="wk-empty" style="margin:4px 0 10px">비자·입국 조건과 스톱오버 프로그램 조건은 출발 전 외교부 해외안전여행·항공사 사이트에서 꼭 확인하세요.</div>`;
 }
 // 추천 일정 1개: 요약 · 실제 체류 · 구간 · 다구간 검색
+/* --- 동선(Claude) + 호텔 가격(구글 호텔) --- */
+const PLAN_REG={}, PLANS={};
+function planKey(x,t){let h=5381;const k=x.t+'|'+t.legs.map(l=>l.departAt).join(',');for(let i=0;i<k.length;i++)h=((h<<5)+h+k.charCodeAt(i))|0;return 'p'+(h>>>0).toString(36);}
+function planBlock(x,t,pax){
+  const k=planKey(x,t);PLAN_REG[k]={x,t,pax};const P=PLANS[k];
+  if(!P)return `<button class="stop-btn" onclick="planTrip('${k}')">🗺️ 날짜별 동선 짜고 호텔 가격 보기</button>`;
+  if(P.st==='loading')return `<div class="stop-plan" style="margin-top:8px">🗺️ 실제 항공 날짜에 맞춰 동선 짜는 중… (20~40초)</div>`;
+  if(P.st==='error')return `<div class="stop-plan" style="margin-top:8px">⚠️ ${escapeHtml(P.err)} <button onclick="planTrip('${k}')" style="color:var(--accent)">↻ 다시</button></div>`;
+  const it=P.it, md=d=>mdw(d);
+  const days=it.days.map((d,i)=>`<div style="padding:6px 0;border-top:1px dashed var(--line)"><b style="color:var(--ink)">D${i+1} ${md(d.date)} · ${escapeHtml(d.city)}</b> — ${escapeHtml(d.title)}${d.move?`<div style="color:var(--accent);font-size:11.5px">🚆 ${escapeHtml(d.move)}</div>`:''}<div style="font-size:11.5px;color:var(--ink-faint)">${d.plan.map(escapeHtml).join(' → ')}</div></div>`).join('');
+  let hotelSum=0,hotelOk=0,hotelErr='';
+  const stays=it.stays.map((st,i)=>{const H=P.hotels[i];const n=Math.round((new Date(st.checkout)-new Date(st.checkin))/86400000);
+    let hs='<div class="wk-empty">호텔 가격 찾는 중…</div>';
+    if(H&&H.error){hotelErr=H.error;hs='';}
+    else if(H&&!H.hotels.length)hs='<div class="wk-empty">평점 4.0 이상 호텔 가격을 못 찾았어요.</div>';
+    else if(H){hotelSum+=H.hotels[0].total;hotelOk++;hs=H.hotels.map((h,j)=>`<a class="stop-leg" href="${escapeHtml(h.link||'#')}" target="_blank" rel="noopener"><span>${j?'':'👍 '}${escapeHtml(h.name)}${h.rating?` · ⭐${h.rating}`:''}${h.cls?` · ${escapeHtml(String(h.cls))}성`:''}<small>1박 ${h.night?won(h.night):'-'}</small></span><b>${won(h.total)}</b></a>`).join('');}
+    return `<div style="margin-top:8px"><b style="color:var(--ink)">🏨 ${escapeHtml(st.city)} ${md(st.checkin)}~${md(st.checkout)} (${n}박)</b><div style="font-size:11.5px;color:var(--ink-faint)">📍 ${escapeHtml(st.area)}</div>${hs}</div>`;}).join('');
+  const done=Object.keys(P.hotels).length===it.stays.length;
+  const sum=hotelOk&&done&&hotelOk===it.stays.length?`<div class="stop-sum"><span>✈️ 항공 + 🏨 호텔(가장 싼 곳) 합계</span><span>${won(t.total*pax+hotelSum)}${pax>1?`<span class="fr-pp">1인 ${won((t.total*pax+hotelSum)/pax)}</span>`:''}</span></div>`:'';
+  return `<div class="stop-legs" style="margin-top:10px"><div style="font-weight:800;color:var(--ink);margin-bottom:4px">🗺️ 날짜별 동선</div>${days}
+    ${it.tips&&it.tips.length?`<div class="stop-meta">💡 ${it.tips.map(escapeHtml).join(' · ')}</div>`:''}
+    <div style="font-weight:800;color:var(--ink);margin-top:12px">🏨 도시별 숙소 (구글 호텔 실제 가격 · 평점 4.0+ 싼 순 · 객실 1개 성인 ${pax}명)</div>${stays}
+    ${hotelErr?`<div class="wk-empty" style="margin-top:6px">⚠️ ${escapeHtml(hotelErr)}</div>`:''}${sum}
+    <div class="stop-meta">동선은 AI가 실제 항공 날짜에 맞춰 짠 초안이에요. 운영 시간·기차 시간표는 출발 전에 확인하세요.</div></div>`;
+}
+async function planTrip(k){
+  const R=PLAN_REG[k];if(!R)return;const {x,t,pax}=R;
+  PLANS[k]={st:'loading'};rerenderPlans();
+  try{
+    const body={title:x.t,pax,legs:t.legs.map(l=>({from:l.from,to:l.to,via:l.via||'',depart:l.departAt,arrive:l.arrDate||''})),stops:x.stops.map(s=>({name:s[0],nights:s[1],note:s[3]||''}))};
+    const r=await fetch('/api/itinerary',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const d=await r.json();
+    if(!r.ok||d.error){PLANS[k]={st:'error',err:d.error||'동선 생성 실패'};rerenderPlans();return;}
+    PLANS[k]={st:'ok',it:d,hotels:{}};rerenderPlans();
+    // 도시별 호텔 가격 (동시에)
+    await Promise.all(d.stays.map(async(st,i)=>{
+      try{const hr=await fetch(`/api/hotels?city=${encodeURIComponent(st.city_en)}&in=${st.checkin}&out=${st.checkout}&adults=${Math.min(4,pax)}`);const hd=await hr.json();PLANS[k].hotels[i]=(!hr.ok||hd.error)?{error:hd.error||'호텔 검색 실패'}:hd;}
+      catch(e){PLANS[k].hotels[i]={error:'호텔 검색 실패: '+e.message};}
+      rerenderPlans();
+    }));
+  }catch(e){PLANS[k]={st:'error',err:'동선 생성 실패: '+e.message};rerenderPlans();}
+}
+function rerenderPlans(){if(TRIP_SUB==='stop')renderStop();}
 function tripHtml(x,t,ti,pax,vq){
   const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
   const first=t.legs[0], last=t.legs[t.legs.length-1], endD=last.arrDate||last.departAt.slice(0,10);
@@ -2550,7 +2592,8 @@ function tripHtml(x,t,ti,pax,vq){
   return `<div class="stop-legs"${ti?' style="opacity:.92"':''}>
     <div class="stop-sum" style="border:0;margin:0 0 4px;padding:0"><span>${['🥇','🥈','🥉'][ti]} ${mdw(first.departAt)} 출발 · ${nts}박${nts+1}일${vq?`<span style="font-size:11px;font-weight:600">${leaveTag(extraLeave(first.departAt,endD,vq.s,vq.e))}</span>`:''}</span><span style="text-align:right">${won(t.total*pax)}${pax>1?`<span class="fr-pp">1인 ${won(t.total)}</span>`:''}</span></div>
     ${stays(x,t)}${rows}
-    <a class="stop-multi" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener">🔎 이 날짜로 다구간 검색 (아비아세일즈)</a></div>`;
+    <a class="stop-multi" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener">🔎 이 날짜로 다구간 검색 (아비아세일즈)</a>
+    ${planBlock(x,t,pax)}</div>`;
 }
 // 실제 체류: 앞 비행 도착일(현지) → 다음 비행 출발일
 function stays(x,P){
