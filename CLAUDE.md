@@ -35,8 +35,9 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `food` | 식단 |
 | `task` / `taskdone` | 일정, 반복 일정의 날짜별 완료 표시 |
 | `expense` | 가계부 |
-| `trip` / `tripitem` | 여행, 여행 항목(항공·기차·장소) |
+| `trip` / `tripitem` | 여행(`budget` 항공·호텔 예산, `prep` 출발 전 체크리스트, `countries`도 함께), 여행 항목(항공·기차·장소). 여행 data를 고칠 땐 `tripData(t)`로 기존 필드를 보존 |
 | `metrics` | 신체정보 (아래 암호화 참고) |
+| `wish` | 찜한 추천 여행 (`url`=다시 찾을 `/api/flights` 쿼리, `hist`=날짜별 1인 최저가) — 여행 탭 열 때 하루 한 번 재확인, 내려가면 알림 |
 
 공통 컬럼: `id`, `title`, `workout_date`, `total_volume`, `total_sets`, `data`, `created_at`.
 새 도메인이 필요하면 **테이블을 만들지 말고** 새 `kind`를 추가하고 `refreshData()`의 분기와 전역 배열에 연결하세요.
@@ -62,6 +63,9 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=…&from=&to=&extra=` 는 경유 여행 탭의 최저가 일정 TOP3 탐색(출발일 범위 × 체류 +extra박, 귀국편 대체는 `hubs`로 넘긴 지역 환승지만, `end`=귀국 기한, `hop`=나라 간 최대 비행분). `?win=시작..끝&flex=` 은 꿀조합 휴가 맞춤(앞뒤 연차 flex일까지) 왕복 최저가 + 국가 안·육로 이동(`OPENJAW`, 동유럽·발칸 포함). 요청 제한(429)은 재시도, 장거리는 인천만 조회. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
 | `itinerary.js` | 다구간 추천 일정 → 날짜별 동선 + 도시별 숙박(체크인/아웃·추천 동네) JSON (Claude, `claude-opus-5-5`, json_schema 구조화 출력). `vercel.json` maxDuration 60초 | `ANTHROPIC_API_KEY` |
 | `hotels.js` | 도시·날짜별 3성급+ 호텔 실제 가격(구글 호텔, SerpApi, 호스텔 제외) 중 평점 4.0+ 싼 순 3곳. Hotellook은 2025-10 종료돼서 대체 | `SERPAPI_KEY` |
+| `gflights.js` | 추천 일정의 구글 항공권 실시간 가격 + 구간별 실제 편명·경유 공항(SerpApi `google_flights`, 다구간은 `departure_token`으로 구간마다 이어 조회 → 구간 수만큼 호출). 성인 1명 가격으로 받아 화면에서 인원수 곱함. `vercel.json` maxDuration 30초 | `SERPAPI_KEY` |
+| `climate.js` | 그 기간 최근 3년 실제 날씨 평균(최고·최저·비 온 날 %) — Open-Meteo, 키 없음 | — |
+| `fx.js` | 오늘 환율(open.er-api.com, 키 없음, 12시간 캐시) | — |
 
 환경변수는 Vercel 프로젝트 설정에 있습니다. 키가 없으면 500 + 한국어 안내 메시지를 반환하는 기존 방식을 유지하세요.
 

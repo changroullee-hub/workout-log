@@ -2,6 +2,8 @@
   "functions": {
     "api/flights.js": { "maxDuration": 30 },
     "api/itinerary.js": { "maxDuration": 60 },
-    "api/hotels.js": { "maxDuration": 20 }
+    "api/hotels.js": { "maxDuration": 20 },
+    "api/gflights.js": { "maxDuration": 30 },
+    "api/climate.js": { "maxDuration": 20 }
   }
 }
