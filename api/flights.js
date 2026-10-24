@@ -162,7 +162,7 @@ export default async function handler(req, res) {
 
   // 한 나라 여행: scan=PRG,BUD&og=ICN&deep=1&min=6&max=9&hol=2027-01-01,...
   //  → 앞으로 1년 왕복 날짜 조합마다 연차 일수(주말·hol 제외 근무일, 저녁 8시 이후 출발이면 출발일은 퇴근 후라 안 셈)를 계산해
-  //    low = 연차 적게 쓰는 순, cheap = 연차 더 써도 싼 순, best = 공항별 최저가
+  //    low = 연차 적게 쓰는 순, cheap = 연차 더 써도 싼 순, byLeave = 연차 일수별 싼 순, best = 공항별 최저가
   //  fix=출발일..귀국편 출발일 → 그 날짜 왕복 최저가 하나 (찜 가격 재확인용, trips 형식)
   if (req.query.scan) {
     const addDay = (d, n) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -201,12 +201,16 @@ export default async function handler(req, res) {
       // 같은 출발일은 하나만
       const top = (arr, n) => { const used = new Set(), out = []; for (const o of arr) { const k = o.dep.slice(0, 10); if (used.has(k)) continue; used.add(k); out.push(o); if (out.length >= n) break; } return out; };
       const best = {}; opts.forEach((o) => { if (!best[o.c] || o.p < best[o.c].p) best[o.c] = o; });
+      // 연차 일수별(0·1·2…·7+) 싼 순 3개씩
+      const byLeave = {}; opts.slice().sort((a, b) => a.p - b.p).forEach((o) => { const k = Math.min(o.leave, 7); (byLeave[k] = byLeave[k] || []).push(o); });
+      Object.keys(byLeave).forEach((k) => { byLeave[k] = top(byLeave[k], 3); });
       res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
       res.status(200).json({
         checked: opts.length, deep,
         low: top(opts.slice().sort((a, b) => a.leave - b.leave || a.p - b.p || b.days - a.days), 8),
         cheap: top(opts.slice().sort((a, b) => a.p - b.p || a.leave - b.leave), 8),
         best: Object.values(best).sort((a, b) => a.p - b.p),
+        byLeave,
       });
     } catch (e) {
       if (e.message === "TOKEN") { res.status(502).json({ error: "Travelpayouts 토큰이 올바르지 않습니다." }); return; }

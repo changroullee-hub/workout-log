@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24e  ·  API 호출 줄이기(공용 캐시·구간 공유·동선 재사용)
+     build: 2026-10-24f  ·  한 나라 여행: 가까운 나라 먼저 + 연차 일수별 최저가
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -377,6 +377,13 @@
   .one-h .lv.g{background:rgba(55,211,153,.15);color:var(--green)} .one-h .lv.y{background:rgba(255,209,102,.15);color:var(--yellow)} .one-h .lv.r{background:rgba(255,90,95,.13);color:var(--red)}
   .one-h .mid{flex:1;min-width:0} .one-h .mid b{color:var(--ink)} .one-h small{color:var(--ink-faint);font-size:11px}
   .one-h .p{white-space:nowrap;text-align:right;font-weight:800;color:var(--accent)}
+  .lv-bars{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:8px 11px;margin-bottom:8px}
+  .lv-bars div{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;cursor:pointer}
+  .lv-bars span{width:58px;flex-shrink:0;color:var(--ink-soft);font-weight:700}
+  .lv-bars i{flex:0 1 auto;max-width:calc(100% - 160px);height:8px;border-radius:4px;background:var(--accent-dim);border:1px solid var(--accent)}
+  .lv-bars b{margin-left:auto;white-space:nowrap;color:var(--ink)} .lv-bars b.best{color:var(--green)}
+  .lv-sec{margin-bottom:4px} .lv-tag{font-size:11.5px;font-weight:800;color:var(--accent);margin:8px 2px 4px}
+  .lv-more{width:100%;font-size:12px;color:var(--ink-soft);padding:6px;margin:-2px 0 6px;border:1px dashed var(--line);border-radius:9px}
   .one-det{padding:0 11px 11px;font-size:12.5px;color:var(--ink-soft)}
   .stop-multi{display:block;margin-top:8px;text-align:center;background:var(--accent);color:#1a1206;border-radius:9px;padding:9px;font-size:13px;font-weight:800;text-decoration:none}
   .stop-sum{display:flex;justify-content:space-between;font-weight:800;color:var(--accent);padding-top:5px;margin-top:4px;border-top:1px solid var(--line)}
@@ -2952,18 +2959,18 @@ async function togglePrep(id,i){
 /* --- 🇨🇿 한 나라 여행: 앞으로 1년 중 연차 적게 쓰는 날짜 / 연차 더 써도 제일 싼 날짜 --- */
 // [나라, 공항(도시코드), 도시, 나라 안 추천 동선]
 const ONE_REG=[
+  {r:"🗾 가까운 나라",og:"ICN,GMP",len:"3-5",cs:[["일본","TYO,OSA,FUK","도쿄·오사카·후쿠오카","도시 하나에 집중하거나 오사카 + 교토·나라"],["대만","TPE","타이베이","타이베이 + 지우펀·스펀 + 화롄"],["중국","BJS,SHA","베이징·상하이","베이징 ↔ 상하이 고속철 4시간 30분"],["베트남","HAN,DAD","하노이·다낭","하노이 + 하롱베이 / 다낭 + 호이안"],["몽골","ULN","울란바토르","울란바토르 + 테를지 국립공원 게르 1박"]]},
   {r:"⭐ 동유럽·발칸·그리스",og:"ICN",len:"6-9",cs:[["체코","PRG","프라하","프라하 3~4박(구시가지·프라하성) + 체스키크룸로프 1박(버스 3시간)"],["헝가리","BUD","부다페스트","부다페스트(온천·야경) + 센텐드레·에게르 근교"],["오스트리아","VIE","비엔나","비엔나 + 잘츠부르크·할슈타트(기차 2시간 30분)"],["폴란드","WAW,KRK","바르샤바·크라쿠프","크라쿠프(아우슈비츠·소금광산) ↔ 바르샤바 기차 2시간 30분"],["크로아티아","ZAG,DBV,SPU","자그레브·두브로브니크·스플리트","자그레브·플리트비체 → 스플리트 → 두브로브니크 해안 버스"],["그리스","ATH,SKG","아테네·테살로니키","아테네 + 메테오라(기차 4시간) 또는 섬(산토리니·크레타 페리·국내선)"],["튀르키예","IST","이스탄불","이스탄불 + 카파도키아·파묵칼레(국내선 1시간 20분·야간버스)"],["세르비아","BEG","베오그라드","베오그라드 + 노비사드(기차 40분)"],["불가리아","SOF","소피아","소피아 + 릴라 수도원·플로브디프"],["루마니아","BUH","부쿠레슈티","부쿠레슈티 + 브라쇼브·브란성(기차 2시간 30분)"],["알바니아","TIA","티라나","티라나 + 베라트·사란다(버스)"],["몬테네그로","TGD","포드고리차","코토르·부드바 해안(버스 2시간)"],["보스니아","SJJ","사라예보","사라예보 + 모스타르(기차 2시간)"],["슬로베니아","LJU","류블랴나","류블랴나 + 블레드 호수(버스 1시간 20분)"]]},
   {r:"🍷 코카서스",og:"ICN",len:"6-9",cs:[["조지아","TBS,BUS","트빌리시·바투미","트빌리시 + 카즈베기(차 3시간) + 시그나기 와이너리, 바투미 흑해"],["아르메니아","EVN","예레반","예레반 + 세반 호수·게하르트 수도원"],["아제르바이잔","GYD","바쿠","바쿠 + 고부스탄·불의 산"]]},
   {r:"🏛️ 서유럽",og:"ICN",len:"8-11",cs:[["이탈리아","ROM,MIL","로마·밀라노","로마 → 피렌체 → 베네치아 → 밀라노 고속열차"],["스페인","BCN,MAD","바르셀로나·마드리드","바르셀로나 ↔ 마드리드 고속열차 2시간 30분 + 세비야"],["포르투갈","LIS","리스본","리스본 + 신트라 + 포르투(기차 3시간)"],["프랑스","PAR","파리","파리 + 몽생미셸·스트라스부르"],["스위스","ZRH","취리히","취리히 → 루체른 → 인터라켄 기차"]]},
-  {r:"🗾 가까운 나라",og:"ICN,GMP",len:"3-5",cs:[["일본","TYO,OSA,FUK","도쿄·오사카·후쿠오카","도시 하나에 집중하거나 오사카 + 교토·나라"],["대만","TPE","타이베이","타이베이 + 지우펀·스펀 + 화롄"],["중국","BJS,SHA","베이징·상하이","베이징 ↔ 상하이 고속철 4시간 30분"],["베트남","HAN,DAD","하노이·다낭","하노이 + 하롱베이 / 다낭 + 호이안"],["몽골","ULN","울란바토르","울란바토르 + 테를지 국립공원 게르 1박"]]},
 ];
 Object.assign(AP_NAME_KO,{KRK:"크라쿠프",LJU:"류블랴나",ROM:"로마",MIL:"밀라노",BCN:"바르셀로나",MAD:"마드리드",LIS:"리스본",ZRH:"취리히",OSA:"오사카",FUK:"후쿠오카",SHA:"상하이",HAN:"하노이",DAD:"다낭",ULN:"울란바토르"});
 Object.assign(AP_CTRY_ALL,{KRK:"폴란드",LJU:"슬로베니아",ROM:"이탈리아",MIL:"이탈리아",BCN:"스페인",MAD:"스페인",LIS:"포르투갈",ZRH:"스위스",OSA:"일본",FUK:"일본",SHA:"중국",HAN:"베트남",DAD:"베트남",ULN:"몽골"});
 Object.assign(AP_GEO,{KRK:[50.06,19.94],LJU:[46.06,14.51],ROM:[41.9,12.5],MIL:[45.46,9.19],BCN:[41.39,2.17],MAD:[40.42,-3.7],LIS:[38.72,-9.14],ZRH:[47.37,8.54],OSA:[34.69,135.5],FUK:[33.59,130.4],SHA:[31.23,121.47],HAN:[21.03,105.85],DAD:[16.05,108.2],ULN:[47.89,106.91]});
 Object.assign(CINFO,{이탈리아:{cur:"EUR",s:1},스페인:{cur:"EUR",s:1},포르투갈:{cur:"EUR",s:1},스위스:{cur:"CHF",s:1},슬로바키아:{cur:"EUR",s:1},베트남:{cur:"VND",v:"무비자 45일"},몽골:{cur:"MNT",v:"무비자 (허용 일수 확인)",pl:"멀티 어댑터"}});
-let ONE_R=0, ONE_C=-1, ONE_CACHE={}, ONE_OPEN=new Set(), ONE_LEN=null;
-try{const v=JSON.parse(localStorage.getItem('wlog_one')||'null');if(v){ONE_R=v.r||0;ONE_C=v.c??-1;ONE_LEN=v.len||null;}}catch(e){}
-function oneSave(){try{localStorage.setItem('wlog_one',JSON.stringify({r:ONE_R,c:ONE_C,len:$("#oneLen").value}));}catch(e){}}
+let ONE_R=0, ONE_C=-1, ONE_CACHE={}, ONE_OPEN=new Set(), ONE_LEN=null, ONE_LVOPEN=new Set();
+try{const v=JSON.parse(localStorage.getItem('wlog_one2')||'null');if(v){const i=ONE_REG.findIndex(g=>g.r===v.r);if(i>=0){ONE_R=i;ONE_C=v.c??-1;ONE_LEN=v.len||null;}}}catch(e){}
+function oneSave(){try{localStorage.setItem('wlog_one2',JSON.stringify({r:ONE_REG[ONE_R].r,c:ONE_C,len:$("#oneLen").value}));}catch(e){}}
 function openOne(){
   if(!ONE_REG[ONE_R])ONE_R=0;const R=ONE_REG[ONE_R];if(ONE_C>=R.cs.length)ONE_C=-1;
   if(!$("#oneLen").dataset.init){$("#oneLen").value=ONE_LEN||R.len;$("#oneLen").dataset.init=1;}
@@ -3012,6 +3019,14 @@ function oneRow(o,pax){
     <span class="mid"><b>${mdw(dep)}~${mdw(o.arr)} · ${o.days}일</b>${hol.length?` <span style="color:var(--accent-soft)">🎌 ${escapeHtml(hol.join('·'))}</span>`:''}<br>${escapeHtml(C[0])} ${escapeHtml(city)} · ${escapeHtml(AP_KO[o.o]||o.o)} 출발${tr?' · '+tr:''}${o.al?' · '+escapeHtml(o.al):''}<br><small>${o.leave?`🗓️ ${dayList(o.lv)} 연차`:'🎉 연차 없이 주말·공휴일만'}${o.eve?' · 🌙 저녁 출발이라 출발일은 퇴근 후':''}</small></span>
     <span class="p">${won(o.p*pax)}${pax>1?`<span class="fr-pp">1인 ${won(o.p)}</span>`:''}<span class="fr-pp">${open?'접기 ▲':'자세히 ▼'}</span></span></div>${det}</div>`;
 }
+// 연차 0일·1일·2일… 마다 가장 싼 날짜 (더 보기로 같은 연차 일수의 다른 날짜 2개)
+function byLeaveHtml(D,pax){
+  const B=D.byLeave;if(!B)return '';const ks=Object.keys(B).map(Number).filter(k=>B[k]&&B[k].length).sort((a,b)=>a-b);if(!ks.length)return '';
+  const min=Math.min(...ks.map(k=>B[k][0].p));const max=Math.max(...ks.map(k=>B[k][0].p));
+  return `<h4 class="one-h4">📊 연차 일수별 최저가</h4><div class="lv-bars">${ks.map(k=>`<div onclick="document.getElementById('lv-${k}').scrollIntoView({behavior:'smooth',block:'center'})"><span>연차 ${k}${k===7?'+':''}일</span><i style="width:${Math.max(6,Math.round(B[k][0].p/max*100))}%"></i><b class="${B[k][0].p===min?'best':''}">${won(B[k][0].p*pax)}</b></div>`).join('')}</div>`
+    +ks.map(k=>{const L=B[k], op=ONE_LVOPEN.has(k);
+      return `<div id="lv-${k}" class="lv-sec"><div class="lv-tag">연차 ${k}${k===7?'일 이상':'일'} 최저가</div>${oneRow(L[0],pax)}${L.length>1?(op?L.slice(1).map(o=>oneRow(o,pax)).join(''):'')+`<button class="lv-more" onclick="ONE_LVOPEN.has(${k})?ONE_LVOPEN.delete(${k}):ONE_LVOPEN.add(${k});renderOne()">${op?'접기 ▲':`연차 ${k}일 다른 날짜 ${L.length-1}개 더 보기 ▼`}</button>`:''}</div>`;}).join('');
+}
 function renderOne(){
   const Q=oneQuery(), D=ONE_CACHE[Q.qs], pax=+$("#onePax").value||2, el=$("#oneBody");if(!el)return;
   const what=Q.sel?`${Q.sel[0]} (${Q.sel[2]})`:`${Q.R.r.replace(/^\S+\s/,'')} ${Q.cs.length}개 나라`;
@@ -3023,6 +3038,7 @@ function renderOne(){
   const best=!Q.sel&&D.best.length?`<div class="stop-meta" style="margin:0 0 4px">나라별 최저가 (눌러서 그 나라만 자세히)</div><div class="stop-chips one-best">${D.best.slice(0,10).map(b=>{const c=oneCtryOf(b.c);const i=c?Q.R.cs.indexOf(c):-1;return `<span onclick="${i>=0?`ONE_C=${i};oneSave();openOne()`:''}">${escapeHtml(c?c[0]:b.c)}${c&&c[1].includes(',')?' '+escapeHtml(AP_NAME_KO[b.c]||b.c):''} <b>${won(b.p*pax)}</b></span>`;}).join('')}</div>`:'';
   el.innerHTML=`<div class="stop-plan" style="margin-bottom:8px">✅ ${escapeHtml(what)} · 앞으로 1년 날짜 조합 <b>${D.checked}개</b> 비교 · 성인 ${pax}명 왕복 총액<br><span style="color:var(--ink-faint)">연차 = 주말·공휴일(대체공휴일 포함) 뺀 근무일 · 한국 도착일까지 · 저녁 8시 이후 출발은 출발일 연차 안 셈</span></div>
     ${best}<div class="stop-plan" style="margin:0 0 4px">${tip}</div>
+    ${byLeaveHtml(D,pax)}
     <h4 class="one-h4">🏖️ 연차 적게 쓰는 루트</h4>${D.low.slice(0,6).map(o=>oneRow(o,pax)).join('')}
     <h4 class="one-h4">💸 연차 더 써도 제일 싼 루트</h4>${D.cheap.slice(0,6).map(o=>oneRow(o,pax)).join('')}
     <div class="wk-empty" style="margin-top:8px">최근 실제 검색된 왕복 가격 기준이에요(먼 날짜는 데이터가 적을 수 있어요). 행을 누르면 날씨·입국 조건·✅ 실시간 가격·찜·내 여행 저장·날짜별 동선을 볼 수 있어요.</div>`;
