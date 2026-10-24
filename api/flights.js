@@ -101,7 +101,20 @@ const OPENJAW = [
   ["그리스","아테네 → 메테오라 → 테살로니키","ATH","SKG","기차 4시간 + 3시간",7],
 ];
 
-async function cheapest(token, origin, dest, q) {
+// 같은 조회는 10분간 재사용 (한 번의 요청 안에서도, 같은 인스턴스의 다음 요청에서도).
+// 여러 코스가 ICN→IST·IST→ICN 같은 구간을 공유해서 Travelpayouts 호출이 크게 줄어듦. 진행 중인 조회도 같이 기다림.
+const MEMO = new Map(), MEMO_MS = 10 * 60000;
+function cheapest(token, origin, dest, q) {
+  const key = [origin, dest, q.month || "", q.ret || "", q.oneway ? 1 : 0, q.direct ? 1 : 0, q.limit || 5].join("|");
+  const hit = MEMO.get(key);
+  if (hit && Date.now() - hit.t < MEMO_MS) return hit.v;
+  const v = cheapestRaw(token, origin, dest, q);
+  MEMO.set(key, { t: Date.now(), v });
+  v.then((r) => { if (r === null) MEMO.delete(key); }, () => MEMO.delete(key)); // 실패는 저장 안 함
+  if (MEMO.size > 4000) for (const [k, x] of MEMO) { if (Date.now() - x.t >= MEMO_MS || MEMO.size > 3000) MEMO.delete(k); else break; }
+  return v;
+}
+async function cheapestRaw(token, origin, dest, q) {
   const p = new URLSearchParams({
     origin, destination: dest, departure_at: q.month, currency: "krw", market: "kr",
     one_way: q.oneway ? "true" : "false", direct: q.direct ? "true" : "false",
@@ -273,7 +286,10 @@ export default async function handler(req, res) {
     const fetchAll = async (a, b, lo, hi) => (await Promise.all(monthsOf(lo, hi).map((m) => cheapest(token, a, b, { month: m, oneway: true, direct: false, limit: 300 }).catch((e) => { if (e.message === "TOKEN") throw e; return []; })))).flat().filter((x) => x && x.departAt);
     try {
       const hi = addDay(to, total);
-      const opts = await Promise.all(legs.map((l) => fetchAll(l.a, l.b, from, hi)));
+      // 구간마다 실제로 출발할 수 있는 기간의 달만 조회 (i번째 구간 = 출발일 + 앞 체류 합 ~ +늘린 박·도착 하루 여유)
+      const cum = stays.map((_, i) => stays.slice(1, i + 1).reduce((x, y) => x + y, 0));
+      const win = legs.map((_, i) => (i === 0 ? [from, to] : [addDay(from, cum[i] - 1), ((h) => (h < hi ? h : hi))(addDay(to, cum[i] + i * (extra + 1) + 1))]));
+      const opts = await Promise.all(legs.map((l, i) => fetchAll(l.a, l.b, win[i][0], win[i][1])));
       // 귀국편: 마지막 도시→허브→한국 2장 이어 붙인 조합도 후보로 (환승 1시간 이상, 다음날까지)
       const li = legs.length - 1, last = legs[li];
       const directBack = opts[li].length;
@@ -281,7 +297,7 @@ export default async function handler(req, res) {
         if (!ORIGINS.includes(last.b) || hub === last.a || hub === last.b) continue;
         if (directBack && hub !== hubs[0]) break; // 귀국편이 있으면 코스 허브만 비교
         if (opts[li].length > directBack + 30) break; // 대체 경로를 충분히 찾았으면 그만
-        const [p1, p2] = await Promise.all([fetchAll(last.a, hub, from, hi), fetchAll(hub, last.b, from, hi)]);
+        const [p1, p2] = await Promise.all([fetchAll(last.a, hub, win[li][0], win[li][1]), fetchAll(hub, last.b, win[li][0], addDay(win[li][1], 1))]);
         p1.forEach((x) => { let best = null; const arr = arrAbs(x);
           p2.forEach((y) => { if (Date.parse(y.departAt) < arr + 60 * 60000 || y.departAt.slice(0, 10) > addDay(x.departAt.slice(0, 10), 1)) return; if (!best || y.price < best.price) best = y; });
           if (best && (x.transfers || 0) + (best.transfers || 0) + 1 > 2) best = null; // 이어 붙여도 경유 2회까지

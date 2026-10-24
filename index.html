@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24d  ·  한 나라 여행: 연차 적게 / 연차 더 써도 싸게
+     build: 2026-10-24e  ·  API 호출 줄이기(공용 캐시·구간 공유·동선 재사용)
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -956,6 +956,22 @@ let EXP_DRAFTS=[];
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function fmtNum(n){return Math.round(n).toLocaleString('ko-KR');}
 function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// GET API 캐시: 같은 주소는 ttl분 동안 다시 부르지 않음 (메모리 + localStorage라 새로고침해도 유지, 진행 중인 요청도 공유). 실패는 저장 안 함
+const API_MEM=new Map();
+function apiGet(url,ttl,force){
+  const key='wlog_api:'+url, now=Date.now();
+  if(!force){const m=API_MEM.get(url);if(m&&(m.p||now-m.t<ttl*60000))return m.p||Promise.resolve({ok:true,d:m.d});
+    try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.t<ttl*60000){API_MEM.set(url,{t:c.t,d:c.d});return Promise.resolve({ok:true,d:c.d});}}catch(e){}}
+  const p=fetch(url).then(r=>r.json().then(d=>({ok:r.ok&&!d.error,d})),e=>({ok:false,d:{error:'조회 실패: '+e.message}})).then(res=>{
+    if(res.ok){API_MEM.set(url,{t:Date.now(),d:res.d});const v=JSON.stringify({t:Date.now(),ttl,d:res.d});
+      try{localStorage.setItem(key,v);}catch(e){ // 꽉 차면 오래된 캐시부터 비우고 한 번 더
+        try{Object.keys(localStorage).filter(k=>k.startsWith('wlog_api:')).map(k=>{let t=0;try{t=JSON.parse(localStorage.getItem(k)).t;}catch(_){}return [k,t];}).sort((a,b)=>a[1]-b[1]).slice(0,40).forEach(([k])=>localStorage.removeItem(k));localStorage.setItem(key,v);}catch(_){}}}
+    else API_MEM.delete(url);
+    return res;});
+  API_MEM.set(url,{p});return p;
+}
+// 유효기간 지난 API 캐시 정리
+try{Object.keys(localStorage).filter(k=>k.startsWith('wlog_api:')||k.startsWith('wlog_itin:')).forEach(k=>{try{const c=JSON.parse(localStorage.getItem(k));if(!c||Date.now()-c.t>(c.ttl||(k.startsWith('wlog_itin:')?43200:180))*60000)localStorage.removeItem(k);}catch(e){localStorage.removeItem(k);}});}catch(e){}
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2400);}
 function detectPart(name){
   const n=(name||"").toLowerCase().replace(/\s/g,"");const has=(...ks)=>ks.some(k=>n.includes(k));
@@ -1842,9 +1858,8 @@ function routeText(r){
 async function fetchRoute(a,b,idx){
   const rk=`${a.lat},${a.lng}|${b.lat},${b.lng}`;
   try{
-    const r=await fetch(`/api/gmaps?action=route&from=${a.lat},${a.lng}&to=${b.lat},${b.lng}`);
-    const d=await r.json();
-    ROUTE_CACHE[rk]=r.ok?{min:d.durationMin,km:d.distanceKm}:{err:true};
+    const {ok,d}=await apiGet(`/api/gmaps?action=route&from=${a.lat},${a.lng}&to=${b.lat},${b.lng}`,43200);
+    ROUTE_CACHE[rk]=ok?{min:d.durationMin,km:d.distanceKm}:{err:true};
   }catch(e){ROUTE_CACHE[rk]={err:true};}
   const el=$(`#route-${idx}`);if(el)el.innerHTML=routeText(ROUTE_CACHE[rk]);
 }
@@ -1919,9 +1934,8 @@ async function placeSearch(){
   const q=$("#plQuery").value.trim();if(!q){toast("검색어를 입력하세요");return;}
   const box=$("#plResults");box.innerHTML=`<div class="spin" style="margin:10px auto"></div>`;
   try{
-    const r=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(q)}`);
-    const d=await r.json();
-    if(!r.ok){box.innerHTML=`<div class="fr-msg">${escapeHtml(d.error||'검색 실패')}</div>`;return;}
+    const {ok,d}=await apiGet(`/api/gmaps?action=search&q=${encodeURIComponent(q)}`,10080);
+    if(!ok){box.innerHTML=`<div class="fr-msg">${escapeHtml(d.error||'검색 실패')}</div>`;return;}
     if(!d.results||!d.results.length){box.innerHTML=`<div class="fr-msg">결과 없음</div>`;return;}
     window._plRes=d.results;
     box.innerHTML=d.results.map((p,i)=>`<div class="pl-res" onclick="pickPlace(${i})"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.address)}</span></div>`).join("");
@@ -2061,7 +2075,7 @@ async function processTicketFiles(files){
     merged.destinationCity=fixCity(merged.destinationCity||'');
     TP_PLAN=merged;TP_PLAN.destLat="";TP_PLAN.destLng="";TP_PLAN.destAddr="";
     if(merged.destinationCity){
-      try{const g=await fetch(`/api/gmaps?action=search&q=${encodeURIComponent(merged.destinationCity)}`);const gd=await g.json();if(g.ok&&gd.results&&gd.results[0]){TP_PLAN.destLat=gd.results[0].lat;TP_PLAN.destLng=gd.results[0].lng;TP_PLAN.destAddr=gd.results[0].address;}}catch(e){}
+      try{const {ok:gok,d:gd}=await apiGet(`/api/gmaps?action=search&q=${encodeURIComponent(merged.destinationCity)}`,10080);if(gok&&gd.results&&gd.results[0]){TP_PLAN.destLat=gd.results[0].lat;TP_PLAN.destLng=gd.results[0].lng;TP_PLAN.destAddr=gd.results[0].address;}}catch(e){}
     }
     openTripPlan();
   }catch(e){toast("오류: "+e.message);}
@@ -2164,8 +2178,7 @@ async function computeRouteSuggestions(){
     if(!matrix){
       try{
         const coords=places.map(p=>`${p.lat},${p.lng}`).join('|');
-        const r=await fetch(`/api/gmaps?action=matrix&points=${encodeURIComponent(coords)}`);
-        const d=await r.json();if(!r.ok||!d.matrix)continue;
+        const {ok,d}=await apiGet(`/api/gmaps?action=matrix&points=${encodeURIComponent(coords)}`,43200);if(!ok||!d.matrix)continue;
         matrix=d.matrix;SUGGEST_CACHE[sig]=matrix;
       }catch(e){continue;}
     }
@@ -2345,15 +2358,15 @@ async function loadVacRec(s,e){
   $("#vacRec").scrollIntoView({behavior:'smooth',block:'start'});
   const queue=[];let running=0;
   const runQueue=()=>{while(running<3&&queue.length){const c=queue.shift();running++;
-    fetch(`/api/flights?${vacSearchParams(c.codes,s,e,VAC_FLEX)}&hop=180&hub=${c.codes[0][1]}&hubs=${BACK_HUBS[c.region]||''}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{
-      if(seq!==VREC_SEQ)return;if(ok&&d.trips&&d.trips[0])VREC.stops.push({...c,t:d.trips[0]});}).catch(()=>{}).finally(()=>{if(seq!==VREC_SEQ)return;running--;VREC.stopDone++;renderVacRec();runQueue();});}};
+    stopFetch(c.i,{mode:'vac',s,e,len,F:VAC_FLEX}).then(d=>{
+      if(seq!==VREC_SEQ)return;if(d&&d.trips&&d.trips[0])VREC.stops.push({...c,t:d.trips[0]});}).catch(()=>{}).finally(()=>{if(seq!==VREC_SEQ)return;running--;VREC.stopDone++;renderVacRec();runQueue();});}};
   const add=c=>{if(VREC.stops.concat(queue).some(q=>q.key===c.key))return;queue.push(c);VREC.stopTotal++;};
   // 1) 왕복 + 국가 안 이동 → 결과의 실제 경유지로 경유 여행 후보 추가
-  fetch(`/api/flights?win=${s}..${e}&flex=${VAC_FLEX}${len>=5?'&rt=0&sea=0':''}&skip=${encodeURIComponent(VISITED.join(','))}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error){VREC.err=d.error||'조회 실패';renderVacRec();return;}
+  apiGet(`/api/flights?win=${s}..${e}&flex=${VAC_FLEX}${len>=5?'&rt=0&sea=0':''}&skip=${encodeURIComponent(VISITED.join(','))}`,180).then(({ok,d})=>{if(seq!==VREC_SEQ)return;if(!ok||d.error){VREC.err=d.error||'조회 실패';renderVacRec();return;}
     VREC.rt=d;
     // 준비된 경유·일주 코스(나라 간 비행 3시간 이내)를 휴가 길이에 맞춰
-    if(len>=5)STOPOVERS.forEach(x=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
-      add({key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,region:x.r,ee:x.r==="그리스·발칸"});});
+    if(len>=5)STOPOVERS.forEach((x,i)=>{const ns=fitStops(x,len);if(!ns)return;const codes=x.legs.split(',').map(l=>l.split('-'));
+      add({i,key:codes.map(c=>c.join('-')).join(','),codes,nights:ns,names:x.stops.map(st=>st[0]),title:x.t,region:x.r,ee:x.r==="그리스·발칸"});});
     renderVacRec();runQueue();
   }).catch(err=>{if(seq!==VREC_SEQ)return;VREC.err='조회 실패: '+err.message;renderVacRec();});
   renderVacRec();
@@ -2413,9 +2426,8 @@ async function loadFare(){
   $("#fareBody").innerHTML=`<div class="spin"></div><div class="wk-empty" style="text-align:center">공항×도시별 최저가 모으는 중… (10초쯤 걸려요)</div>`;
   const [group,origin,month,oneway,direct,nights]=k.split("|");
   try{
-    const r=await fetch(`/api/flights?group=${group}&origin=${origin}&month=${month}&oneway=${oneway}&direct=${direct}&nights=${nights}`);
-    const d=await r.json();if(seq!==FARE_SEQ)return;
-    if(!r.ok||d.error){$("#fareBody").innerHTML=`<div class="wk-empty">${escapeHtml(d.error||"조회 실패")}</div>`;return;}
+    const {ok,d}=await apiGet(`/api/flights?group=${group}&origin=${origin}&month=${month}&oneway=${oneway}&direct=${direct}&nights=${nights}`,180);if(seq!==FARE_SEQ)return;
+    if(!ok){$("#fareBody").innerHTML=`<div class="wk-empty">${escapeHtml(d.error||"조회 실패")}</div>`;return;}
     FARE_CACHE[k]=d;renderFare(d);
   }catch(e){if(seq===FARE_SEQ)$("#fareBody").innerHTML=`<div class="wk-empty">조회 실패: ${escapeHtml(e.message)}</div>`;}
 }
@@ -2573,7 +2585,7 @@ function renderStop(){
     :`<div class="stop-plan" style="margin-bottom:10px">✅ ${escapeHtml(STOP_REGION)} 코스 ${list.length}개 중 <b>${found.length}개</b> 찾았어요 (싼 순)</div>`;
   const failHtml=failed.length?`<details class="vac" style="margin-top:6px"><summary style="font-size:12.5px">❌ 이 기간엔 못 찾은 코스 ${failed.length}개 (이유 보기)</summary>${failed.map(x=>{const P=st(x);const AP=c=>AP_KO[c]||AP_NAME_KO[c]||c, nm=l=>l.split('→').map(AP).join('→');
       const none=(P.counts||[]).filter(c=>!c.n).map(c=>nm(c.leg));const why=P.error?P.error:none.length?`${none.join(' · ')} 구간 가격 데이터 없음`:'휴가 날짜·체류일에 맞게 이어지는 조합 없음';
-      return `<div class="vac-o" style="display:block;margin-top:5px"><b style="color:var(--ink)">${escapeHtml(x.t)}</b><br>${escapeHtml(why)} <button onclick="delete STOP_PRICES['${stopKey(q,x.i)}'];loadStop(${x.i})" style="color:var(--accent);font-size:12px">↻</button></div>`;}).join('')}</details>`:'';
+      return `<div class="vac-o" style="display:block;margin-top:5px"><b style="color:var(--ink)">${escapeHtml(x.t)}</b><br>${escapeHtml(why)} <button onclick="loadStop(${x.i},false,true)" style="color:var(--accent);font-size:12px">↻</button></div>`;}).join('')}</details>`:'';
   if(!pending&&q&&!found.length)list=[];
   $("#stopBody").innerHTML=head+(q&&!pending&&!found.length?`<div class="wk-empty" style="margin-bottom:8px">이 휴가 기간엔 이어지는 코스를 못 찾았어요. 앞뒤 연차를 늘리거나, 다른 지역·다른 꿀조합을 골라 보세요.</div>`:'')+found.map(x=>{
     const xs=vac?{...x,stops:x.stops.map((st,j)=>[st[0],x.ns[j],st[2],st[3]])}:x;
@@ -2590,7 +2602,7 @@ function renderStop(){
       const why=none.length?`이 기간에 <b>${none.map(escapeHtml).join(' · ')}</b> 구간 가격 데이터가 아직 없어요. 비수기 노선이거나, 아직 그 날짜로 검색한 사람이 없어서예요(출발이 가까워질수록 채워져요).`
         :noStart?`${escapeHtml(nm(P.counts[0].leg))} 가격은 있는데 휴가 시작 무렵 출발편이 없어요. 앞뒤 연차를 늘려 보세요.`
         :`구간별 가격은 있는데 휴가 날짜·체류일(도시마다 2박 이상)에 맞게 이어지는 조합이 없어요. 앞뒤 연차를 늘리거나 다른 휴가를 골라 보세요.`;
-      return `<div class="stop-card" style="opacity:.65"><h3>${escapeHtml(x.t)}</h3><div class="wk-empty">❌ ${why}</div><button class="stop-btn" onclick="delete STOP_PRICES['${stopKey(q,x.i)}'];loadStop(${x.i})">↻ 다시 찾기</button></div>`;
+      return `<div class="stop-card" style="opacity:.65"><h3>${escapeHtml(x.t)}</h3><div class="wk-empty">❌ ${why}</div><button class="stop-btn" onclick="loadStop(${x.i},false,true)">↻ 다시 찾기</button></div>`;
     }
     else if(P)body=P.trips.map((t,ti)=>tripHtml(xs,t,ti,pax,vac?q:null)).join('')+`<div class="stop-meta">휴가 안 출발 가능 ${P.checked}개 날짜를 비교했어요${P.checked<3?' (먼 날짜라 가격 데이터가 아직 적어요)':''}. 편도 최저가를 더한 추정치라 다구간 검색으로 실제 가격을 꼭 확인하세요.</div>`;
     const T0=P&&P.trips&&P.trips[0], iFrom=vac?q.s:T0?T0.legs[0].departAt.slice(0,10):q.from, iTo=vac?q.e:T0?T0.legs[T0.legs.length-1].departAt.slice(0,10):addDays(q.from,days);
@@ -2629,13 +2641,15 @@ async function planTrip(k){
   PLANS[k]={st:'loading'};rerenderPlans();
   try{
     const body={title:x.t,pax,legs:t.legs.map(l=>({from:l.from,to:l.to,via:l.via||'',depart:l.departAt,arrive:l.arrDate||''})),stops:x.stops.map(s=>({name:s[0],nights:s[1],note:s[3]||''}))};
-    const r=await fetch('/api/itinerary',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const d=await r.json();
-    if(!r.ok||d.error){PLANS[k]={st:'error',err:d.error||'동선 생성 실패'};rerenderPlans();return;}
+    const bs=JSON.stringify(body), ck='wlog_itin:'+planKey({t:bs},{legs:[]});let d=null;
+    try{const c=JSON.parse(localStorage.getItem(ck)||'null');if(c&&Date.now()-c.t<30*86400000)d=c.d;}catch(e){}
+    if(!d){const r=await fetch('/api/itinerary',{method:'POST',headers:{'content-type':'application/json'},body:bs});d=await r.json();
+      if(!r.ok||d.error){PLANS[k]={st:'error',err:d.error||'동선 생성 실패'};rerenderPlans();return;}
+      try{localStorage.setItem(ck,JSON.stringify({t:Date.now(),ttl:43200,d}));}catch(e){}}
     PLANS[k]={st:'ok',it:d,hotels:{}};rerenderPlans();
     // 도시별 호텔 가격 (동시에)
     await Promise.all(d.stays.map(async(st,i)=>{
-      try{const hr=await fetch(`/api/hotels?city=${encodeURIComponent(st.city_en)}&in=${st.checkin}&out=${st.checkout}&adults=${Math.min(4,pax)}`);const hd=await hr.json();PLANS[k].hotels[i]=(!hr.ok||hd.error)?{error:hd.error||'호텔 검색 실패'}:hd;}
-      catch(e){PLANS[k].hotels[i]={error:'호텔 검색 실패: '+e.message};}
+      const {ok,d:hd}=await apiGet(`/api/hotels?city=${encodeURIComponent(st.city_en)}&in=${st.checkin}&out=${st.checkout}&adults=${Math.min(4,pax)}`,720);PLANS[k].hotels[i]=ok?hd:{error:hd.error||'호텔 검색 실패'};
       rerenderPlans();
     }));
   }catch(e){PLANS[k]={st:'error',err:'동선 생성 실패: '+e.message};rerenderPlans();}
@@ -2672,20 +2686,24 @@ function stays(x,P){
   if(last.arrDate)rows.push(`<div>🇰🇷 <b>${mdw(last.arrDate)} 한국 도착</b> <span style="color:var(--ink-faint)">(비행시간 기준 추정)</span></div>`);
   return rows.length?`<div class="stop-days" style="margin:2px 0 4px">${rows.join('')}</div>`:'';
 }
-async function loadStop(i,noRender){
+// 코스 하나의 최저가 일정 조회 주소 (꿀조합 추천 패널과 다구간 탭이 같은 주소를 써서 결과를 같이 씀)
+function stopUrl(x,q){
+  const url=q.mode==='vac'?`/api/flights?${vacSearchParams(x.legs.split(',').map(l=>l.split('-')),q.s,q.e,q.F)}`
+    :(L=>`/api/flights?legs=${encodeURIComponent(L.map(l=>`${l.a}-${l.b}@${l.date}`).join(","))}&from=${q.from}&to=${q.to}&extra=${q.ex}`)(stopLegs(x,q.from));
+  return url+`${(x.hopH||9)<=3?'&hop=180':''}&hub=${x.legs.split(',')[0].split('-')[1].split('@')[0]}&hubs=${BACK_HUBS[x.r]||''}`;
+}
+const STOP_PROM={};
+function stopFetch(i,q,force){
+  const k=stopKey(q,i);if(force)delete STOP_PROM[k];
+  if(!STOP_PROM[k]){const url=stopUrl(STOPOVERS[i],q);STOP_URL[k]=url;STOP_PRICES[k]='loading';
+    STOP_PROM[k]=apiGet(url,180,force).then(({ok,d})=>{STOP_PRICES[k]=ok?d:{error:d.error||"조회 실패"};if(!ok)delete STOP_PROM[k];if(TRIP_SUB==='stop')softRerender();return STOP_PRICES[k];});}
+  return STOP_PROM[k];
+}
+async function loadStop(i,noRender,force){
   const q=stopQuery();if(!q){toast("휴가 기간이나 출발일을 먼저 골라주세요");return;}
-  const x=STOPOVERS[i], k=stopKey(q,i);let url;
-  if(q.mode==='vac'){
-    const ns=stopNights(x,q);if(!ns)return;
-    url=`/api/flights?${vacSearchParams(x.legs.split(',').map(l=>l.split('-')),q.s,q.e,q.F)}`;
-  }else{
-    const L=stopLegs(x,q.from);url=`/api/flights?legs=${encodeURIComponent(L.map(l=>`${l.a}-${l.b}@${l.date}`).join(","))}&from=${q.from}&to=${q.to}&extra=${q.ex}`;
-  }
-  url+=`&hub=${x.legs.split(',')[0].split('-')[1].split('@')[0]}&hubs=${BACK_HUBS[x.r]||''}`;
-  STOP_PRICES[k]='loading';STOP_URL[k]=url;if(!noRender)renderStop();
-  try{const r=await fetch(url);const d=await r.json();STOP_PRICES[k]=(!r.ok||d.error)?{error:d.error||"조회 실패"}:d;}
-  catch(e){STOP_PRICES[k]={error:"조회 실패: "+e.message};}
-  if(TRIP_SUB==='stop')renderStop();
+  if(q.mode==='vac'&&!stopNights(STOPOVERS[i],q))return;
+  const p=stopFetch(i,q,force);if(!noRender)renderStop();
+  await p;if(TRIP_SUB==='stop')renderStop();
 }
 // 보이는 코스 전부 조회 (동시에 3개씩) → 끝나는 대로 싼 순 정렬
 async function loadAllStops(auto){
@@ -2693,7 +2711,7 @@ async function loadAllStops(auto){
   const todo=STOPOVERS.map((x,i)=>({x,i})).filter(({x,i})=>inStopRegion(x)&&!courseVisited(x)&&stopNights(x,q)&&!STOP_PRICES[stopKey(q,i)]);
   if(!todo.length){if(!auto)toast("이미 다 찾았어요");return;}
   todo.forEach(({i})=>STOP_PRICES[stopKey(q,i)]='loading');renderStop();if(!auto)toast(`${todo.length}개 코스 찾는 중…`);
-  let k=0;const worker=async()=>{while(k<todo.length){const {i}=todo[k++];delete STOP_PRICES[stopKey(q,i)];await loadStop(i,true);}};
+  let k=0;const worker=async()=>{while(k<todo.length){const {i}=todo[k++];await loadStop(i,true);}};
   await Promise.all([worker(),worker(),worker()]);
 }
 /* --- 나라별 입국·통화·전원 / 그때 날씨 / 환율 (추천 카드에 바로 보이게) --- */
@@ -2719,7 +2737,7 @@ function courseCountries(x){
   return [...new Set(hit.sort((a,b)=>a[0]-b[0]).map(h=>h[1]))];
 }
 let FX=null, FX_LOADING=false;
-function loadFx(){if(FX||FX_LOADING)return;FX_LOADING=true;fetch('/api/fx').then(r=>r.json()).then(d=>{if(d.rates){FX=d.rates;softRerender();}}).catch(()=>{});}
+function loadFx(){if(FX||FX_LOADING)return;FX_LOADING=true;apiGet('/api/fx',720).then(({ok,d})=>{if(ok&&d.rates){FX=d.rates;softRerender();}else setTimeout(()=>{FX_LOADING=false;},60000);});}
 function fxText(cur){if(!FX||!FX[cur])return '';const krw=1/FX[cur];let u=1;while(krw*u<10&&u<1e5)u*=10;return `${u>1?u.toLocaleString('ko-KR')+' ':'1 '}${cur} ≈ ${Math.round(krw*u).toLocaleString('ko-KR')}원`;}
 function entrySummary(ctry){
   const I=c=>CINFO[c]||{};const sch=ctry.filter(c=>I(c).s), oth=ctry.filter(c=>!I(c).s);
@@ -2749,7 +2767,7 @@ function softRerender(){clearTimeout(RR_T);RR_T=setTimeout(()=>{if(!$("#tab-trip
 function climGet(loc,from,to){
   const k=`${loc}|${from}|${to}`;if(CLIM[k]!==undefined)return CLIM[k]==='loading'?null:CLIM[k];
   CLIM[k]='loading';const qs=loc.startsWith('city:')?`city=${encodeURIComponent(loc.slice(5))}`:`lat=${loc.split(',')[0]}&lon=${loc.split(',')[1]}`;
-  fetch(`/api/climate?${qs}&from=${from}&to=${to}`).then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>{CLIM[k]=ok&&d.hi!=null?d:{err:1};}).catch(()=>{CLIM[k]={err:1};}).finally(softRerender);
+  apiGet(`/api/climate?${qs}&from=${from}&to=${to}`,43200).then(({ok,d})=>{CLIM[k]=ok&&d.hi!=null?d:{err:1};}).finally(softRerender);
   return null;
 }
 function climText(C){return C&&!C.err?`${C.lo}~${C.hi}° ☔${C.rain}%`:'';}
@@ -2772,14 +2790,14 @@ function infoHtml(x,from,to){
 const PREP_OPEN=new Set();
 
 /* --- 구글 항공권 실시간 가격·실제 경유지 (SerpApi) --- */
-const LIVE={};
+const LIVE={}, LIVE_DONE=new Set();
 function hm(m){m=Math.round(m||0);return m>=60?`${Math.floor(m/60)}시간${m%60?' '+(m%60)+'분':''}`:`${m}분`;}
 async function liveCheck(k){
   const R=PLAN_REG[k];if(!R)return;
   const legs=R.t.legs.map(l=>`${l.from}-${l.to}@${l.departAt.slice(0,10)}`).join(',');
   LIVE[k]={st:'loading'};rerenderPlans();
-  try{const r=await fetch('/api/gflights?legs='+encodeURIComponent(legs));const d=await r.json();LIVE[k]=(!r.ok||d.error)?{st:'error',err:d.error||'조회 실패'}:{st:'ok',...d};}
-  catch(e){LIVE[k]={st:'error',err:'조회 실패: '+e.message};}
+  const {ok,d}=await apiGet('/api/gflights?legs='+encodeURIComponent(legs),180,LIVE_DONE.has(k)); // 다시 누르면 새로 조회
+  LIVE[k]=ok?{st:'ok',...d}:{st:'error',err:d.error||'조회 실패'};if(ok)LIVE_DONE.add(k);
   rerenderPlans();
 }
 function liveBlock(k,t,pax){
@@ -2801,30 +2819,31 @@ let WISH_CHECKING=false, WISH_OPEN=false;
 function wishOf(k){const R=PLAN_REG[k];return R&&WISHES.find(w=>w.title===R.x.t&&w.qk===R.qk);}
 async function toggleWish(k){
   const R=PLAN_REG[k];if(!R)return;const w=wishOf(k);
-  if(w){await sb.from("workouts").delete().eq("id",w.id);await refreshData();renderWishBar();rerenderPlans();toast("찜 해제");return;}
+  if(w){await sb.from("workouts").delete().eq("id",w.id);WISHES=WISHES.filter(z=>z.id!==w.id);renderWishBar();rerenderPlans();toast("찜 해제");return;}
   if(!R.url){toast("가격을 다시 찾은 뒤에 찜할 수 있어요");return;}
   const {x,t,pax}=R, segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);
   const data={kind:"wish",title:x.t,region:x.r,qk:R.qk,qlabel:R.qlabel,url:R.url,pax,names:x.stops.map(s=>s[0]+' '+s[1]+(R.vac?'박':'일')),legs:t.legs.map(l=>({from:l.from,to:l.to,via:l.via||'',departAt:l.departAt})),link:multiLink(segs,pax),hist:[{d:todayStr(),p:t.total}],checked:todayStr()};
-  const {error}=await sb.from("workouts").insert({title:"❤️ "+x.t,workout_date:todayStr(),data});
+  const {data:ins,error}=await sb.from("workouts").insert({title:"❤️ "+x.t,workout_date:todayStr(),data}).select("id");
   if(error){toast("찜 실패: "+error.message);return;}
-  await refreshData();renderWishBar();rerenderPlans();toast("❤️ 찜했어요 — 매일 가격을 확인해 내려가면 알려드려요");
+  if(ins&&ins[0])WISHES.push({...data,id:ins[0].id});else await refreshData(); // 전체 다시 불러오지 않고 목록에 바로 추가
+  renderWishBar();rerenderPlans();toast("❤️ 찜했어요 — 매일 가격을 확인해 내려가면 알려드려요");
 }
-async function delWish(id){if(!confirm("찜을 지울까요?"))return;await sb.from("workouts").delete().eq("id",id);await refreshData();renderWishBar();rerenderPlans();}
+async function delWish(id){if(!confirm("찜을 지울까요?"))return;await sb.from("workouts").delete().eq("id",id);WISHES=WISHES.filter(z=>z.id!==id);renderWishBar();rerenderPlans();}
 async function checkWishes(force){
   if(WISH_CHECKING)return;const today=todayStr();
   const due=WISHES.filter(w=>w.url&&(force||(w.checked||'')<today)&&(w.legs&&w.legs[0]&&w.legs[0].departAt.slice(0,10)>today));
   if(!due.length){if(force)toast("확인할 찜이 없어요");return;}
   WISH_CHECKING=true;renderWishBar();const drops=[];
   for(const w of due){
-    try{const r=await fetch(w.url);const d=await r.json();const t=r.ok&&d.trips&&d.trips[0];
+    try{const {ok,d}=await apiGet(w.url,180);const t=ok&&d.trips&&d.trips[0];
       const h=(w.hist||[]).filter(z=>z.d!==today), prev=h.length?h[h.length-1].p:null;if(t)h.push({d:today,p:t.total});
       const {id,...nw}=w;nw.hist=h.slice(-60);nw.checked=today;
       if(t){nw.legs=t.legs.map(l=>({from:l.from,to:l.to,via:l.via||'',departAt:l.departAt}));const segs=t.legs.flatMap(g=>g.parts?g.parts.map(q=>({a:q.from,b:q.to,date:q.departAt.slice(0,10)})):[{a:g.from,b:g.to,date:g.departAt.slice(0,10)}]);nw.link=multiLink(segs,w.pax||2);}
-      await sb.from("workouts").update({data:nw}).eq("id",id);
+      await sb.from("workouts").update({data:nw}).eq("id",id);WISHES=WISHES.map(z=>z.id===id?{...nw,id}:z);
       if(t&&prev&&t.total<prev)drops.push(`${w.title}: ${won((prev-t.total)*(w.pax||2))} 내려서 ${won(t.total*(w.pax||2))}`);
     }catch(e){}
   }
-  WISH_CHECKING=false;await refreshData();renderWishBar();
+  WISH_CHECKING=false;renderWishBar();
   if(drops.length){toast(`📉 찜한 여행 가격 내림! ${drops[0]}${drops.length>1?` 외 ${drops.length-1}개`:''}`);
     if(notifOn())try{new Notification("📉 찜한 여행 가격이 내려갔어요",{body:drops.join('\n'),tag:'wish'+today});}catch(e){}}
   else if(force)toast("가격 확인 완료 — 내려간 건 없어요");
@@ -2968,8 +2987,7 @@ async function loadOne(force){
   if(force)delete ONE_CACHE[k];
   if(ONE_CACHE[k]){renderOne();return;}
   ONE_CACHE[k]='loading';renderOne();
-  try{const r=await fetch('/api/flights?'+Q.qs);const d=await r.json();ONE_CACHE[k]=(!r.ok||d.error)?{error:d.error||'조회 실패'}:d;}
-  catch(e){ONE_CACHE[k]={error:'조회 실패: '+e.message};}
+  const {ok,d}=await apiGet('/api/flights?'+Q.qs,180,force);ONE_CACHE[k]=ok?d:{error:d.error||'조회 실패'};
   renderOne();
 }
 function oneCtryOf(code){for(const g of ONE_REG)for(const c of g.cs)if(c[1].split(',').includes(code))return c;return null;}

@@ -3,6 +3,7 @@
 
 const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 const shift = (d, k) => { const t = new Date(d + "T00:00:00Z"); t.setUTCFullYear(t.getUTCFullYear() - k); return t.toISOString().slice(0, 10); };
+const GEO = new Map();
 const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 
 export default async function handler(req, res) {
@@ -16,8 +17,9 @@ export default async function handler(req, res) {
     let name = city;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       if (!city) { res.status(400).json({ error: "lat·lon 또는 city 가 필요해요." }); return; }
-      const g = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({ name: city, count: "1", language: "en" }))).json();
-      const p = g.results && g.results[0];
+      const ck = city.toLowerCase(); // 도시 위치는 바뀌지 않으니 인스턴스에 기억
+      if (!GEO.has(ck)) GEO.set(ck, (await (await fetch("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({ name: city, count: "1", language: "en" }))).json()).results?.[0] || null);
+      const p = GEO.get(ck);
       if (!p) { res.status(404).json({ error: "도시 위치를 못 찾았어요." }); return; }
       lat = p.latitude; lon = p.longitude; name = p.name;
     }
