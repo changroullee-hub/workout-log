@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24b  ·  가계부·일정 탭 숨김(LIFE_TABS) — 여행 계획 집중
+     build: 2026-10-24c  ·  운동 탭도 숨김(WORK_TAB) — 여행 전용
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -911,6 +911,8 @@
 const SUPABASE_URL = "https://ohlssimixnkmfuuecxfr.supabase.co";
 // 가계부·일정 탭: 지금은 여행 계획에 집중하려고 숨김. true 로 바꾸면 다시 보여요 (데이터는 DB에 그대로 있음)
 const LIFE_TABS = false;
+// 운동 탭(기록하기·기록·칼로리·타이머·분석): 여행에 집중하려고 숨김. true 로 바꾸면 다시 보여요 (데이터는 그대로)
+const WORK_TAB = false;
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9obHNzaW1peG5rbWZ1dWVjeGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDE4MTcsImV4cCI6MjA5ODM3NzgxN30.32NgV61IGMArOPKEra05bTXAOaADVh9GC64q8hyFXJ0";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -3004,6 +3006,7 @@ function restDone(){toast("휴식 끝! 다음 세트 🔥");try{const ac=new(win
 const WORK_TABS=["log","list","cal","timer","stat"]; let LAST_WORK="log";
 function switchTab(name){
   if(!LIFE_TABS&&(name==='expense'||name==='sched'))name='trip';
+  if(!WORK_TAB&&WORK_TABS.includes(name))name='trip';
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
   const isWork=WORK_TABS.includes(name); if(isWork)LAST_WORK=name;
   $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${isWork?'work':name}`).classList.add("on");
@@ -3013,7 +3016,9 @@ function switchTab(name){
   if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")tripSub(TRIP_SUB);if(name==="stat")loadStat();
 }
 $("#tab-trip").classList.add("active");
-if(!LIFE_TABS){["expense","sched"].forEach(k=>{const b=$("#nav-"+k);if(b)b.style.display='none';});const nv=$("#nav-trip").parentElement;nv.style.gridTemplateColumns=`repeat(${[...nv.children].filter(b=>b.style.display!=='none').length},1fr)`;}
+// 숨긴 탭은 하단 탭에서 빼고, 남은 탭이 하나뿐이면 하단 탭 바 자체를 숨김
+[...(LIFE_TABS?[]:["expense","sched"]),...(WORK_TAB?[]:["work"])].forEach(k=>{const b=$("#nav-"+k);if(b)b.style.display='none';});
+{const nv=$("#nav-trip").parentElement, n=[...nv.children].filter(b=>b.style.display!=='none').length;nv.style.gridTemplateColumns=`repeat(${n},1fr)`;if(n<2)nv.style.display='none';}
 
 /* 이미지 붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기) → 현재 탭에 맞게 인식 */
 window.addEventListener("paste",async(e)=>{
