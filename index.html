@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24f  ·  한 나라 여행: 가까운 나라 먼저 + 연차 일수별 최저가
+     build: 2026-10-24g  ·  버튼 이름·아이콘 정리 + 예전 캐시 자동 무시
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -667,7 +667,7 @@
 
   <!-- 여행 -->
   <section class="tab pad" id="tab-trip">
-    <button class="vac-btn" id="vacBtn" onclick="toggleVac()">🗓️ 연차 꿀조합 추천 <span id="vacBtnSub"></span></button>
+    <button class="vac-btn" id="vacBtn" onclick="toggleVac()">🍯 연차 꿀조합 <span id="vacBtnSub"></span></button>
     <details class="vac" id="vacBox" open style="display:none">
       <summary>🗓️ <b>연차 꿀조합</b> <span id="vacHead" style="color:var(--ink-faint);font-weight:600"></span></summary>
       <div class="vac-ctl"><div class="seg" id="vacYears" style="margin:0;flex:1"></div>
@@ -679,10 +679,10 @@
     <div id="vacRec"></div>
     <div id="wishBar"></div>
     <div class="seg" id="tripSeg">
-      <button class="on" id="tsub-stop" onclick="tripSub('stop')">🧭 다구간 항공권 예매</button>
-      <button id="tsub-one" onclick="tripSub('one')">🇨🇿 한 나라 여행</button>
-      <button id="tsub-fare" onclick="tripSub('fare')">✈️ 항공권 예매</button>
-      <button id="tsub-mine" onclick="tripSub('mine')">🗺️ 내 여행</button>
+      <button class="on" id="tsub-stop" onclick="tripSub('stop')">🌍 여러 나라 일주</button>
+      <button id="tsub-one" onclick="tripSub('one')">📍 한 나라 푹 즐기기</button>
+      <button id="tsub-fare" onclick="tripSub('fare')">💸 항공권 최저가</button>
+      <button id="tsub-mine" onclick="tripSub('mine')">🧳 우리 여행</button>
     </div>
     <div id="tripStop">
       <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">여러 나라·도시를 도는 코스예요. <b>꿀조합 휴가 기간</b>을 고르면 지역별 코스를 그 휴가에 맞춰 <b>먼저 다 찾아보고</b>, 이어지는 코스만 귀국까지 합친 총액이 싼 순으로 추천해요.</p>
@@ -703,7 +703,7 @@
       <div id="stopBody"></div>
     </div>
     <div id="tripOne" style="display:none">
-      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">한 나라만 가는 여행이에요. 앞으로 1년 왕복 항공권을 날짜마다 훑어서 <b>연차 적게 쓰는 루트</b>와 <b>연차 더 써도 제일 싼 루트</b>를 따로 추천해요.</p>
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">한 나라에 머물며 푹 즐기는 여행이에요. 앞으로 1년 왕복 항공권을 날짜마다 훑어서 <b>연차 며칠 쓰면 얼마인지</b>, <b>연차 아끼는 날짜</b>와 <b>제일 싼 날짜</b>를 골라 줘요.</p>
       <div class="seg" id="oneReg"></div>
       <div class="stop-chips one-ctry" id="oneCtry"></div>
       <div class="m2">
@@ -964,9 +964,9 @@ function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.get
 function fmtNum(n){return Math.round(n).toLocaleString('ko-KR');}
 function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // GET API 캐시: 같은 주소는 ttl분 동안 다시 부르지 않음 (메모리 + localStorage라 새로고침해도 유지, 진행 중인 요청도 공유). 실패는 저장 안 함
-const API_MEM=new Map();
+const API_MEM=new Map(), API_VER='v2'; // 서버 응답 모양이 바뀌면 올리기 → 예전 캐시 무시
 function apiGet(url,ttl,force){
-  const key='wlog_api:'+url, now=Date.now();
+  const key=`wlog_api:${API_VER}:`+url, now=Date.now();
   if(!force){const m=API_MEM.get(url);if(m&&(m.p||now-m.t<ttl*60000))return m.p||Promise.resolve({ok:true,d:m.d});
     try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.t<ttl*60000){API_MEM.set(url,{t:c.t,d:c.d});return Promise.resolve({ok:true,d:c.d});}}catch(e){}}
   const p=fetch(url).then(r=>r.json().then(d=>({ok:r.ok&&!d.error,d})),e=>({ok:false,d:{error:'조회 실패: '+e.message}})).then(res=>{
@@ -978,7 +978,7 @@ function apiGet(url,ttl,force){
   API_MEM.set(url,{p});return p;
 }
 // 유효기간 지난 API 캐시 정리
-try{Object.keys(localStorage).filter(k=>k.startsWith('wlog_api:')||k.startsWith('wlog_itin:')).forEach(k=>{try{const c=JSON.parse(localStorage.getItem(k));if(!c||Date.now()-c.t>(c.ttl||(k.startsWith('wlog_itin:')?43200:180))*60000)localStorage.removeItem(k);}catch(e){localStorage.removeItem(k);}});}catch(e){}
+try{Object.keys(localStorage).filter(k=>k.startsWith('wlog_api:')||k.startsWith('wlog_itin:')).forEach(k=>{try{if(k.startsWith('wlog_api:')&&!k.startsWith(`wlog_api:${API_VER}:`)){localStorage.removeItem(k);return;}const c=JSON.parse(localStorage.getItem(k));if(!c||Date.now()-c.t>(c.ttl||(k.startsWith('wlog_itin:')?43200:180))*60000)localStorage.removeItem(k);}catch(e){localStorage.removeItem(k);}});}catch(e){}
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2400);}
 function detectPart(name){
   const n=(name||"").toLowerCase().replace(/\s/g,"");const has=(...ks)=>ks.some(k=>n.includes(k));
@@ -2293,7 +2293,7 @@ function toggleVac(force){
   const box=$("#vacBox"),show=force!=null?force:box.style.display==='none';
   box.style.display=show?'block':'none';box.open=true;
   if(show){renderVac();box.scrollIntoView({behavior:'smooth',block:'start'});}
-  $("#vacBtn").firstChild.textContent=show?'🗓️ 연차 꿀조합 접기 ':'🗓️ 연차 꿀조합 추천 ';
+  $("#vacBtn").firstChild.textContent=show?'🍯 연차 꿀조합 접기 ':'🍯 연차 꿀조합 ';
 }
 // 기간 안의 근무일 = 연차 쓸 날. 이어진 날은 "10/5(화)~10/8(금)"으로 묶음
 function leaveDays(s,e){
@@ -2956,11 +2956,11 @@ async function togglePrep(id,i){
   t.prep=prep;renderTrip();
   const {error}=await sb.from("workouts").update({data:{...tripData(t),prep}}).eq("id",id);if(error)toast("저장 실패: "+error.message);
 }
-/* --- 🇨🇿 한 나라 여행: 앞으로 1년 중 연차 적게 쓰는 날짜 / 연차 더 써도 제일 싼 날짜 --- */
+/* --- 📍 한 나라 푹 즐기기: 앞으로 1년 중 연차 적게 쓰는 날짜 / 연차 더 써도 제일 싼 날짜 --- */
 // [나라, 공항(도시코드), 도시, 나라 안 추천 동선]
 const ONE_REG=[
   {r:"🗾 가까운 나라",og:"ICN,GMP",len:"3-5",cs:[["일본","TYO,OSA,FUK","도쿄·오사카·후쿠오카","도시 하나에 집중하거나 오사카 + 교토·나라"],["대만","TPE","타이베이","타이베이 + 지우펀·스펀 + 화롄"],["중국","BJS,SHA","베이징·상하이","베이징 ↔ 상하이 고속철 4시간 30분"],["베트남","HAN,DAD","하노이·다낭","하노이 + 하롱베이 / 다낭 + 호이안"],["몽골","ULN","울란바토르","울란바토르 + 테를지 국립공원 게르 1박"]]},
-  {r:"⭐ 동유럽·발칸·그리스",og:"ICN",len:"6-9",cs:[["체코","PRG","프라하","프라하 3~4박(구시가지·프라하성) + 체스키크룸로프 1박(버스 3시간)"],["헝가리","BUD","부다페스트","부다페스트(온천·야경) + 센텐드레·에게르 근교"],["오스트리아","VIE","비엔나","비엔나 + 잘츠부르크·할슈타트(기차 2시간 30분)"],["폴란드","WAW,KRK","바르샤바·크라쿠프","크라쿠프(아우슈비츠·소금광산) ↔ 바르샤바 기차 2시간 30분"],["크로아티아","ZAG,DBV,SPU","자그레브·두브로브니크·스플리트","자그레브·플리트비체 → 스플리트 → 두브로브니크 해안 버스"],["그리스","ATH,SKG","아테네·테살로니키","아테네 + 메테오라(기차 4시간) 또는 섬(산토리니·크레타 페리·국내선)"],["튀르키예","IST","이스탄불","이스탄불 + 카파도키아·파묵칼레(국내선 1시간 20분·야간버스)"],["세르비아","BEG","베오그라드","베오그라드 + 노비사드(기차 40분)"],["불가리아","SOF","소피아","소피아 + 릴라 수도원·플로브디프"],["루마니아","BUH","부쿠레슈티","부쿠레슈티 + 브라쇼브·브란성(기차 2시간 30분)"],["알바니아","TIA","티라나","티라나 + 베라트·사란다(버스)"],["몬테네그로","TGD","포드고리차","코토르·부드바 해안(버스 2시간)"],["보스니아","SJJ","사라예보","사라예보 + 모스타르(기차 2시간)"],["슬로베니아","LJU","류블랴나","류블랴나 + 블레드 호수(버스 1시간 20분)"]]},
+  {r:"🏰 동유럽·발칸·그리스",og:"ICN",len:"6-9",cs:[["체코","PRG","프라하","프라하 3~4박(구시가지·프라하성) + 체스키크룸로프 1박(버스 3시간)"],["헝가리","BUD","부다페스트","부다페스트(온천·야경) + 센텐드레·에게르 근교"],["오스트리아","VIE","비엔나","비엔나 + 잘츠부르크·할슈타트(기차 2시간 30분)"],["폴란드","WAW,KRK","바르샤바·크라쿠프","크라쿠프(아우슈비츠·소금광산) ↔ 바르샤바 기차 2시간 30분"],["크로아티아","ZAG,DBV,SPU","자그레브·두브로브니크·스플리트","자그레브·플리트비체 → 스플리트 → 두브로브니크 해안 버스"],["그리스","ATH,SKG","아테네·테살로니키","아테네 + 메테오라(기차 4시간) 또는 섬(산토리니·크레타 페리·국내선)"],["튀르키예","IST","이스탄불","이스탄불 + 카파도키아·파묵칼레(국내선 1시간 20분·야간버스)"],["세르비아","BEG","베오그라드","베오그라드 + 노비사드(기차 40분)"],["불가리아","SOF","소피아","소피아 + 릴라 수도원·플로브디프"],["루마니아","BUH","부쿠레슈티","부쿠레슈티 + 브라쇼브·브란성(기차 2시간 30분)"],["알바니아","TIA","티라나","티라나 + 베라트·사란다(버스)"],["몬테네그로","TGD","포드고리차","코토르·부드바 해안(버스 2시간)"],["보스니아","SJJ","사라예보","사라예보 + 모스타르(기차 2시간)"],["슬로베니아","LJU","류블랴나","류블랴나 + 블레드 호수(버스 1시간 20분)"]]},
   {r:"🍷 코카서스",og:"ICN",len:"6-9",cs:[["조지아","TBS,BUS","트빌리시·바투미","트빌리시 + 카즈베기(차 3시간) + 시그나기 와이너리, 바투미 흑해"],["아르메니아","EVN","예레반","예레반 + 세반 호수·게하르트 수도원"],["아제르바이잔","GYD","바쿠","바쿠 + 고부스탄·불의 산"]]},
   {r:"🏛️ 서유럽",og:"ICN",len:"8-11",cs:[["이탈리아","ROM,MIL","로마·밀라노","로마 → 피렌체 → 베네치아 → 밀라노 고속열차"],["스페인","BCN,MAD","바르셀로나·마드리드","바르셀로나 ↔ 마드리드 고속열차 2시간 30분 + 세비야"],["포르투갈","LIS","리스본","리스본 + 신트라 + 포르투(기차 3시간)"],["프랑스","PAR","파리","파리 + 몽생미셸·스트라스부르"],["스위스","ZRH","취리히","취리히 → 루체른 → 인터라켄 기차"]]},
 ];
@@ -3023,7 +3023,7 @@ function oneRow(o,pax){
 function byLeaveHtml(D,pax){
   const B=D.byLeave;if(!B)return '';const ks=Object.keys(B).map(Number).filter(k=>B[k]&&B[k].length).sort((a,b)=>a-b);if(!ks.length)return '';
   const min=Math.min(...ks.map(k=>B[k][0].p));const max=Math.max(...ks.map(k=>B[k][0].p));
-  return `<h4 class="one-h4">📊 연차 일수별 최저가</h4><div class="lv-bars">${ks.map(k=>`<div onclick="document.getElementById('lv-${k}').scrollIntoView({behavior:'smooth',block:'center'})"><span>연차 ${k}${k===7?'+':''}일</span><i style="width:${Math.max(6,Math.round(B[k][0].p/max*100))}%"></i><b class="${B[k][0].p===min?'best':''}">${won(B[k][0].p*pax)}</b></div>`).join('')}</div>`
+  return `<h4 class="one-h4">📊 연차 며칠 쓸까? 일수별 최저가</h4><div class="lv-bars">${ks.map(k=>`<div onclick="document.getElementById('lv-${k}').scrollIntoView({behavior:'smooth',block:'center'})"><span>연차 ${k}${k===7?'+':''}일</span><i style="width:${Math.max(6,Math.round(B[k][0].p/max*100))}%"></i><b class="${B[k][0].p===min?'best':''}">${won(B[k][0].p*pax)}</b></div>`).join('')}</div>`
     +ks.map(k=>{const L=B[k], op=ONE_LVOPEN.has(k);
       return `<div id="lv-${k}" class="lv-sec"><div class="lv-tag">연차 ${k}${k===7?'일 이상':'일'} 최저가</div>${oneRow(L[0],pax)}${L.length>1?(op?L.slice(1).map(o=>oneRow(o,pax)).join(''):'')+`<button class="lv-more" onclick="ONE_LVOPEN.has(${k})?ONE_LVOPEN.delete(${k}):ONE_LVOPEN.add(${k});renderOne()">${op?'접기 ▲':`연차 ${k}일 다른 날짜 ${L.length-1}개 더 보기 ▼`}</button>`:''}</div>`;}).join('');
 }
@@ -3039,8 +3039,8 @@ function renderOne(){
   el.innerHTML=`<div class="stop-plan" style="margin-bottom:8px">✅ ${escapeHtml(what)} · 앞으로 1년 날짜 조합 <b>${D.checked}개</b> 비교 · 성인 ${pax}명 왕복 총액<br><span style="color:var(--ink-faint)">연차 = 주말·공휴일(대체공휴일 포함) 뺀 근무일 · 한국 도착일까지 · 저녁 8시 이후 출발은 출발일 연차 안 셈</span></div>
     ${best}<div class="stop-plan" style="margin:0 0 4px">${tip}</div>
     ${byLeaveHtml(D,pax)}
-    <h4 class="one-h4">🏖️ 연차 적게 쓰는 루트</h4>${D.low.slice(0,6).map(o=>oneRow(o,pax)).join('')}
-    <h4 class="one-h4">💸 연차 더 써도 제일 싼 루트</h4>${D.cheap.slice(0,6).map(o=>oneRow(o,pax)).join('')}
+    <h4 class="one-h4">🌴 연차 아끼는 루트</h4>${D.low.slice(0,6).map(o=>oneRow(o,pax)).join('')}
+    <h4 class="one-h4">💰 연차 더 써도 제일 싼 루트</h4>${D.cheap.slice(0,6).map(o=>oneRow(o,pax)).join('')}
     <div class="wk-empty" style="margin-top:8px">최근 실제 검색된 왕복 가격 기준이에요(먼 날짜는 데이터가 적을 수 있어요). 행을 누르면 날씨·입국 조건·✅ 실시간 가격·찜·내 여행 저장·날짜별 동선을 볼 수 있어요.</div>`;
 }
 /* ===== 분석 ===== */

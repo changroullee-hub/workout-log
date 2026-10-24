@@ -69,7 +69,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 
 ### API 호출 줄이기 (2026-10)
 
-- 브라우저: GET은 `apiGet(url, ttl분, force)`로 부르세요 — 메모리+localStorage(`wlog_api:`) 캐시, 진행 중 요청 공유, 실패는 저장 안 함. 항공 3시간·호텔 12시간·날씨/구글맵 30일·환율 12시간. `fetch`로 직접 부르지 마세요.
+- 브라우저: GET은 `apiGet(url, ttl분, force)`로 부르세요 (서버 응답 모양을 바꾸면 `API_VER`를 올려 예전 캐시를 버리세요) — 메모리+localStorage(`wlog_api:`) 캐시, 진행 중 요청 공유, 실패는 저장 안 함. 항공 3시간·호텔 12시간·날씨/구글맵 30일·환율 12시간. `fetch`로 직접 부르지 마세요.
 - 다구간 코스 조회는 `stopUrl()`/`stopFetch()` 하나로 — 꿀조합 추천 패널과 다구간 탭이 같은 결과를 공유합니다.
 - 동선(Claude)은 같은 요청이면 localStorage(`wlog_itin:`)에 30일 보관해 다시 부르지 않습니다.
 - 서버 `flights.js`: `cheapest()`는 10분 메모(인스턴스 안, 진행 중 공유)라 코스끼리 겹치는 구간(ICN→IST 등)은 한 번만 조회. 다구간은 구간마다 실제로 출발 가능한 달만 조회합니다.
@@ -92,7 +92,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 - 커밋 메시지: `MAGIC CARPET <빌드태그>: <바뀐 내용>` (예: `MAGIC CARPET 0901aa: 빈 날짜 도착지 표시 + 붙여넣기`). 빌드태그는 `MMDD` + 그날의 알파벳 순번.
 - 코드 스타일은 index.html의 기존 밀집한 한 줄 스타일을 따릅니다. 포매터를 돌려 파일 전체를 다시 쓰지 마세요 — diff가 못 읽게 됩니다.
 - 사용자 노출 문자열은 `escapeHtml()`을 거칩니다. 알림은 `toast()`.
-- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 다구간 항공권 예매(기본, 구 경유 여행, `tsub-stop`)·한 나라 여행(`tsub-one`, 나라 목록은 `ONE_REG`)·항공권 예매·내 여행 — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
+- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 🌍 여러 나라 일주(기본, 구 다구간 항공권 예매, `tsub-stop`)·📍 한 나라 푹 즐기기(`tsub-one`, 나라 목록은 `ONE_REG`)·💸 항공권 최저가(`tsub-fare`)·🧳 우리 여행(`tsub-mine`) — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
 
 ## 숨겨 둔 탭 (2026-10)
 
