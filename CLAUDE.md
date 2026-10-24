@@ -60,7 +60,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 | `ocr.js` | 카드 결제 알림 이미지 → 지출 항목(Claude 비전) | `ANTHROPIC_API_KEY` |
 | `ticket.js` | 항공권/기차표/숙소 바우처 1장 판독 | `ANTHROPIC_API_KEY` |
 | `trip-plan.js` | 티켓 이미지 여러 장 → 전체 여정 | `ANTHROPIC_API_KEY` |
-| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=…&from=&to=&extra=` 는 경유 여행 탭의 최저가 일정 TOP3 탐색(출발일 범위 × 체류 +extra박, 귀국편 대체는 `hubs`로 넘긴 지역 환승지만, `end`=귀국 기한, `hop`=나라 간 최대 비행분). `?win=시작..끝&flex=` 은 꿀조합 휴가 맞춤(앞뒤 연차 flex일까지) 왕복 최저가 + 국가 안·육로 이동(`OPENJAW`, 동유럽·발칸 포함). 요청 제한(429)은 재시도, 장거리는 인천만 조회. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
+| `flights.js` | 인천·김포·청주 출발 항공권 최저가 (1~4h / 5~9h / 10h+ 목적지 묶음, 직항·경유 방법, Travelpayouts 캐시가). `?legs=…&from=&to=&extra=` 는 경유 여행 탭의 최저가 일정 TOP3 탐색(출발일 범위 × 체류 +extra박, 귀국편 대체는 `hubs`로 넘긴 지역 환승지만, `end`=귀국 기한, `hop`=나라 간 최대 비행분). `?win=시작..끝&flex=` 은 꿀조합 휴가 맞춤(앞뒤 연차 flex일까지) 왕복 최저가 + 국가 안·육로 이동(`OPENJAW`, 동유럽·발칸 포함). `?scan=코드들&og=&deep=1&min=&max=&hol=` 은 한 나라 여행 탭: 앞으로 1년 왕복 날짜 조합마다 연차 일수(주말·`hol` 제외 근무일, 저녁 8시 이후 출발이면 출발일 제외)를 계산해 `low`(연차 적게)·`cheap`(연차 더 써도 싸게)·`best`(공항별 최저가) 반환, `fix=출발..귀국편출발` 은 그 날짜 왕복가(찜 재확인용). 요청 제한(429)은 재시도, 장거리는 인천만 조회. `vercel.json`에서 maxDuration 30초 | `TRAVELPAYOUTS_TOKEN` |
 | `itinerary.js` | 다구간 추천 일정 → 날짜별 동선 + 도시별 숙박(체크인/아웃·추천 동네) JSON (Claude, `claude-opus-5-5`, json_schema 구조화 출력). `vercel.json` maxDuration 60초 | `ANTHROPIC_API_KEY` |
 | `hotels.js` | 도시·날짜별 3성급+ 호텔 실제 가격(구글 호텔, SerpApi, 호스텔 제외) 중 평점 4.0+ 싼 순 3곳. Hotellook은 2025-10 종료돼서 대체 | `SERPAPI_KEY` |
 | `gflights.js` | 추천 일정의 구글 항공권 실시간 가격 + 구간별 실제 편명·경유 공항(SerpApi `google_flights`, 다구간은 `departure_token`으로 구간마다 이어 조회 → 구간 수만큼 호출). 성인 1명 가격으로 받아 화면에서 인원수 곱함. `vercel.json` maxDuration 30초 | `SERPAPI_KEY` |
@@ -85,7 +85,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 - 커밋 메시지: `MAGIC CARPET <빌드태그>: <바뀐 내용>` (예: `MAGIC CARPET 0901aa: 빈 날짜 도착지 표시 + 붙여넣기`). 빌드태그는 `MMDD` + 그날의 알파벳 순번.
 - 코드 스타일은 index.html의 기존 밀집한 한 줄 스타일을 따릅니다. 포매터를 돌려 파일 전체를 다시 쓰지 마세요 — diff가 못 읽게 됩니다.
 - 사용자 노출 문자열은 `escapeHtml()`을 거칩니다. 알림은 `toast()`.
-- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 다구간 항공권 예매(기본, 구 경유 여행, `tsub-stop`)·항공권 예매·내 여행 — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
+- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 다구간 항공권 예매(기본, 구 경유 여행, `tsub-stop`)·한 나라 여행(`tsub-one`, 나라 목록은 `ONE_REG`)·항공권 예매·내 여행 — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
 
 ## 숨겨 둔 탭 (2026-10)
 
