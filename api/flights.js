@@ -183,10 +183,10 @@ export default async function handler(req, res) {
       const min = Math.max(2, Math.min(30, parseInt(req.query.min, 10) || 3)), max = Math.max(min, Math.min(30, parseInt(req.query.max, 10) || 30));
       const hol = new Set((req.query.hol || "").toString().split(",").filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)));
       const off = (d) => { const w = new Date(d + "T00:00:00Z").getUTCDay(); return w === 0 || w === 6 || hol.has(d); };
-      // 깊게(나라 하나): 앞으로 12개월 달마다 / 얕게(지역 전체): 날짜 없이 한 번에
-      const deep = req.query.deep === "1" && codes.length * ogs.length <= 9;
-      const months = deep ? Array.from({ length: 12 }, (_, k) => { const t = new Date(today + "T00:00:00Z"); t.setUTCDate(1); t.setUTCMonth(t.getUTCMonth() + k); return t.toISOString().slice(0, 7); }) : [null];
-      const rows = (await pool(codes.flatMap((c) => ogs.flatMap((og) => months.map((m) => () => cheapest(token, og, c, { month: m, oneway: false, direct: false, limit: m ? 300 : 1000 }).then((r) => (r || []).map((x) => ({ ...x, code: c })))))), 10)).flat().filter(Boolean);
+      // 깊게(나라 하나): 첫 출발공항(인천)은 앞으로 12개월 달마다, 나머지 공항(김포·청주)은 날짜 없이 한 번에 / 얕게(지역 전체): 전부 한 번에
+      const deep = req.query.deep === "1" && codes.length <= 9;
+      const months12 = Array.from({ length: 12 }, (_, k) => { const t = new Date(today + "T00:00:00Z"); t.setUTCDate(1); t.setUTCMonth(t.getUTCMonth() + k); return t.toISOString().slice(0, 7); });
+      const rows = (await pool(codes.flatMap((c) => ogs.flatMap((og, oi) => (deep && oi === 0 ? months12 : [null]).map((m) => () => cheapest(token, og, c, { month: m, oneway: false, direct: false, limit: m ? 300 : 1000 }).then((r) => (r || []).map((x) => ({ ...x, code: c })))))), 10)).flat().filter(Boolean);
       const seen = {}, opts = [];
       rows.forEach((x) => {
         const dep = x.departAt.slice(0, 10), back = (x.returnAt || "").slice(0, 10); if (!back || dep < tomorrow) return;
