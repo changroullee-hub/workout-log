@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24a  ·  실시간 항공가·찜·내 여행 저장·날씨·환율·입국 체크리스트·여행 경비
+     build: 2026-10-24b  ·  가계부·일정 탭 숨김(LIFE_TABS) — 여행 계획 집중
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -909,6 +909,8 @@
 <script>
 /* ===== CONFIG (workout 프로젝트) ===== */
 const SUPABASE_URL = "https://ohlssimixnkmfuuecxfr.supabase.co";
+// 가계부·일정 탭: 지금은 여행 계획에 집중하려고 숨김. true 로 바꾸면 다시 보여요 (데이터는 DB에 그대로 있음)
+const LIFE_TABS = false;
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9obHNzaW1peG5rbWZ1dWVjeGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDE4MTcsImV4cCI6MjA5ODM3NzgxN30.32NgV61IGMArOPKEra05bTXAOaADVh9GC64q8hyFXJ0";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1484,7 +1486,7 @@ async function enableNotif(){
   if(perm==="default")perm=await Notification.requestPermission();
   if(perm!=="granted"){toast("알림이 차단돼 있어요. 브라우저 설정에서 허용해주세요");updateNotifBtn();return;}
   try{localStorage.setItem('wlog_notif','1');}catch(e){}
-  startNotifWatch();updateNotifBtn();toast("알림 켜짐 🔔 일정 시간에 알려드려요");
+  startNotifWatch();updateNotifBtn();toast(LIFE_TABS?"알림 켜짐 🔔 일정 시간에 알려드려요":"알림 켜짐 🔔 찜한 여행 가격이 내려가면 알려드려요");
 }
 function notifOn(){try{return localStorage.getItem('wlog_notif')==='1'&&"Notification"in window&&Notification.permission==="granted";}catch(e){return false;}}
 function updateNotifBtn(){const b=$("#notifBtn");if(!b)return;if(notifOn()){b.textContent="🔔 시간 알림 켜짐 (탭하면 끄기)";b.onclick=disableNotif;}else{b.textContent="🔔 시간 알림 켜기";b.onclick=enableNotif;}}
@@ -1500,7 +1502,7 @@ function checkNotif(){
   const today=todayStr();
   const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0');
   const cur=`${hh}:${mm}`;
-  tasksForDay(today).forEach(t=>{
+  (LIFE_TABS?tasksForDay(today):[]).forEach(t=>{
     if(!t.time||t._done)return;
     const key=today+"|"+t.id+"|"+t.time;
     if(t.time===cur && !NOTIFIED.has(key)){
@@ -2338,7 +2340,7 @@ function renderVacRec(){
     const real=t.legs.slice(0,-1).map((l,k)=>{const nx=t.legs[k+1];return l.arrDate?Math.round((new Date(nx.departAt.slice(0,10))-new Date(l.arrDate))/86400000):nights[k];});
     return `<a class="vr" href="${escapeHtml(multiLink(segs,pax))}" target="_blank" rel="noopener"><span><b>${names.map((n,k)=>escapeHtml(n)+' '+(real[k]??nights[k])+'박').join(' + ')}</b>${region?` <span style="color:var(--ink-faint);font-size:11px">${escapeHtml(region)}</span>`:''}<br>${t.legs.map(l=>`${escapeHtml(l.from)}→${l.via?escapeHtml(l.via)+'→':''}${escapeHtml(l.to)} ${mdw(l.departAt)}`).join(' · ')}${live?`<br><span style="color:var(--ink-faint)">💡 ${escapeHtml(live)}</span>`:''}${leaveTag(extraLeave(t.legs[0].departAt,(t.legs[t.legs.length-1].arrDate||t.legs[t.legs.length-1].departAt)))}</span><span class="p">${tot(t.total)}${pp(t.total)}</span></a>`;};
   let h=`<div class="vrec"><div style="display:flex;justify-content:space-between;gap:8px"><h3>🏝️ ${mdw(V.s)}~${mdw(V.e)} · ${V.len}일 휴가 추천</h3><button onclick="VREC=null;VREC_SEQ++;renderVacRec()" style="color:var(--ink-faint);font-size:12px">닫기 ✕</button></div>
-    <button class="stop-btn" style="margin:6px 0 2px;border-color:var(--accent);color:var(--accent)" onclick="addVacTasks('${V.s}','${V.e}')">📅 이 휴가를 일정에 넣기 (연차 날짜 + ${V.s>addDays(todayStr(),30)?mdw(addDays(V.s,-30)):'내일'} 연차 신청 알림)</button>
+    ${LIFE_TABS?'':'<!--'}<button class="stop-btn" style="margin:6px 0 2px;border-color:var(--accent);color:var(--accent)" onclick="addVacTasks('${V.s}','${V.e}')">📅 이 휴가를 일정에 넣기 (연차 날짜 + ${V.s>addDays(todayStr(),30)?mdw(addDays(V.s,-30)):'내일'} 연차 신청 알림)</button>${LIFE_TABS?'':'-->'}
     <div class="wk-empty"><div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;font-size:12px;color:var(--ink-soft);white-space:nowrap">📅 더 싸면 앞뒤 연차 붙이기
       <select onchange="setVacFlex(this.value)" style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:4px 6px;color:var(--ink)">${[0,1,2,3].map(v=>`<option value="${v}"${v===VAC_FLEX?' selected':''}>${v?'최대 '+v+'일':'안 함'}</option>`).join('')}</select></div>
     꿀조합 기간 기준 (${VAC_FLEX?`앞뒤 연차 최대 ${VAC_FLEX}일까지`:'기간 안에서만'}) · 성인 ${pax}명 총액 · ${V.len>=5?'5일 이상은 여러 나라·도시 코스로만 · 나라 간 이동은 비행 3시간 이내':'왕복 직항·경유 포함'}</div>
@@ -2812,7 +2814,7 @@ function renderWishBar(){
     return `<div class="wish-row"><a href="${escapeHtml(w.link||'#')}" target="_blank" rel="noopener"><b>${escapeHtml(w.title)}</b><br>${escapeHtml(w.qlabel||'')}${L.length?` · ${mdw(L[0].departAt)} 출발 · ${L.map(l=>escapeHtml(l.from)+'→'+escapeHtml(l.to)).join(' ')}`:''}<br><span style="color:var(--ink-faint)">${escapeHtml((w.names||[]).join(' + '))}${stale}<br>찜할 때 ${first!=null?won(first*pax):'-'} · 지금까지 최저 ${low!=null?won(low*pax):'-'}</span></a>
       <span class="p">${now!=null?won(now*pax):'가격 없음'}${ch?`<small>${ch}</small>`:''}</span><button onclick="delWish(${w.id})" title="찜 해제">✕</button></div>`;}).join('');
   el.innerHTML=`<details class="vac wish"${WISH_OPEN?' open':''} ontoggle="WISH_OPEN=this.open"><summary>❤️ <b>찜한 여행 ${WISHES.length}개</b>${drops?` <b style="color:var(--green)">· 📉 ${drops}개 가격 내림</b>`:''} <span style="color:var(--ink-faint);font-weight:600">${WISH_CHECKING?'· 가격 확인 중…':'· 하루 한 번 자동 확인'}</span></summary>${rows}
-    <button class="stop-btn" onclick="checkWishes(true)">↻ 지금 가격 다시 확인</button><div class="wk-empty" style="margin-top:6px">앱을 여는 날마다 찜한 일정의 최저가를 다시 찾아요. 내려가면 알림(일정 탭에서 🔔 알림 켜기)과 함께 알려드려요. 가격은 1인 가격 × 인원 총액.</div></details>`;
+    <div class="act-row"><button onclick="checkWishes(true)">↻ 지금 가격 다시 확인</button><button class="${notifOn()?'live':''}" onclick="${notifOn()?'disableNotif()':'enableNotif()'};setTimeout(renderWishBar,600)">${notifOn()?'🔔 가격 알림 켜짐':'🔔 가격 알림 켜기'}</button></div><div class="wk-empty" style="margin-top:6px">앱을 여는 날마다 찜한 일정의 최저가를 다시 찾아요. 내려가면 화면 알림과 휴대폰 알림(🔔 켜기)으로 알려드려요. 가격은 1인 가격 × 인원 총액.</div></details>`;
 }
 
 /* --- 꿀조합 휴가 → 일정 탭 (휴가·연차·연차 신청 알림) --- */
@@ -2860,7 +2862,7 @@ async function saveAsTrip(k){
   }else x.stops.forEach((s,i)=>{const a=t.legs[i]||first;items.push({type:"place",title:`📍 ${s[0]}`,date:a.arrDate||a.departAt.slice(0,10),time:'',address:'',note:s[3]||'',city:'',lat:'',lng:''});});
   const {error}=await sb.from("workouts").insert(items.map(d=>({title:d.title,workout_date:d.date||d.depDate||start,data:{kind:"tripitem",tripId,...d}})));
   if(error)toast("일부 항목 저장 실패: "+error.message);
-  if(confirm("일정 탭에도 넣을까요?\n· 비행기 출발 시간\n· 휴가·연차 날짜 + 30일 전 연차 신청 알림"+(ctry.some(c=>(CINFO[c]||{}).s)?"\n· 3주 전 ETIAS 확인 알림":""))){
+  if(LIFE_TABS&&confirm("일정 탭에도 넣을까요?\n· 비행기 출발 시간\n· 휴가·연차 날짜 + 30일 전 연차 신청 알림"+(ctry.some(c=>(CINFO[c]||{}).s)?"\n· 3주 전 ETIAS 확인 알림":""))){
     const tomorrow=addDays(todayStr(),1), et=addDays(start,-21);
     if(ctry.some(c=>(CINFO[c]||{}).s))tasks.push({title:`🇪🇺 ETIAS 확인·신청 (${name})`,date:et<tomorrow?tomorrow:et,time:'09:00'});
     await addVacTasks(start,end,true,tasks.filter(z=>z.date));
@@ -2870,7 +2872,7 @@ async function saveAsTrip(k){
 }
 /* --- 내 여행: 예산 vs 실제 지출(가계부) + 출발 전 체크리스트 --- */
 function tripMoneyHtml(trip){
-  const end=trip.end||trip.start, ex=EXPENSES.filter(e=>e.date>=trip.start&&e.date<=end), spent=ex.reduce((a,e)=>a+(e.amount||0),0);
+  const end=trip.end||trip.start, ex=LIFE_TABS?EXPENSES.filter(e=>e.date>=trip.start&&e.date<=end):[], spent=ex.reduce((a,e)=>a+(e.amount||0),0);
   const b=trip.budget||{}, pax=trip.pax||2, total=(b.flight||0)+(b.hotel||0)+spent;
   if(!b.flight&&!b.hotel&&!ex.length&&end<todayStr())return '';
   const byCat={};ex.forEach(e=>{byCat[e.category]=(byCat[e.category]||0)+(e.amount||0);});
@@ -2879,8 +2881,8 @@ function tripMoneyHtml(trip){
   return `<div class="trip-money"><div style="font-weight:800;color:var(--ink);margin-bottom:4px">💰 여행 경비</div>
     ${row(`✈️ 항공 <small>${b.live?'구글 항공권 실시간':'추천 시 최저가'} · 탭해서 실제 결제액으로 수정</small>`,b.flight,`editBudget(${trip.id},'flight')`)}
     ${row(`🏨 호텔 <small>탭해서 수정</small>`,b.hotel,`editBudget(${trip.id},'hotel')`)}
-    <div class="stop-leg"><span>💳 현지 지출 <small>가계부 ${trip.start.slice(5)}~${end.slice(5)} ${ex.length}건 자동 합산${cats?' · '+cats:''}</small></span><b>${won(spent)}</b></div>
-    <div class="stop-sum"><span>총 여행비</span><span>${won(total)}${pax>1?`<span class="fr-pp">1인 ${won(total/pax)}</span>`:''}</span></div></div>`;
+    ${LIFE_TABS?'':'<!--'}<div class="stop-leg"><span>💳 현지 지출 <small>가계부 ${trip.start.slice(5)}~${end.slice(5)} ${ex.length}건 자동 합산${cats?' · '+cats:''}</small></span><b>${won(spent)}</b></div>${LIFE_TABS?'':'-->'}
+    <div class="stop-sum"><span>${LIFE_TABS?'총 여행비':'항공 + 호텔'}</span><span>${won(total)}${pax>1?`<span class="fr-pp">1인 ${won(total/pax)}</span>`:''}</span></div></div>`;
 }
 async function editBudget(id,key){
   const t=TRIPS.find(z=>z.id===id);if(!t)return;const b={...(t.budget||{})};
@@ -3001,6 +3003,7 @@ function restDone(){toast("휴식 끝! 다음 세트 🔥");try{const ac=new(win
 /* ===== 탭 전환 ===== */
 const WORK_TABS=["log","list","cal","timer","stat"]; let LAST_WORK="log";
 function switchTab(name){
+  if(!LIFE_TABS&&(name==='expense'||name==='sched'))name='trip';
   $$(".tab").forEach(t=>t.classList.remove("active"));$(`#tab-${name}`).classList.add("active");
   const isWork=WORK_TABS.includes(name); if(isWork)LAST_WORK=name;
   $$("nav button").forEach(b=>b.classList.remove("on"));$(`#nav-${isWork?'work':name}`).classList.add("on");
@@ -3010,6 +3013,7 @@ function switchTab(name){
   if(name==="list")loadList();if(name==="cal")renderCal();if(name==="sched")renderScheduleRoot();if(name==="expense")renderExpense();if(name==="trip")tripSub(TRIP_SUB);if(name==="stat")loadStat();
 }
 $("#tab-trip").classList.add("active");
+if(!LIFE_TABS){["expense","sched"].forEach(k=>{const b=$("#nav-"+k);if(b)b.style.display='none';});const nv=$("#nav-trip").parentElement;nv.style.gridTemplateColumns=`repeat(${[...nv.children].filter(b=>b.style.display!=='none').length},1fr)`;}
 
 /* 이미지 붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기) → 현재 탭에 맞게 인식 */
 window.addEventListener("paste",async(e)=>{
@@ -3022,7 +3026,7 @@ window.addEventListener("paste",async(e)=>{
   const active=document.querySelector(".tab.active");
   const tab=active?active.id.replace("tab-",""):"";
   if(tab==="trip"){ tripSub('mine'); toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
-  else if(tab==="expense"){ toast("붙여넣은 카드알림 인식 중…"); await processExpenseFiles(files); }
+  else if(tab==="expense"&&LIFE_TABS){ toast("붙여넣은 카드알림 인식 중…"); await processExpenseFiles(files); }
   else { TRIP_SUB='mine'; switchTab("trip"); toast("붙여넣은 티켓 인식 중…"); await processTicketFiles(files); }
 });
 // 자동로그인: 저장된 이메일·설정 프리필

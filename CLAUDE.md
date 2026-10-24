@@ -87,6 +87,10 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 - 사용자 노출 문자열은 `escapeHtml()`을 거칩니다. 알림은 `toast()`.
 - 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 다구간 항공권 예매(기본, 구 경유 여행, `tsub-stop`)·항공권 예매·내 여행 — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
 
+## 숨겨 둔 탭 (2026-10)
+
+여행 계획에 집중하려고 **가계부·일정 탭을 숨겨 뒀습니다** — `index.html` CONFIG의 `const LIFE_TABS = false;`. `true`로 바꾸면 하단 탭·꿀조합 '일정에 넣기'·내 여행 '현지 지출(가계부)'·일정 알림이 전부 돌아옵니다. 데이터(`expense`/`task`)는 DB에 그대로 있고 지운 적 없습니다.
+
 ## 확인 방법
 
 빌드도 테스트도 없습니다. 확인은 브라우저로 합니다.
