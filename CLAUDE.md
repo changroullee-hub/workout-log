@@ -92,7 +92,7 @@ Supabase 테이블은 `workouts` **하나뿐**입니다. 모든 도메인이 여
 - 커밋 메시지: `MAGIC CARPET <빌드태그>: <바뀐 내용>` (예: `MAGIC CARPET 0901aa: 빈 날짜 도착지 표시 + 붙여넣기`). 빌드태그는 `MMDD` + 그날의 알파벳 순번.
 - 코드 스타일은 index.html의 기존 밀집한 한 줄 스타일을 따릅니다. 포매터를 돌려 파일 전체를 다시 쓰지 마세요 — diff가 못 읽게 됩니다.
 - 사용자 노출 문자열은 `escapeHtml()`을 거칩니다. 알림은 `toast()`.
-- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 🌍 여러 나라 일주(기본, 구 다구간 항공권 예매, `tsub-stop`)·📍 한 나라 푹 즐기기(`tsub-one`, 나라 목록은 `ONE_REG`)·💸 항공권 최저가(`tsub-fare`)·🧳 우리 여행(`tsub-mine`) — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
+- 모바일 우선(`max-width:560px`) 하단 탭 네비 4개: 항공권 예매(`trip`, 맨 위 연차 꿀조합 추천 버튼(`toggleVac`) — 공휴일은 `KR_HOL`(2027~2030, 대체공휴일 포함) / 안에 🌍 여러 나라 일주(기본, 구 다구간 항공권 예매, `tsub-stop`)·🚩 원픽 여행(`tsub-one`, 나라 하나 왕복, 나라 목록은 `ONE_REG`)·💸 항공권 최저가(`tsub-fare`)·🧳 우리 여행(`tsub-mine`) — 추천 코스는 `STOPOVERS` 배열) · 가계부 · 일정 · 운동. 운동은 `log`/`list`/`cal`/`timer`/`stat` 섹션을 상단 `#workSeg`로 전환합니다(`WORK_TABS`). 새 섹션은 `<section class="tab" id="tab-X">` + `switchTab('X')`로 추가하고, 운동 하위면 `WORK_TABS`와 `#workSeg`에도 넣으세요.
 
 ## 숨겨 둔 탭 (2026-10)
 

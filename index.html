@@ -3,7 +3,7 @@
      WORKOUT-ENGINE  (자스민과 알라딘의 매직카펫 라이드)
      project: workout-log  ·  repo: changroullee-hub/workout-log
      supabase: workout (ohlssimixnkmfuuecxfr)  ·  vercel: workout-log-lilac
-     build: 2026-10-24g  ·  버튼 이름·아이콘 정리 + 예전 캐시 자동 무시
+     build: 2026-10-24h  ·  🚩 원픽 여행
      ※ valuation-engine(감정평가)과 다른 프로젝트 — 섞지 말 것
 ============================================================ -->
 <html lang="ko">
@@ -680,7 +680,7 @@
     <div id="wishBar"></div>
     <div class="seg" id="tripSeg">
       <button class="on" id="tsub-stop" onclick="tripSub('stop')">🌍 여러 나라 일주</button>
-      <button id="tsub-one" onclick="tripSub('one')">📍 한 나라 푹 즐기기</button>
+      <button id="tsub-one" onclick="tripSub('one')">🚩 원픽 여행</button>
       <button id="tsub-fare" onclick="tripSub('fare')">💸 항공권 최저가</button>
       <button id="tsub-mine" onclick="tripSub('mine')">🧳 우리 여행</button>
     </div>
@@ -703,7 +703,7 @@
       <div id="stopBody"></div>
     </div>
     <div id="tripOne" style="display:none">
-      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">한 나라에 머물며 푹 즐기는 여행이에요. 앞으로 1년 왕복 항공권을 날짜마다 훑어서 <b>연차 며칠 쓰면 얼마인지</b>, <b>연차 아끼는 날짜</b>와 <b>제일 싼 날짜</b>를 골라 줘요.</p>
+      <p class="msub" style="font-size:12px;color:var(--ink-faint);margin:0 2px 12px;line-height:1.5">마음에 드는 나라 하나만 콕 골라 다녀오는 여행이에요. 앞으로 1년 왕복 항공권을 날짜마다 훑어서 <b>연차 며칠 쓰면 얼마인지</b>, <b>연차 아끼는 날짜</b>와 <b>제일 싼 날짜</b>를 골라 줘요.</p>
       <div class="seg" id="oneReg"></div>
       <div class="stop-chips one-ctry" id="oneCtry"></div>
       <div class="m2">
@@ -2956,7 +2956,7 @@ async function togglePrep(id,i){
   t.prep=prep;renderTrip();
   const {error}=await sb.from("workouts").update({data:{...tripData(t),prep}}).eq("id",id);if(error)toast("저장 실패: "+error.message);
 }
-/* --- 📍 한 나라 푹 즐기기: 앞으로 1년 중 연차 적게 쓰는 날짜 / 연차 더 써도 제일 싼 날짜 --- */
+/* --- 🚩 원픽 여행 (마음에 드는 나라 하나 왕복): 앞으로 1년 중 연차 적게 쓰는 날짜 / 연차 더 써도 제일 싼 날짜 --- */
 // [나라, 공항(도시코드), 도시, 나라 안 추천 동선]
 const ONE_REG=[
   {r:"🗾 가까운 나라",og:"ICN,GMP",len:"3-5",cs:[["일본","TYO,OSA,FUK","도쿄·오사카·후쿠오카","도시 하나에 집중하거나 오사카 + 교토·나라"],["대만","TPE","타이베이","타이베이 + 지우펀·스펀 + 화롄"],["중국","BJS,SHA","베이징·상하이","베이징 ↔ 상하이 고속철 4시간 30분"],["베트남","HAN,DAD","하노이·다낭","하노이 + 하롱베이 / 다낭 + 호이안"],["몽골","ULN","울란바토르","울란바토르 + 테를지 국립공원 게르 1박"]]},
